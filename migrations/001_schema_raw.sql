@@ -26,7 +26,8 @@ INSERT INTO etl_sync (dominio) VALUES
   ('filiais'),
   ('vendedores'),
   ('recebimentos'),
-  ('pagamentos')
+  ('pagamentos'),
+  ('lotes')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -202,6 +203,8 @@ CREATE TABLE IF NOT EXISTS raw.recebimentos (
   id              TEXT NOT NULL,   -- SEQU_BAI
   parcela_id      TEXT,            -- CTRL_REC → raw.duplicatas
   filial_id       TEXT,
+  cliente_id      TEXT,            -- CODI_TRA via JOIN CABREC
+  tipo_doc        TEXT,            -- CODI_TDO via JOIN CABREC (101=dup, 103=adto, 106=dev)
   data_pagamento  DATE,
   valor           NUMERIC(18,2),
   multa           NUMERIC(18,2),
@@ -210,6 +213,43 @@ CREATE TABLE IF NOT EXISTS raw.recebimentos (
   acrescimo       NUMERIC(18,2),
   recibo_id       TEXT,
   status          CHAR(1),         -- N=Normal, E=Estornada
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- LOTES — mestre de lotes com data de validade (VALG_LOT)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.lotes (
+  id              TEXT NOT NULL,   -- CODI_PSV_LOTE_LOT
+  produto_id      TEXT,            -- FK → raw.produtos
+  lote            TEXT,
+  tipo            CHAR(1),         -- S=Semente
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  data_validade   DATE,            -- VALG_LOT — campo-chave para dashboards
+  data_fabricacao DATE,            -- DTFA_LOT
+  fornecedor_id   TEXT,            -- FK → raw.clientes (TRANSAC)
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- LOTES POR FILIAL — quantidade inicial do lote por filial/depósito (ILOTE)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.lotes_filial (
+  id              TEXT NOT NULL,   -- CODI_PSV_LOTE_LOT_CODI_EMP
+  produto_id      TEXT,
+  lote            TEXT,
+  filial_id       TEXT,
+  deposito_id     TEXT,
+  qtd_inicial     NUMERIC(18,4),   -- QINI_ILO
+  data_entrada    DATE,            -- DINI_ILO
   data_alteracao  TIMESTAMPTZ,
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),

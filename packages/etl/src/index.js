@@ -12,6 +12,7 @@ const jobs = {
   financeiro:    require('./jobs/financeiro'),
   recebimentos:  require('./jobs/recebimentos'),
   pagamentos:    require('./jobs/pagamentos'),
+  lotes:         require('./jobs/lotes'),
   contabil:      require('./jobs/contabil'),
   dimensoes:     require('./jobs/dimensoes'),
 };
@@ -24,6 +25,7 @@ const crons = {
   financeiro:    process.env.CRON_FINANCEIRO    || '0 * * * *',
   recebimentos:  process.env.CRON_RECEBIMENTOS  || '0 * * * *',
   pagamentos:    process.env.CRON_PAGAMENTOS    || '0 * * * *',
+  lotes:         process.env.CRON_LOTES         || '0 6 * * *',
   contabil:      process.env.CRON_CONTABIL      || '0 1 * * *',
   dimensoes:     process.env.CRON_DIMENSOES     || '0 6 * * *',
 };

@@ -287,6 +287,36 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
+  // LOTES — Lotes de produtos (LOTE + ILOTE)
+  //   LOTE: mestre do lote por produto. PK = CODI_PSV + LOTE_LOT.
+  //     VALG_LOT = data de validade — campo-chave para dashboards de vencimento.
+  //     TPRO_LOT: S=Semente. SITU_LOT: A=Ativo, I=Inativo.
+  //   ILOTE: lote por filial (CODI_EMP) com quantidade inicial (QINI_ILO) e depósito.
+  //   16.502 lotes | 6.024 registros por filial (jun/2026)
+  // ──────────────────────────────────────────────
+  lotes: {
+    schema:          SCHEMA,
+    tabela:          'LOTE',
+    campoProduto:    'CODI_PSV',   // FK → PRODSERV (parte da PK)
+    campoLote:       'LOTE_LOT',   // Código do lote (parte da PK)
+    campoTipo:       'TPRO_LOT',   // Tipo: S=Semente
+    campoStatus:     'SITU_LOT',   // A=Ativo, I=Inativo
+    campoValidade:   'VALG_LOT',   // Data de validade do lote
+    campoFabricacao: 'DTFA_LOT',   // Data de fabricação
+    campoFornecedor: 'CODI_TRA',   // FK → TRANSAC
+    campoDataAlter:  'DUMANUT',
+    // ILOTE — quantidade do lote por filial/depósito
+    tabelaFilial:    'ILOTE',
+    campoIloteProd:  'CODI_PSV',
+    campoIloteLote:  'LOTE_LOT',
+    campoIloteEmp:   'CODI_EMP',
+    campoIloteQtd:   'QINI_ILO',   // Quantidade inicial no lote
+    campoIloteDepo:  'CODI_DPT',   // Depósito
+    campoIloteDt:    'DINI_ILO',   // Data de entrada do lote na filial
+    campoIloteAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
   // RECEBIMENTOS — Baixas de Contas a Receber (CRCBAIXA)
   //   Cada linha = um pagamento efetivo de uma parcela (CTRL_REC → RECEBER)
   //   SITU_BAI: N=Normal, E=Estornada
