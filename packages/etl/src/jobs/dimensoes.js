@@ -5,14 +5,15 @@ const cfgs = require('../oracle-config');
 
 async function sincronizarTabela(cfg, dominio, tabela, mapper) {
   const ultimoSync = await lerUltimoSync(dominio);
+  const extra = cfg.filtroExtra || '';
   let sql, rows;
 
   if (cfg.campoDataAlter) {
-    sql = `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE ${cfg.campoDataAlter} > :ultimoSync`;
+    sql = `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE ${cfg.campoDataAlter} > :ultimoSync ${extra}`;
     const result = await oracle.query(sql, { ultimoSync });
     rows = result.rows || [];
   } else {
-    sql = `SELECT * FROM ${cfg.schema}.${cfg.tabela}`;
+    sql = `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE 1=1 ${extra}`;
     const result = await oracle.query(sql, {});
     rows = result.rows || [];
   }
@@ -36,23 +37,43 @@ async function sincronizar() {
     })
   );
 
-  await sincronizarTabela(
-    cfgs.clientes, 'clientes', 'raw.clientes',
-    (row) => ({
-      id:     String(row[cfgs.clientes.campoId]),
-      _dados: JSON.stringify(row),
-      _source:'siagri',
-    })
-  );
+  // Clientes reais = TRANSAC com JOIN em CLIENTE (exclui fornecedores, transportadoras, etc.)
+  // Incremental: captura alterações em TRANSAC OU em CLIENTE via DUMANUT de ambas
+  {
+    const ultimoSync = await lerUltimoSync('clientes');
+    const sql = `
+      SELECT T.*
+      FROM ${cfgs.clientes.schema}.${cfgs.clientes.tabela} T
+      INNER JOIN ${cfgs.clientes.schema}.${cfgs.clientes.tabelaCliente} C
+        ON C.${cfgs.clientes.campoClienteTra} = T.${cfgs.clientes.campoId}
+      WHERE T.${cfgs.clientes.campoDataAlter} > :ultimoSync
+         OR C.DUMANUT > :ultimoSync
+    `;
+    const result = await oracle.query(sql, { ultimoSync });
+    const rows = result.rows || [];
+    if (rows.length) {
+      const registros = rows.map((row) => ({
+        id:     String(row[cfgs.clientes.campoId]),
+        _dados: JSON.stringify(row),
+        _source:'siagri',
+      }));
+      await upsertRaw('raw.clientes', registros);
+      await atualizarSync('clientes');
+      console.log(`[clientes] ${registros.length} registros sincronizados`);
+    }
+  }
 
+  // Produtos: apenas ativos (SITU_PSV='A') — inativos sem movimento não afetam relatórios
+  // pois faturamento/pedidos já guardam o produto_id no _dados mesmo sem cadastro ativo
   await sincronizarTabela(
-    cfgs.produtos, 'produtos', 'raw.produtos',
+    { ...cfgs.produtos, filtroExtra: `AND ${cfgs.produtos.campoStatus} = 'A'` },
+    'produtos', 'raw.produtos',
     (row) => ({
-      id:          String(row[cfgs.produtos.campoId]),
-      descricao:   row[cfgs.produtos.campoDescricao] || null,
-      tipo:        row[cfgs.produtos.campoTipo] || null,
-      _dados:      JSON.stringify(row),
-      _source:     'siagri',
+      id:        String(row[cfgs.produtos.campoId]),
+      descricao: row[cfgs.produtos.campoDescricao] || null,
+      tipo:      row[cfgs.produtos.campoTipo] ? String(row[cfgs.produtos.campoTipo]).trim() : null,
+      _dados:    JSON.stringify(row),
+      _source:   'siagri',
     })
   );
 
