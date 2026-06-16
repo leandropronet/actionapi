@@ -218,6 +218,21 @@ CREATE TABLE IF NOT EXISTS raw.faturamento (
 );
 
 -- ---------------------------------------------------------------
+-- ITENS DE FATURAMENTO / NF-e
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.faturamento_itens (
+  id          TEXT NOT NULL,   -- NPRE_NOT_ITEM_INO
+  nf_id       TEXT,            -- FK → raw.faturamento
+  produto_id  TEXT,            -- CODI_PSV
+  _dados      JSONB NOT NULL,
+  _sync_at    TIMESTAMPTZ DEFAULT NOW(),
+  _source     TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fat_itens_nf ON raw.faturamento_itens (nf_id);
+
+-- ---------------------------------------------------------------
 -- DUPLICATAS (títulos financeiros a receber)
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw.duplicatas (

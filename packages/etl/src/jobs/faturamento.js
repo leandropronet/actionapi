@@ -59,11 +59,12 @@ async function sincronizar() {
 
   await upsertRaw('raw.faturamento', registros);
 
-  // Sincroniza itens das NFs alteradas
+  // Sincroniza itens das NFs alteradas — Oracle limita IN a 1000, pagina em lotes
   const ids = rows.map((r) => r.NPRE_NOT).filter(Boolean);
-  if (ids.length) {
-    const placeholders = ids.map((_, i) => `:id${i}`).join(', ');
-    const bindIds = Object.fromEntries(ids.map((id, i) => [`id${i}`, id]));
+  for (let i = 0; i < ids.length; i += 1000) {
+    const chunk = ids.slice(i, i + 1000);
+    const placeholders = chunk.map((_, j) => `:id${j}`).join(', ');
+    const bindIds = Object.fromEntries(chunk.map((id, j) => [`id${j}`, id]));
     const sqlItens = `
       SELECT *
       FROM ${cfg.schema}.${cfg.tabelaItens}
@@ -71,10 +72,11 @@ async function sincronizar() {
     `;
     const resultItens = await oracle.query(sqlItens, bindIds);
     const itens = (resultItens.rows || []).map((row) => ({
-      id:      `${row[cfg.campoItemNfId]}_${row[cfg.campoItemSeq]}`,
-      nf_id:   String(row[cfg.campoItemNfId]),
-      _dados:  JSON.stringify(row),
-      _source: 'siagri',
+      id:        `${row[cfg.campoItemNfId]}_${row[cfg.campoItemSeq]}`,
+      nf_id:     String(row[cfg.campoItemNfId]),
+      produto_id: row[cfg.campoItemProduto] ? String(row[cfg.campoItemProduto]) : null,
+      _dados:    JSON.stringify(row),
+      _source:   'siagri',
     }));
     if (itens.length) await upsertRaw('raw.faturamento_itens', itens);
   }
