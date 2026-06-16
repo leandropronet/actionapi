@@ -22,11 +22,33 @@ async function getPool() {
   return pool;
 }
 
+function sanitizeRow(row) {
+  const plain = {};
+  for (const key of Object.keys(row)) {
+    const v = row[key];
+    if (v === null || v === undefined) {
+      plain[key] = v;
+    } else if (v instanceof Date) {
+      plain[key] = v;
+    } else if (Buffer.isBuffer(v)) {
+      plain[key] = v.toString('hex');
+    } else if (typeof v === 'object') {
+      // Oracle-specific types (Lob, Interval, Timestamp internals) — serializa para string
+      plain[key] = v.toString ? v.toString() : null;
+    } else {
+      plain[key] = v;
+    }
+  }
+  return plain;
+}
+
 async function query(sql, binds = {}) {
   const p = await getPool();
   const conn = await p.getConnection();
   try {
-    return await conn.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    const result = await conn.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT });
+    if (result.rows) result.rows = result.rows.map(sanitizeRow);
+    return result;
   } finally {
     await conn.close();
   }

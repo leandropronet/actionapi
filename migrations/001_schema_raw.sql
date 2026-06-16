@@ -291,6 +291,8 @@ CREATE TABLE IF NOT EXISTS raw.clientes (
 
 CREATE TABLE IF NOT EXISTS raw.produtos (
   id              TEXT NOT NULL,
+  descricao       TEXT,
+  tipo            CHAR(1),         -- P=Produto, B=Bem, U=Uso/Consumo, S=Serviço
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),
   _source         TEXT DEFAULT 'siagri',

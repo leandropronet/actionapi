@@ -51,8 +51,7 @@ async function sincronizar() {
   }
 
   // Snapshot: limpa o dia anterior antes de inserir
-  const pgPool = await pg.getPool();
-  await pgPool.query('TRUNCATE TABLE raw.saldo_lote');
+  await pg.query('TRUNCATE TABLE raw.saldo_lote');
 
   const hoje = new Date().toISOString().slice(0, 10);
 
