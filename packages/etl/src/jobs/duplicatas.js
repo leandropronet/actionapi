@@ -14,7 +14,7 @@ async function sincronizar() {
     SELECT
       CAB.${cfg.campoCabId}     AS CTRL_CBR,
       CAB.${cfg.campoCabFilial} AS CODI_EMP,
-      CAB.${cfg.campoCabCliente}AS CODI_TRA,
+      CAB.${cfg.campoCabCliente} AS CODI_TRA,
       CAB.${cfg.campoCabData}   AS DATA_CBR,
       CAB.${cfg.campoCabTotal}  AS TOTA_CBR,
       CAB.${cfg.campoCabStatus} AS SITU_CBR,
