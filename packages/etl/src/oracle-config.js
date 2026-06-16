@@ -238,14 +238,22 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
-  // PRODUTOS — PRODUTO (CODI_PSV como chave universal)
-  //   Descrição confirmada: NEMB_PRO (Nome de Embarque, VARCHAR2 150)
+  // PRODUTOS — PRODSERV (tabela mestre de produtos/serviços)
+  //   5.698 registros confirmados via banco ORCL
+  //   Tipo em PRSE_PSV: P=Produto, B=Bem, U=Uso/Consumo, S=Serviço
+  //   PRODUTO e PRODUTOS são extensões (fiscal, regulatório, agroquímico)
   // ──────────────────────────────────────────────
   produtos: {
     schema:        SCHEMA,
-    tabela:        'PRODUTO',
-    campoId:       'CODI_PSV',    // PK
-    campoDescricao:'NEMB_PRO',    // Nome de Embarque (nome comercial do produto)
+    tabela:        'PRODSERV',
+    campoId:       'CODI_PSV',    // PK — código universal referenciado em todas as tabelas
+    campoDescricao:'DESC_PSV',    // Descrição (VARCHAR2 120) — confirmado
+    campoCodAlt:   'CODI_PRO',    // Código alternativo/ERP (em PRODUTO)
+    campoTipo:     'PRSE_PSV',    // Tipo: P=Produto B=Bem U=Uso/Consumo S=Serviço
+    campoGrupo:    'CODI_GPR',
+    campoSubgrupo: 'CODI_SBG',
+    campoUnidade:  'UNID_PSV',
+    campoStatus:   'SITU_PSV',    // A=Ativo I=Inativo
     campoDataAlter:'DUMANUT',
   },
 

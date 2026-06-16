@@ -48,9 +48,11 @@ async function sincronizar() {
   await sincronizarTabela(
     cfgs.produtos, 'produtos', 'raw.produtos',
     (row) => ({
-      id:     String(row[cfgs.produtos.campoId]),
-      _dados: JSON.stringify(row),
-      _source:'siagri',
+      id:          String(row[cfgs.produtos.campoId]),
+      descricao:   row[cfgs.produtos.campoDescricao] || null,
+      tipo:        row[cfgs.produtos.campoTipo] || null,
+      _dados:      JSON.stringify(row),
+      _source:     'siagri',
     })
   );
 
