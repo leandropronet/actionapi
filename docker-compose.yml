@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${PG_DATABASE:-actionapi}
+      POSTGRES_USER: ${PG_USER:-actionapi}
+      POSTGRES_PASSWORD: ${PG_PASS}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - actionapi-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-actionapi} -d ${PG_DATABASE:-actionapi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  etl-service:
+    build:
+      context: ./packages/etl
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - actionapi-net
+    restart: unless-stopped
+    volumes:
+      - etl_logs:/app/logs
+
+  actionapi:
+    build:
+      context: ./packages/api
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - actionapi-net
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  etl_logs:
+
+networks:
+  actionapi-net:
+    name: actionapi-net

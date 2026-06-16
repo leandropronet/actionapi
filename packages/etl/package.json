@@ -1,0 +1,19 @@
+{
+  "name": "@actionapi/etl",
+  "version": "1.0.0",
+  "description": "ETL incremental Oracle SiAGRI -> PostgreSQL",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "carga-inicial": "node src/carga_inicial/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-schedule": "^2.1.1",
+    "oracledb": "^6.6.0",
+    "pg": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
