@@ -99,21 +99,19 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
-  // ESTOQUE — O saldo real fica em views Oracle
-  //   Executar ao conectar: SELECT VIEW_NAME FROM ALL_VIEWS
-  //   WHERE OWNER='SULGOIANO' AND VIEW_NAME LIKE '%ESTO%' OR VIEW_NAME LIKE '%SALDO%'
+  // ESTOQUE — View CCSALDO (saldo por filial, produto e tipo de controle)
+  //   Campos confirmados via conexão direta ao Oracle ORCL
   // ──────────────────────────────────────────────
   estoque: {
     schema:        SCHEMA,
-    // Substituir pela view real após conectar ao banco
-    tabela:        'TODO_VIEW_ESTOQUE',
+    tabela:        'CCSALDO',
     campoFilial:   'CODI_EMP',
     campoProduto:  'CODI_PSV',
-    campoDeposito: 'CODI_DPT',
-    campoTipoCtrl: 'CODI_CTR',   // Controle de saldo (tipo de estoque)
-    campoSaldo:    'SALDO',       // TODO_VERIFICAR campo na view
-    campoValorMedio:'CMED',       // TODO_VERIFICAR
-    campoDataAlter: 'DUMANUT',
+    campoTipoCtrl: 'CODI_CTR',   // Tipo/controle de estoque
+    campoSaldo:    'QTDE_CCS',
+    campoData:     'DATA_CCS',   // Data da posição do saldo
+    // CCSALDO não tem DUMANUT — ETL usa DATAPOSICAO (realtime, sempre atualiza)
+    campoDataAlter: 'DATA_CCS',
   },
 
   // ──────────────────────────────────────────────
@@ -217,13 +215,37 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
+  // NF DE ENTRADA — Notas Fiscais de terceiros (compras)
+  //   Cabeçalho: NFENTRA  |  Itens: INFENTRA
+  // ──────────────────────────────────────────────
+  nfentra: {
+    schema:          SCHEMA,
+    tabela:          'NFENTRA',
+    campoId:         'CTRL_NFE',
+    campoFilial:     'CODI_EMP',
+    campoFornecedor: 'CODI_TRA',
+    campoDataEmissao:'DEMI_NFE',
+    campoTotal:      'TOTA_NFE',
+    campoDataAlter:  'DUMANUT',
+    // Itens da NF de entrada
+    tabelaItens:     'INFENTRA',
+    campoItemNfeId:  'CTRL_NFE',      // FK → NFENTRA
+    campoItemSeq:    'ITEM_INF',
+    campoItemProduto:'CODI_PSV',
+    campoItemQtd:    'QUAN_INF',      // Quantidade
+    campoItemValor:  'VLOR_INF',      // Valor unitário
+    campoItemValorLiq:'VLIQ_INF',     // Valor líquido
+  },
+
+  // ──────────────────────────────────────────────
   // PRODUTOS — PRODUTO (CODI_PSV como chave universal)
+  //   Descrição confirmada: NEMB_PRO (Nome de Embarque, VARCHAR2 150)
   // ──────────────────────────────────────────────
   produtos: {
     schema:        SCHEMA,
     tabela:        'PRODUTO',
-    campoId:       'CODI_PSV',       // Código do Produto/Serviço (PK)
-    campoDescricao:'DESC_PRO',        // TODO_VERIFICAR nome exato do campo
+    campoId:       'CODI_PSV',    // PK
+    campoDescricao:'NEMB_PRO',    // Nome de Embarque (nome comercial do produto)
     campoDataAlter:'DUMANUT',
   },
 
