@@ -394,6 +394,39 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
+  // PROPRIEDADES RURAIS — PROPRIED
+  //   PK: PROP_PRO. Vinculada ao cliente via CODI_TRA.
+  //   SITU_PRO: A=Ativa, I=Inativa. AREA_PRO em hectares.
+  //   7.633 ativas (jun/2026).
+  // ──────────────────────────────────────────────
+  propriedades: {
+    schema:        SCHEMA,
+    tabela:        'PROPRIED',
+    campoId:       'PROP_PRO',
+    campoCliente:  'CODI_TRA',    // FK → TRANSAC
+    campoDesc:     'DESC_PRO',
+    campoArea:     'AREA_PRO',
+    campoStatus:   'SITU_PRO',    // A=Ativa, I=Inativa
+    campoDataAlter:'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // VENDEDOR POR PROPRIEDADE — VENDEDORPROPRIED
+  //   PK composta: PROP_PRO + CODI_EMP.
+  //   COD1_PES = vendedor principal, COD2_PES = secundário (FK → PESSOAL).
+  //   5.169 registros (jun/2026).
+  // ──────────────────────────────────────────────
+  propriedadesVendedor: {
+    schema:          SCHEMA,
+    tabela:          'VENDEDORPROPRIED',
+    campoPropId:     'PROP_PRO',    // FK → PROPRIED
+    campoFilial:     'CODI_EMP',
+    campoVendedor1:  'COD1_PES',   // FK → PESSOAL
+    campoVendedor2:  'COD2_PES',
+    campoDataAlter:  'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
   // VENDEDORES — PESSOAL (pessoal interno da empresa)
   //   CODI_PES é referenciado como COD1_PES / COD2_PES nos documentos
   // ──────────────────────────────────────────────

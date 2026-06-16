@@ -33,7 +33,9 @@ INSERT INTO etl_sync (dominio) VALUES
   ('dadospro'),
   ('saldo_lote'),
   ('param_oper'),
-  ('param_oper_detalhe')
+  ('param_oper_detalhe'),
+  ('propriedades'),
+  ('propriedades_vendedor')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -50,6 +52,45 @@ CREATE TABLE IF NOT EXISTS etl_carga_inicial (
   concluido_em    TIMESTAMPTZ,
   UNIQUE (dominio, filial_id, janela_inicio)
 );
+
+-- ---------------------------------------------------------------
+-- PROPRIEDADES RURAIS — PROPRIED
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.propriedades (
+  id              TEXT NOT NULL,   -- PROP_PRO
+  cliente_id      TEXT,            -- CODI_TRA → raw.clientes
+  descricao       TEXT,            -- DESC_PRO (nome da fazenda)
+  area            NUMERIC(18,4),   -- AREA_PRO em hectares
+  status          CHAR(1),         -- A=Ativa, I=Inativa
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_propriedades_cliente
+  ON raw.propriedades (cliente_id);
+
+-- ---------------------------------------------------------------
+-- VENDEDOR POR PROPRIEDADE — VENDEDORPROPRIED
+--   Um vendedor por filial por propriedade (COD1_PES = principal)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.propriedades_vendedor (
+  id              TEXT NOT NULL,   -- PROP_PRO_CODI_EMP
+  propriedade_id  TEXT,            -- FK → raw.propriedades
+  filial_id       TEXT,            -- CODI_EMP
+  vendedor1_id    TEXT,            -- COD1_PES → raw.vendedores
+  vendedor2_id    TEXT,            -- COD2_PES → raw.vendedores
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prop_vendedor_prop
+  ON raw.propriedades_vendedor (propriedade_id);
 
 -- ---------------------------------------------------------------
 -- PARAMETRIZAÇÃO DE TIPO DE OPERAÇÃO — PARTOPER (cabeçalho, tela Tran121)

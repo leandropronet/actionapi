@@ -86,6 +86,37 @@ async function sincronizar() {
     })
   );
 
+  // Propriedades rurais (PROPRIED) — apenas ativas
+  await sincronizarTabela(
+    { ...cfgs.propriedades, filtroExtra: `AND ${cfgs.propriedades.campoStatus} = 'A'` },
+    'propriedades', 'raw.propriedades',
+    (row) => ({
+      id:            String(row[cfgs.propriedades.campoId]),
+      cliente_id:    row[cfgs.propriedades.campoCliente] ? String(row[cfgs.propriedades.campoCliente]) : null,
+      descricao:     row[cfgs.propriedades.campoDesc] || null,
+      area:          row[cfgs.propriedades.campoArea] ?? null,
+      status:        row[cfgs.propriedades.campoStatus] ? String(row[cfgs.propriedades.campoStatus]).trim() : null,
+      data_alteracao:row[cfgs.propriedades.campoDataAlter] || null,
+      _dados:        JSON.stringify(row),
+      _source:       'siagri',
+    })
+  );
+
+  // Vendedor por propriedade/filial (VENDEDORPROPRIED)
+  await sincronizarTabela(
+    cfgs.propriedadesVendedor, 'propriedades_vendedor', 'raw.propriedades_vendedor',
+    (row) => ({
+      id:             `${row[cfgs.propriedadesVendedor.campoPropId]}_${row[cfgs.propriedadesVendedor.campoFilial]}`,
+      propriedade_id: String(row[cfgs.propriedadesVendedor.campoPropId]),
+      filial_id:      String(row[cfgs.propriedadesVendedor.campoFilial]),
+      vendedor1_id:   row[cfgs.propriedadesVendedor.campoVendedor1] ? String(row[cfgs.propriedadesVendedor.campoVendedor1]) : null,
+      vendedor2_id:   row[cfgs.propriedadesVendedor.campoVendedor2] ? String(row[cfgs.propriedadesVendedor.campoVendedor2]) : null,
+      data_alteracao: row[cfgs.propriedadesVendedor.campoDataAlter] || null,
+      _dados:         JSON.stringify(row),
+      _source:        'siagri',
+    })
+  );
+
   // Grupos de produto (Defensivos, Sementes, Adubos...)
   await sincronizarTabela(
     cfgs.grupos, 'grupos', 'raw.grupos',
