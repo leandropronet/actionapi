@@ -286,4 +286,51 @@ module.exports = {
     campoDataAlter: 'DUMANUT',
   },
 
+  // ──────────────────────────────────────────────
+  // RECEBIMENTOS — Baixas de Contas a Receber (CRCBAIXA)
+  //   Cada linha = um pagamento efetivo de uma parcela (CTRL_REC → RECEBER)
+  //   SITU_BAI: N=Normal, E=Estornada
+  //   181.057 registros (jun/2026)
+  // ──────────────────────────────────────────────
+  recebimentos: {
+    schema:         SCHEMA,
+    tabela:         'CRCBAIXA',
+    campoId:        'SEQU_BAI',    // PK
+    campoParcelaId: 'CTRL_REC',    // FK → RECEBER
+    campoFilial:    'CODI_EMP',
+    campoDtPag:     'DPAG_BAI',    // Data do recebimento
+    campoValor:     'VLOR_BAI',    // Valor recebido
+    campoMulta:     'MULT_BAI',
+    campoJuros:     'JURO_BAI',
+    campoDesconto:  'DESC_BAI',
+    campoAcrescimo: 'ACRE_BAI',
+    campoRecibo:    'CODI_REC',    // FK → RECIBO
+    // SITU_BAI: N=Normal, E=Estornada
+    campoStatus:    'SITU_BAI',
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // PAGAMENTOS — Baixas de Contas a Pagar (CPGBAIXA)
+  //   Cada linha = um pagamento efetivo de uma parcela (CTRL_PAG → PAGAR)
+  //   SITU_CPB: N=Normal, E=Estornada
+  //   211.064 registros (jun/2026)
+  // ──────────────────────────────────────────────
+  pagamentos: {
+    schema:         SCHEMA,
+    tabela:         'CPGBAIXA',
+    campoId:        'SEQU_CPB',    // PK
+    campoParcelaId: 'CTRL_PAG',    // FK → PAGAR
+    campoFilial:    'CODI_EMP',
+    campoDtPag:     'DPAG_CPB',    // Data do pagamento
+    campoValor:     'VLOR_CPB',    // Valor pago
+    campoMulta:     'MULT_CPB',
+    campoJuros:     'JURO_CPB',
+    campoDesconto:  'DESC_CPB',
+    campoAcrescimo: 'ACRE_CPB',
+    // SITU_CPB: N=Normal, E=Estornada
+    campoStatus:    'SITU_CPB',
+    campoDataAlter: 'DUMANUT',
+  },
+
 };

@@ -24,7 +24,9 @@ INSERT INTO etl_sync (dominio) VALUES
   ('clientes'),
   ('produtos'),
   ('filiais'),
-  ('vendedores')
+  ('vendedores'),
+  ('recebimentos'),
+  ('pagamentos')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -187,6 +189,49 @@ CREATE TABLE IF NOT EXISTS raw.filiais (
 
 CREATE TABLE IF NOT EXISTS raw.vendedores (
   id              TEXT NOT NULL,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- RECEBIMENTOS — CRCBAIXA (baixas de contas a receber)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.recebimentos (
+  id              TEXT NOT NULL,   -- SEQU_BAI
+  parcela_id      TEXT,            -- CTRL_REC → raw.duplicatas
+  filial_id       TEXT,
+  data_pagamento  DATE,
+  valor           NUMERIC(18,2),
+  multa           NUMERIC(18,2),
+  juros           NUMERIC(18,2),
+  desconto        NUMERIC(18,2),
+  acrescimo       NUMERIC(18,2),
+  recibo_id       TEXT,
+  status          CHAR(1),         -- N=Normal, E=Estornada
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- PAGAMENTOS — CPGBAIXA (baixas de contas a pagar)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.pagamentos (
+  id              TEXT NOT NULL,   -- SEQU_CPB
+  parcela_id      TEXT,            -- CTRL_PAG → raw.financeiro_cp
+  filial_id       TEXT,
+  data_pagamento  DATE,
+  valor           NUMERIC(18,2),
+  multa           NUMERIC(18,2),
+  juros           NUMERIC(18,2),
+  desconto        NUMERIC(18,2),
+  acrescimo       NUMERIC(18,2),
+  status          CHAR(1),         -- N=Normal, E=Estornada
+  data_alteracao  TIMESTAMPTZ,
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),
   _source         TEXT DEFAULT 'siagri',

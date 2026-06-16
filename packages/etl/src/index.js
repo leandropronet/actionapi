@@ -5,23 +5,27 @@ const oracle   = require('./db/oracle');
 const analytics = require('./transforms/analytics');
 
 const jobs = {
-  estoque:     require('./jobs/estoque'),
-  pedidos:     require('./jobs/pedidos'),
-  faturamento: require('./jobs/faturamento'),
-  duplicatas:  require('./jobs/duplicatas'),
-  financeiro:  require('./jobs/financeiro'),
-  contabil:    require('./jobs/contabil'),
-  dimensoes:   require('./jobs/dimensoes'),
+  estoque:       require('./jobs/estoque'),
+  pedidos:       require('./jobs/pedidos'),
+  faturamento:   require('./jobs/faturamento'),
+  duplicatas:    require('./jobs/duplicatas'),
+  financeiro:    require('./jobs/financeiro'),
+  recebimentos:  require('./jobs/recebimentos'),
+  pagamentos:    require('./jobs/pagamentos'),
+  contabil:      require('./jobs/contabil'),
+  dimensoes:     require('./jobs/dimensoes'),
 };
 
 const crons = {
-  estoque:     process.env.CRON_ESTOQUE     || '*/10 * * * *',
-  pedidos:     process.env.CRON_PEDIDOS     || '*/30 * * * *',
-  faturamento: process.env.CRON_FATURAMENTO || '0 * * * *',
-  duplicatas:  process.env.CRON_DUPLICATAS  || '0 * * * *',
-  financeiro:  process.env.CRON_FINANCEIRO  || '0 * * * *',
-  contabil:    process.env.CRON_CONTABIL    || '0 1 * * *',
-  dimensoes:   process.env.CRON_DIMENSOES   || '0 6 * * *',
+  estoque:       process.env.CRON_ESTOQUE       || '*/10 * * * *',
+  pedidos:       process.env.CRON_PEDIDOS       || '*/30 * * * *',
+  faturamento:   process.env.CRON_FATURAMENTO   || '0 * * * *',
+  duplicatas:    process.env.CRON_DUPLICATAS    || '0 * * * *',
+  financeiro:    process.env.CRON_FINANCEIRO    || '0 * * * *',
+  recebimentos:  process.env.CRON_RECEBIMENTOS  || '0 * * * *',
+  pagamentos:    process.env.CRON_PAGAMENTOS    || '0 * * * *',
+  contabil:      process.env.CRON_CONTABIL      || '0 1 * * *',
+  dimensoes:     process.env.CRON_DIMENSOES     || '0 6 * * *',
 };
 
 async function executarJob(nome, fn) {
