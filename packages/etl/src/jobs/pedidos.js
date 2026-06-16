@@ -35,11 +35,12 @@ async function sincronizar() {
 
   await upsertRaw('raw.pedidos', cabecalhos);
 
-  // Sincroniza itens dos pedidos alterados
+  // Sincroniza itens dos pedidos alterados — Oracle limita IN a 1000, pagina em lotes
   const pedidoIds = rows.map((r) => r[cfg.campoPedidoId]).filter(Boolean);
-  if (pedidoIds.length) {
-    const placeholders = pedidoIds.map((_, i) => `:id${i}`).join(', ');
-    const bindIds = Object.fromEntries(pedidoIds.map((id, i) => [`id${i}`, id]));
+  for (let i = 0; i < pedidoIds.length; i += 1000) {
+    const chunk = pedidoIds.slice(i, i + 1000);
+    const placeholders = chunk.map((_, j) => `:id${j}`).join(', ');
+    const bindIds = Object.fromEntries(chunk.map((id, j) => [`id${j}`, id]));
     const sqlItens = `
       SELECT *
       FROM ${cfg.schema}.${cfg.tabelaItens}
@@ -47,11 +48,11 @@ async function sincronizar() {
     `;
     const resultItens = await oracle.query(sqlItens, bindIds);
     const itens = (resultItens.rows || []).map((row) => ({
-      id:        `${row[cfg.campoItemPedidoId]}_${row[cfg.campoItemSerie]}_${row[cfg.campoItemSeq]}`,
-      pedido_id: `${row[cfg.campoItemPedidoId]}_${row[cfg.campoItemSerie]}`,
+      id:         `${row[cfg.campoItemPedidoId]}_${row[cfg.campoItemSerie]}_${row[cfg.campoItemSeq]}`,
+      pedido_id:  `${row[cfg.campoItemPedidoId]}_${row[cfg.campoItemSerie]}`,
       produto_id: row[cfg.campoItemProduto] ? String(row[cfg.campoItemProduto]) : null,
-      _dados:    JSON.stringify(row),
-      _source:   'siagri',
+      _dados:     JSON.stringify(row),
+      _source:    'siagri',
     }));
     if (itens.length) await upsertRaw('raw.pedidos_itens', itens);
   }
