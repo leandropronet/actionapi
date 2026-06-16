@@ -65,6 +65,22 @@ async function sincronizar() {
     })
   );
 
+  // Tipos de operação — necessário para filtrar faturamento por tran_top
+  await sincronizarTabela(
+    cfgs.operacoes, 'operacoes', 'raw.operacoes',
+    (row) => ({
+      id:          String(row[cfgs.operacoes.campoId]),
+      descricao:   row[cfgs.operacoes.campoDesc] || null,
+      status:      row[cfgs.operacoes.campoStatus] ? String(row[cfgs.operacoes.campoStatus]).trim() : null,
+      tran_top:    row[cfgs.operacoes.campoTran] ? String(row[cfgs.operacoes.campoTran]).trim() : null,
+      tipo_top:    row[cfgs.operacoes.campoTipo] ? String(row[cfgs.operacoes.campoTipo]).trim() : null,
+      template_id: row[cfgs.operacoes.campoTemplate] ? String(row[cfgs.operacoes.campoTemplate]) : null,
+      data_alteracao: row[cfgs.operacoes.campoDataAlter] || null,
+      _dados:      JSON.stringify(row),
+      _source:     'siagri',
+    })
+  );
+
   console.log('[dimensoes] sincronização concluída');
 }
 

@@ -27,7 +27,8 @@ INSERT INTO etl_sync (dominio) VALUES
   ('vendedores'),
   ('recebimentos'),
   ('pagamentos'),
-  ('lotes')
+  ('lotes'),
+  ('operacoes')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -46,12 +47,32 @@ CREATE TABLE IF NOT EXISTS etl_carga_inicial (
 );
 
 -- ---------------------------------------------------------------
+-- OPERAÇÕES FISCAIS — TIPOOPER (dimensão de tipos de operação)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.operacoes (
+  id              TEXT NOT NULL,   -- CODI_TOP
+  descricao       TEXT,            -- DESC_TOP
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  tran_top        CHAR(1),         -- 1=Entrada, 2=Saída, 3=Transferência
+  tipo_top        CHAR(1),         -- E=Entrada, S=Saída
+  template_id     TEXT,            -- CODI_TPL (grupo pai)
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
 -- FATURAMENTO / NF-e
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw.faturamento (
   id              TEXT NOT NULL,
   filial_id       TEXT,
   data_emissao    DATE,
+  operacao_id     TEXT,            -- CODI_TOP → raw.operacoes
+  tran_top        CHAR(1),         -- 2=Venda (saída), 1=Compra (entrada), 3=Transf
+  tipo_top        CHAR(1),         -- S=Saída, E=Entrada (devolução)
   data_alteracao  TIMESTAMPTZ,
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),

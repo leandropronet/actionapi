@@ -13,6 +13,20 @@ module.exports = {
   // ──────────────────────────────────────────────
   // FATURAMENTO — Notas Fiscais emitidas (NOTA)
   //   Itens: INOTA (FK: NPRE_NOT)
+  //
+  //   Operações (CODI_TOP → TIPOOPER):
+  //     TRAN_TOP = 1 → Entradas (compras, devoluções de venda)
+  //     TRAN_TOP = 2 → Saídas (vendas + devoluções de compra) — faturamento principal
+  //     TRAN_TOP = 3 → Transferências entre filiais
+  //
+  //   Para relatórios de "faturamento de vendas":
+  //     filtrar TIPOOPER.TRAN_TOP = 2 (todos os tipos de saída)
+  //     ou especificamente CODI_TOP IN (20, 21, 29, 31, 85, 81, ...)
+  //
+  //   CCSALDO — controles de saldo (CODI_CTR → descrição):
+  //     1=Estoque Físico, 2=Ped.Compra Não Recebido, 3=Ped.Venda Não Entregue
+  //     5=Venda p/ Entrega Futura, 8=Remessa Dep/Arm Recebida
+  //     16=Comprovante Entrega (valor negativo = entregue)
   // ──────────────────────────────────────────────
   faturamento: {
     schema:          SCHEMA,
@@ -28,6 +42,8 @@ module.exports = {
     campoTotal:      'TOTA_NOT',
     // SITU_NOT: 0=Pré-Nota, 3=Transferência, 5=NF Gerada, 9=Cancelada
     campoStatus:     'SITU_NOT',
+    // CODI_TOP → TIPOOPER: operação fiscal/comercial da NF (ver comentário acima)
+    campoOperacao:   'CODI_TOP',
     // Campo de alteração para ETL incremental (campo-chave de todas as tabelas SiAGRI)
     campoDataAlter:  'DUMANUT',
     // Itens da NF
@@ -269,6 +285,28 @@ module.exports = {
     // SITU_EMP: A=Ativa, I=Inativa
     campoStatus: 'SITU_EMP',
     campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // TIPO DE OPERAÇÃO — TIPOOPER (dimensão de operações fiscais/comerciais)
+  //   PK: CODI_TOP. Vinculado em NOTA.CODI_TOP.
+  //   TRAN_TOP: 1=Entrada, 2=Saída, 3=Transferência
+  //   TIPO_TOP: E=Entrada, S=Saída
+  //   CODI_TPL: template/grupo pai (ex: 1000002=Venda Normal, 1000004=Devol.Venda)
+  //   Para relatórios de faturamento/vendas: TRAN_TOP=2
+  //   297 operações cadastradas (mix de standard 1-200 + custom 10000xxx)
+  // ──────────────────────────────────────────────
+  operacoes: {
+    schema:        SCHEMA,
+    tabela:        'TIPOOPER',
+    campoId:       'CODI_TOP',
+    campoDesc:     'DESC_TOP',
+    campoStatus:   'SITU_TOP',   // A=Ativo, I=Inativo
+    campoTran:     'TRAN_TOP',   // 1=Entrada, 2=Saída, 3=Transferência
+    campoTipo:     'TIPO_TOP',   // E=Entrada, S=Saída
+    campoTemplate: 'CODI_TPL',   // Grupo pai da operação
+    campoTipoDoc:  'CODI_TDO',   // FK → TIPDOC (tipo de doc. financeiro gerado)
+    campoDataAlter:'DUMANUT',
   },
 
   // ──────────────────────────────────────────────
