@@ -63,10 +63,10 @@ async function sincronizar() {
     }
   }
 
-  // Produtos: apenas ativos (SITU_PSV='A') — inativos sem movimento não afetam relatórios
-  // pois faturamento/pedidos já guardam o produto_id no _dados mesmo sem cadastro ativo
+  // Produtos: ativos (SITU_PSV='A') e tipo P=Produto ou K=Kit
+  // B=Bem, U=Uso/Consumo, S=Serviço excluídos por ora
   await sincronizarTabela(
-    { ...cfgs.produtos, filtroExtra: `AND ${cfgs.produtos.campoStatus} = 'A'` },
+    { ...cfgs.produtos, filtroExtra: `AND ${cfgs.produtos.campoStatus} = 'A' AND ${cfgs.produtos.campoTipo} IN ('P','K')` },
     'produtos', 'raw.produtos',
     (row) => ({
       id:        String(row[cfgs.produtos.campoId]),
