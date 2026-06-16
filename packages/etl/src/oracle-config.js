@@ -363,6 +363,37 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
+  // PARAMETRIZAÇÃO DE OPERAÇÕES — PARTOPER (cabeçalho, tela Tran121)
+  //   PK: CODI_PTO. Ex: 102 = "VENDAS - DEVOLUCAO" (TIPO_PTO=S).
+  //   Agrupa CODI_TOP em funções Adicionar/Subtrair para relatórios de faturamento.
+  //   47 registros (jun/2026). Full refresh diário.
+  // ──────────────────────────────────────────────
+  partoper: {
+    schema:    SCHEMA,
+    tabela:    'PARTOPER',
+    campoId:   'CODI_PTO',
+    campoDesc: 'DESC_PTO',
+    campoTipo: 'TIPO_PTO',   // E=Entrada, S=Saída
+    // Sem campoDataAlter → sincronizarTabela faz SELECT * (full refresh)
+  },
+
+  // ──────────────────────────────────────────────
+  // FUNÇÕES DE OPERAÇÃO — FUNCAOTOPER (detalhe do Tran121)
+  //   Mapeia CODI_PTO × CODI_TOP → FUNC_TOP (A=Adicionar / S=Subtrair).
+  //   Ex: param 102 com CODI_TOP=20,21,23... (A) e 40,42,44... (S).
+  //   957 registros (jun/2026). Full refresh diário.
+  //   PK composta: CODI_PTO + CODI_TOP → id = "CODI_PTO_CODI_TOP"
+  // ──────────────────────────────────────────────
+  funcaotoper: {
+    schema:        SCHEMA,
+    tabela:        'FUNCAOTOPER',
+    campoParamId:  'CODI_PTO',   // FK → PARTOPER
+    campoOperId:   'CODI_TOP',   // FK → TIPOOPER
+    campoFuncao:   'FUNC_TOP',   // A=Adicionar, S=Subtrair
+    // Sem campoDataAlter → full refresh diário
+  },
+
+  // ──────────────────────────────────────────────
   // VENDEDORES — PESSOAL (pessoal interno da empresa)
   //   CODI_PES é referenciado como COD1_PES / COD2_PES nos documentos
   // ──────────────────────────────────────────────

@@ -111,6 +111,33 @@ async function sincronizar() {
     })
   );
 
+  // Cabeçalho das parametrizações (PARTOPER): código 102 = "VENDAS - DEVOLUCAO"
+  await sincronizarTabela(
+    cfgs.partoper, 'param_oper', 'raw.param_oper',
+    (row) => ({
+      id:        String(row[cfgs.partoper.campoId]),
+      descricao: row[cfgs.partoper.campoDesc] || null,
+      tipo:      row[cfgs.partoper.campoTipo] ? String(row[cfgs.partoper.campoTipo]).trim() : null,
+      data_alteracao: row.DUMANUT || null,
+      _dados:    JSON.stringify(row),
+      _source:   'siagri',
+    })
+  );
+
+  // Detalhe das parametrizações (FUNCAOTOPER): CODI_TOP → A=Adicionar / S=Subtrair
+  await sincronizarTabela(
+    cfgs.funcaotoper, 'param_oper_detalhe', 'raw.param_oper_detalhe',
+    (row) => ({
+      id:          `${row[cfgs.funcaotoper.campoParamId]}_${row[cfgs.funcaotoper.campoOperId]}`,
+      param_id:    String(row[cfgs.funcaotoper.campoParamId]),
+      operacao_id: String(row[cfgs.funcaotoper.campoOperId]),
+      funcao:      row[cfgs.funcaotoper.campoFuncao] ? String(row[cfgs.funcaotoper.campoFuncao]).trim() : null,
+      data_alteracao: row.DUMANUT || null,
+      _dados:      JSON.stringify(row),
+      _source:     'siagri',
+    })
+  );
+
   console.log('[dimensoes] sincronização concluída');
 }
 

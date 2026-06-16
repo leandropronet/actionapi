@@ -31,7 +31,9 @@ INSERT INTO etl_sync (dominio) VALUES
   ('operacoes'),
   ('grupos'),
   ('dadospro'),
-  ('saldo_lote')
+  ('saldo_lote'),
+  ('param_oper'),
+  ('param_oper_detalhe')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -48,6 +50,41 @@ CREATE TABLE IF NOT EXISTS etl_carga_inicial (
   concluido_em    TIMESTAMPTZ,
   UNIQUE (dominio, filial_id, janela_inicio)
 );
+
+-- ---------------------------------------------------------------
+-- PARAMETRIZAÇÃO DE TIPO DE OPERAÇÃO — PARTOPER (cabeçalho, tela Tran121)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.param_oper (
+  id              TEXT NOT NULL,   -- CODI_PTO
+  descricao       TEXT,            -- DESC_PTO (ex: 102="VENDAS - DEVOLUCAO")
+  tipo            CHAR(1),         -- E=Entrada, S=Saída
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- FUNÇÕES DE TIPO DE OPERAÇÃO — FUNCAOTOPER (detalhe do Tran121)
+--   CODI_PTO × CODI_TOP → FUNC_TOP (A=Adicionar / S=Subtrair)
+--   Uso: faturamento líquido = SUM(valor WHERE funcao='A') - SUM(valor WHERE funcao='S')
+--        agrupado por param_id (ex: 102 = VENDAS - DEVOLUCAO)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.param_oper_detalhe (
+  id              TEXT NOT NULL,   -- CODI_PTO_CODI_TOP
+  param_id        TEXT,            -- FK → raw.param_oper
+  operacao_id     TEXT,            -- FK → raw.operacoes (CODI_TOP)
+  funcao          CHAR(1),         -- A=Adicionar, S=Subtrair
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_param_oper_detalhe_param
+  ON raw.param_oper_detalhe (param_id, funcao);
 
 -- ---------------------------------------------------------------
 -- GRUPOS DE PRODUTO — GRUPO
