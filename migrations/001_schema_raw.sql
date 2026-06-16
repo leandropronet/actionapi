@@ -28,7 +28,10 @@ INSERT INTO etl_sync (dominio) VALUES
   ('recebimentos'),
   ('pagamentos'),
   ('lotes'),
-  ('operacoes')
+  ('operacoes'),
+  ('grupos'),
+  ('dadospro'),
+  ('saldo_lote')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -45,6 +48,62 @@ CREATE TABLE IF NOT EXISTS etl_carga_inicial (
   concluido_em    TIMESTAMPTZ,
   UNIQUE (dominio, filial_id, janela_inicio)
 );
+
+-- ---------------------------------------------------------------
+-- GRUPOS DE PRODUTO — GRUPO
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.grupos (
+  id              TEXT NOT NULL,   -- CODI_GPR
+  descricao       TEXT,            -- DESC_GPR (Defensivos, Sementes, Adubos...)
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- PRODUTO POR FILIAL — DADOSPRO
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.dadospro (
+  id              TEXT NOT NULL,   -- CODI_EMP_CODI_PSV
+  filial_id       TEXT,
+  produto_id      TEXT,
+  est_min         NUMERIC(18,4),   -- EMIN_DAD (estoque mínimo — alerta reposição)
+  est_max         NUMERIC(18,4),   -- EMAX_DAD
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  locacao         TEXT,            -- LOCA_DAD (posição física no depósito)
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- SALDO POR LOTE — snapshot diário calculado via SALDO_LOTE()
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.saldo_lote (
+  id               TEXT NOT NULL,   -- CODI_EMP_CODI_PSV_LOTE_LOT
+  filial_id        TEXT,
+  produto_id       TEXT,            -- FK → raw.produtos
+  produto_desc     TEXT,
+  grupo_id         TEXT,            -- FK → raw.grupos
+  grupo_desc       TEXT,
+  lote             TEXT,
+  data_validade    DATE,            -- VALG_LOT — chave para dashboards de vencimento
+  data_fabricacao  DATE,            -- DTFA_LOT
+  tipo_lote        CHAR(1),         -- S=Semente, etc.
+  saldo            NUMERIC(18,4),   -- retorno de SALDO_LOTE(..., 'F', NULL)
+  data_referencia  DATE NOT NULL,   -- data do snapshot (SYSDATE ao gerar)
+  _source          TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- Índice para o dashboard "a vencer em N dias"
+CREATE INDEX IF NOT EXISTS idx_saldo_lote_validade
+  ON raw.saldo_lote (data_validade, grupo_id, filial_id);
 
 -- ---------------------------------------------------------------
 -- OPERAÇÕES FISCAIS — TIPOOPER (dimensão de tipos de operação)

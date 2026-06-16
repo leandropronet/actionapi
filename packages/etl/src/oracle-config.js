@@ -288,6 +288,59 @@ module.exports = {
   },
 
   // ──────────────────────────────────────────────
+  // GRUPOS DE PRODUTO — GRUPO
+  //   PK: CODI_GPR. Referenciado em PRODSERV.CODI_GPR.
+  //   Grupos principais: 1=Defensivos, 2=Sementes, 3=Adubos/Fertilizantes
+  //   Custom: 11000006=Serviços, 11000007=Equipamentos, 11000018=Uso e Consumo
+  // ──────────────────────────────────────────────
+  grupos: {
+    schema:       SCHEMA,
+    tabela:       'GRUPO',
+    campoId:      'CODI_GPR',
+    campoDesc:    'DESC_GPR',
+    campoStatus:  'SITU_GPR',
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // PRODUTO POR FILIAL — DADOSPRO (27.117 registros)
+  //   PK: CODI_EMP + CODI_PSV. Lista quais produtos estão ativos por filial.
+  //   EMIN_DAD = estoque mínimo (alerta de reposição)
+  //   EMAX_DAD = estoque máximo
+  //   SITU_DAD = A=Ativo, I=Inativo
+  //   LOCA_DAD = localização física no depósito
+  //   Usado como base para calcular saldo por lote (JOIN com LOTE → SALDO_LOTE())
+  // ──────────────────────────────────────────────
+  dadospro: {
+    schema:         SCHEMA,
+    tabela:         'DADOSPRO',
+    campoFilial:    'CODI_EMP',
+    campoProduto:   'CODI_PSV',
+    campoEstMin:    'EMIN_DAD',
+    campoEstMax:    'EMAX_DAD',
+    campoStatus:    'SITU_DAD',
+    campoLocacao:   'LOCA_DAD',
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // SALDO POR LOTE — calculado via função Oracle SALDO_LOTE()
+  //   Assinatura: SALDO_LOTE(AEMPRESA, APRODUTO, ALOTE, ADATA, ATIPOEST, ACODIDPT)
+  //     ATIPOEST='F' → Estoque Físico (controle 1 do CCSALDO)
+  //     ACODIDPT=NULL → todos os depósitos
+  //   Snapshot diário: job carrega todas as combinações DADOSPRO×LOTE com SALDO > 0
+  //   Função equivalente para estoque geral: SALDO_INICIAL(EMP, CTR, PSV, DATA, DPT)
+  //   View com histórico: CCSALDODIA (CODI_EMP, CODI_CTR, CODI_PSV, DATA_CCS, QTDE_CCS)
+  // ──────────────────────────────────────────────
+  saldoLote: {
+    schema: SCHEMA,
+    // Função Oracle a chamar (pipelined, retorna QTDE)
+    funcaoSaldoLote: 'SALDO_LOTE',   // (EMP, PSV, LOTE, DATA, ATIPOEST, DPT)
+    funcaoSaldoIni:  'SALDO_INICIAL', // (EMP, CTR, PSV, DATA, DPT)
+    viewSaldoDia:    'CCSALDODIA',    // histórico diário sem lote
+  },
+
+  // ──────────────────────────────────────────────
   // TIPO DE OPERAÇÃO — TIPOOPER (dimensão de operações fiscais/comerciais)
   //   PK: CODI_TOP. Vinculado em NOTA.CODI_TOP.
   //   TRAN_TOP: 1=Entrada, 2=Saída, 3=Transferência

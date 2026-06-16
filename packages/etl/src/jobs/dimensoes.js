@@ -65,6 +65,36 @@ async function sincronizar() {
     })
   );
 
+  // Grupos de produto (Defensivos, Sementes, Adubos...)
+  await sincronizarTabela(
+    cfgs.grupos, 'grupos', 'raw.grupos',
+    (row) => ({
+      id:       String(row[cfgs.grupos.campoId]),
+      descricao: row[cfgs.grupos.campoDesc] || null,
+      status:   row[cfgs.grupos.campoStatus] ? String(row[cfgs.grupos.campoStatus]).trim() : null,
+      data_alteracao: row[cfgs.grupos.campoDataAlter] || null,
+      _dados:   JSON.stringify(row),
+      _source:  'siagri',
+    })
+  );
+
+  // Produto por filial — estoque mínimo/máximo e localização
+  await sincronizarTabela(
+    cfgs.dadospro, 'dadospro', 'raw.dadospro',
+    (row) => ({
+      id:           `${row[cfgs.dadospro.campoFilial]}_${row[cfgs.dadospro.campoProduto]}`,
+      filial_id:    String(row[cfgs.dadospro.campoFilial]),
+      produto_id:   String(row[cfgs.dadospro.campoProduto]),
+      est_min:      row[cfgs.dadospro.campoEstMin] ?? null,
+      est_max:      row[cfgs.dadospro.campoEstMax] ?? null,
+      status:       row[cfgs.dadospro.campoStatus] ? String(row[cfgs.dadospro.campoStatus]).trim() : null,
+      locacao:      row[cfgs.dadospro.campoLocacao] || null,
+      data_alteracao: row[cfgs.dadospro.campoDataAlter] || null,
+      _dados:       JSON.stringify(row),
+      _source:      'siagri',
+    })
+  );
+
   // Tipos de operação — necessário para filtrar faturamento por tran_top
   await sincronizarTabela(
     cfgs.operacoes, 'operacoes', 'raw.operacoes',
