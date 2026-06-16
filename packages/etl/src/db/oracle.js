@@ -35,6 +35,9 @@ function sanitizeRow(row) {
     } else if (typeof v === 'object') {
       // Oracle-specific types (Lob, Interval, Timestamp internals) — serializa para string
       plain[key] = v.toString ? v.toString() : null;
+    } else if (typeof v === 'string') {
+      // Remove bytes nulos (\x00) — PostgreSQL JSONB rejeita null codepoints
+      plain[key] = v.replace(/\x00/g, '');
     } else {
       plain[key] = v;
     }
