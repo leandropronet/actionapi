@@ -6,6 +6,7 @@ const SELECT_PED = `
   p.filial_id,
   p.cliente_id,
   p.data_pedido,
+  p.origem,
   p._dados->>'PEDI_PED'           AS numero_pedido,
   p._dados->>'SERI_PED'           AS serie,
   p._dados->>'COD1_PES'           AS vendedor_id,
@@ -44,7 +45,7 @@ function buildProdutoExists(conds, params, { grupoId, subgrupoId, produtoId, pri
 }
 
 async function listar({
-  dataInicio, dataFim, filialId, clienteId, vendedorId, status,
+  dataInicio, dataFim, filialId, clienteId, vendedorId, status, origem,
   grupoId, subgrupoId, produtoId, principioAtivoId, principioAtivoRecId,
   page = 1, pageSize = 100,
 }) {
@@ -57,6 +58,7 @@ async function listar({
   if (clienteId)  { params.push(clienteId);  conds.push(`p.cliente_id = $${params.length}`); }
   if (vendedorId) { params.push(vendedorId); conds.push(`p._dados->>'COD1_PES' = $${params.length}`); }
   if (status)     { params.push(status);     conds.push(`p._dados->>'SITU_PED' = $${params.length}`); }
+  if (origem)     { params.push(origem);     conds.push(`p.origem = $${params.length}`); }
 
   buildProdutoExists(conds, params, { grupoId, subgrupoId, produtoId, principioAtivoId, principioAtivoRecId });
 
@@ -89,6 +91,8 @@ async function buscarPorId(id) {
          pi._dados->>'ITEM_IPE'            AS seq,
          (pi._dados->>'QTDE_IPE')::NUMERIC AS quantidade,
          (pi._dados->>'VLOR_IPE')::NUMERIC AS valor_unitario,
+         (pi._dados->>'QTDE_IPE')::NUMERIC
+           * (pi._dados->>'VLOR_IPE')::NUMERIC AS valor_total,
          pr.descricao                       AS produto_desc,
          pr._dados->>'UNID_PSV'             AS unidade,
          pr._dados->>'CODI_GPR'             AS grupo_id,
@@ -115,7 +119,7 @@ async function buscarPorId(id) {
 }
 
 async function listarItens({
-  dataInicio, dataFim, filialId, clienteId, vendedorId, status,
+  dataInicio, dataFim, filialId, clienteId, vendedorId, status, origem,
   grupoId, subgrupoId, produtoId, principioAtivoId, principioAtivoRecId,
   page = 1, pageSize = 200,
 }) {
@@ -128,6 +132,7 @@ async function listarItens({
   if (clienteId)        { params.push(clienteId);        conds.push(`p.cliente_id = $${params.length}`); }
   if (vendedorId)       { params.push(vendedorId);       conds.push(`p._dados->>'COD1_PES' = $${params.length}`); }
   if (status)           { params.push(status);           conds.push(`p._dados->>'SITU_PED' = $${params.length}`); }
+  if (origem)           { params.push(origem);           conds.push(`p.origem = $${params.length}`); }
   if (grupoId)          { params.push(grupoId);          conds.push(`pr._dados->>'CODI_GPR' = $${params.length}`); }
   if (subgrupoId)       { params.push(subgrupoId);       conds.push(`pr._dados->>'CODI_SBG' = $${params.length}`); }
   if (produtoId)        { params.push(produtoId);        conds.push(`pi.produto_id = $${params.length}`); }
@@ -166,6 +171,7 @@ async function listarItens({
          p.filial_id,
          p.cliente_id,
          p.data_pedido,
+         p.origem,
          p._dados->>'PEDI_PED'              AS numero_pedido,
          p._dados->>'SERI_PED'              AS serie,
          p._dados->>'COD1_PES'              AS vendedor_id,
@@ -195,7 +201,7 @@ async function listarItens({
   return { data: dataRes.rows, total: countRes.rows[0].total, page, pageSize };
 }
 
-async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, status }) {
+async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, status, origem }) {
   const conds = [];
   const params = [];
 
@@ -203,6 +209,7 @@ async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, stat
   if (dataInicio){ params.push(dataInicio); conds.push(`data_pedido >= $${params.length}`); }
   if (dataFim)   { params.push(dataFim);   conds.push(`data_pedido <= $${params.length}`); }
   if (status)    { params.push(status);    conds.push(`_dados->>'SITU_PED' = $${params.length}`); }
+  if (origem)    { params.push(origem);    conds.push(`origem = $${params.length}`); }
 
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
@@ -220,7 +227,9 @@ async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, stat
        COUNT(*) FILTER (WHERE _dados->>'SITU_PED' = '0')::INT AS nao_liberados,
        COUNT(*) FILTER (WHERE _dados->>'SITU_PED' = '1')::INT AS liberados,
        COUNT(*) FILTER (WHERE _dados->>'SITU_PED' = '5')::INT AS confirmados,
-       COUNT(*) FILTER (WHERE _dados->>'SITU_PED' = '9')::INT AS cancelados
+       COUNT(*) FILTER (WHERE _dados->>'SITU_PED' = '9')::INT AS cancelados,
+       COUNT(*) FILTER (WHERE origem = 'S')::INT              AS do_crm,
+       COUNT(*) FILTER (WHERE origem IS NULL)::INT            AS do_erp
      FROM raw.pedidos
      ${where}
      GROUP BY periodo, filial_id
@@ -231,4 +240,116 @@ async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, stat
   return { data: res.rows };
 }
 
-module.exports = { listar, buscarPorId, listarItens, resumo };
+// NFs geradas a partir de um pedido específico
+async function buscarFaturamento(pedidoId) {
+  const res = await db.query(
+    `SELECT DISTINCT
+       f.id,
+       f.filial_id,
+       f.data_emissao,
+       f.tran_top,
+       f.tipo_top,
+       f.operacao_id,
+       f._dados->>'NOTA_NOT'            AS numero_nf,
+       f._dados->>'SERI_NOT'            AS serie,
+       f._dados->>'CODI_TRA'            AS cliente_id,
+       f._dados->>'COD1_PES'            AS vendedor_id,
+       f._dados->>'DSAI_NOT'            AS data_saida,
+       f._dados->>'SITU_NOT'            AS status,
+       f._dados->>'DESC_TOP'            AS operacao_desc,
+       (f._dados->>'TOTA_NOT')::NUMERIC AS valor_total,
+       f._sync_at
+     FROM raw.faturamento f
+     WHERE f.id IN (
+       SELECT DISTINCT nf_id
+       FROM raw.faturamento_itens
+       WHERE pedido_id = $1
+     )
+     ORDER BY f.data_emissao, f.id`,
+    [pedidoId],
+  );
+  return { data: res.rows };
+}
+
+// Saldo do pedido: compara itens pedidos (IPEDIDO) vs itens faturados (INOTA)
+// Deriva status comercial: ABERTO / FATURADO_PARCIALMENTE / FATURADO_INTEGRAL
+async function calcularSaldo(pedidoId) {
+  const [pedRes, saldoRes] = await Promise.all([
+    db.query(
+      `SELECT id, _dados->>'PEDI_PED' AS numero_pedido, _dados->>'SITU_PED' AS status,
+              origem, (p._dados->>'TOTA_PED')::NUMERIC AS valor_total_pedido
+       FROM raw.pedidos p WHERE id = $1`,
+      [pedidoId],
+    ),
+    db.query(
+      `WITH itens_pedido AS (
+         SELECT
+           pi.produto_id,
+           SUM((pi._dados->>'QTDE_IPE')::NUMERIC)                              AS qtde_pedida,
+           AVG((pi._dados->>'VLOR_IPE')::NUMERIC)                              AS valor_unitario,
+           SUM((pi._dados->>'QTDE_IPE')::NUMERIC * (pi._dados->>'VLOR_IPE')::NUMERIC) AS valor_pedido
+         FROM raw.pedidos_itens pi
+         WHERE pi.pedido_id = $1
+         GROUP BY pi.produto_id
+       ),
+       itens_faturados AS (
+         SELECT
+           fi.produto_id,
+           SUM((fi._dados->>'QTDE_INO')::NUMERIC)                              AS qtde_faturada,
+           SUM((fi._dados->>'QTDE_INO')::NUMERIC * (fi._dados->>'VLOR_INO')::NUMERIC) AS valor_faturado
+         FROM raw.faturamento_itens fi
+         WHERE fi.pedido_id = $1
+         GROUP BY fi.produto_id
+       )
+       SELECT
+         ip.produto_id,
+         pr.descricao                    AS produto_desc,
+         pr._dados->>'UNID_PSV'          AS unidade,
+         pr._dados->>'CODI_GPR'          AS grupo_id,
+         g.descricao                     AS grupo_desc,
+         pr._dados->>'CODI_SBG'          AS subgrupo_id,
+         ip.qtde_pedida,
+         COALESCE(ifa.qtde_faturada, 0)  AS qtde_faturada,
+         ip.qtde_pedida - COALESCE(ifa.qtde_faturada, 0) AS qtde_saldo,
+         ip.valor_unitario,
+         ip.valor_pedido,
+         COALESCE(ifa.valor_faturado, 0) AS valor_faturado,
+         ip.valor_pedido - COALESCE(ifa.valor_faturado, 0) AS valor_saldo
+       FROM itens_pedido ip
+       LEFT JOIN itens_faturados ifa ON ifa.produto_id = ip.produto_id
+       LEFT JOIN raw.produtos pr ON pr.id = ip.produto_id
+       LEFT JOIN raw.grupos   g  ON g.id  = pr._dados->>'CODI_GPR'
+       ORDER BY pr.descricao`,
+      [pedidoId],
+    ),
+  ]);
+
+  if (!pedRes.rows.length) return null;
+
+  const itens = saldoRes.rows;
+  const totalFaturado = itens.reduce((s, i) => s + Number(i.valor_faturado ?? 0), 0);
+  const totalSaldo    = itens.reduce((s, i) => s + Number(i.valor_saldo ?? 0), 0);
+
+  const tudoFaturado = itens.every((i) => Number(i.qtde_saldo) <= 0);
+  const nadaFaturado = itens.every((i) => Number(i.qtde_faturada) === 0);
+  const statusComercial = tudoFaturado ? 'FATURADO_INTEGRAL'
+                        : nadaFaturado ? 'ABERTO'
+                        : 'FATURADO_PARCIALMENTE';
+
+  const itensComStatus = itens.map((i) => ({
+    ...i,
+    status_item: Number(i.qtde_saldo) <= 0    ? 'FATURADO_INTEGRAL'
+               : Number(i.qtde_faturada) === 0 ? 'ABERTO'
+               : 'FATURADO_PARCIALMENTE',
+  }));
+
+  return {
+    ...pedRes.rows[0],
+    status_comercial: statusComercial,
+    valor_total_faturado: totalFaturado,
+    valor_saldo: totalSaldo,
+    itens: itensComStatus,
+  };
+}
+
+module.exports = { listar, buscarPorId, listarItens, resumo, buscarFaturamento, calcularSaldo };

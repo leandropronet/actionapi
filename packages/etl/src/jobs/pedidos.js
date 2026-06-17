@@ -28,6 +28,7 @@ async function sincronizar() {
     filial_id:      String(row[cfg.campoFilial] ?? ''),
     cliente_id:     row[cfg.campoCliente] ? String(row[cfg.campoCliente]) : null,
     data_pedido:    row[cfg.campoDataPedido] || null,
+    origem:         row.ORIG_PED ? String(row.ORIG_PED).trim() : null,
     data_alteracao: row[cfg.campoDataAlter] || null,
     _dados:         JSON.stringify(row),
     _source:        'siagri',

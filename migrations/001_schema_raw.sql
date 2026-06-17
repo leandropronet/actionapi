@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS raw.faturamento (
   operacao_id     TEXT,            -- CODI_TOP → raw.operacoes
   tran_top        CHAR(1),         -- 2=Venda (saída), 1=Compra (entrada), 3=Transf
   tipo_top        CHAR(1),         -- S=Saída, E=Entrada (devolução)
+  pedido_id       TEXT,            -- PEDI_PED_SERI_PED (quando a NF veio de um pedido)
   data_alteracao  TIMESTAMPTZ,
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),
@@ -228,6 +229,7 @@ CREATE TABLE IF NOT EXISTS raw.faturamento_itens (
   id          TEXT NOT NULL,   -- NPRE_NOT_ITEM_INO
   nf_id       TEXT,            -- FK → raw.faturamento
   produto_id  TEXT,            -- CODI_PSV
+  pedido_id   TEXT,            -- PEDI_PED_SERI_PED (vínculo INOTA → PEDIDO)
   _dados      JSONB NOT NULL,
   _sync_at    TIMESTAMPTZ DEFAULT NOW(),
   _source     TEXT DEFAULT 'siagri',
@@ -235,6 +237,7 @@ CREATE TABLE IF NOT EXISTS raw.faturamento_itens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_fat_itens_nf ON raw.faturamento_itens (nf_id);
+CREATE INDEX IF NOT EXISTS idx_fat_itens_pedido ON raw.faturamento_itens (pedido_id) WHERE pedido_id IS NOT NULL;
 
 -- ---------------------------------------------------------------
 -- DUPLICATAS (títulos financeiros a receber)
@@ -260,6 +263,7 @@ CREATE TABLE IF NOT EXISTS raw.pedidos (
   filial_id       TEXT,
   cliente_id      TEXT,
   data_pedido     DATE,
+  origem          CHAR(1),         -- ORIG_PED: NULL=ERP direto, S=CRM, M=Mobile
   data_alteracao  TIMESTAMPTZ,
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),
@@ -476,6 +480,35 @@ CREATE TABLE IF NOT EXISTS raw.lotes_filial (
   _source         TEXT DEFAULT 'siagri',
   PRIMARY KEY (id)
 );
+
+-- ---------------------------------------------------------------
+-- EVOLUÇÕES DE SCHEMA (ADD COLUMN IF NOT EXISTS — idempotentes)
+-- Executadas automaticamente pelo entrypoint do Docker na subida.
+-- ---------------------------------------------------------------
+
+-- Pedido de origem vinculado à NF (cabeçalho e itens)
+ALTER TABLE raw.faturamento      ADD COLUMN IF NOT EXISTS pedido_id  TEXT;
+ALTER TABLE raw.faturamento_itens ADD COLUMN IF NOT EXISTS pedido_id  TEXT;
+ALTER TABLE raw.pedidos           ADD COLUMN IF NOT EXISTS origem     CHAR(1);
+
+CREATE INDEX IF NOT EXISTS idx_faturamento_pedido
+  ON raw.faturamento (pedido_id) WHERE pedido_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_fat_itens_pedido
+  ON raw.faturamento_itens (pedido_id) WHERE pedido_id IS NOT NULL;
+
+-- Backfill pedido_id em faturamento_itens a partir de _dados (INOTA usa SELECT *)
+UPDATE raw.faturamento_itens
+SET    pedido_id = (_dados->>'PEDI_PED') || '_' || (_dados->>'SERI_PED')
+WHERE  pedido_id IS NULL
+  AND  _dados->>'PEDI_PED' IS NOT NULL
+  AND  _dados->>'SERI_PED' IS NOT NULL;
+
+-- Backfill origem em pedidos a partir de _dados
+UPDATE raw.pedidos
+SET    origem = _dados->>'ORIG_PED'
+WHERE  origem IS NULL
+  AND  _dados->>'ORIG_PED' IS NOT NULL;
 
 -- ---------------------------------------------------------------
 -- PAGAMENTOS — CPGBAIXA (baixas de contas a pagar)

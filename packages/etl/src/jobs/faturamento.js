@@ -24,6 +24,8 @@ async function sincronizar() {
       N.${cfg.campoStatus}      AS SITU_NOT,
       N.${cfg.campoOperacao}    AS CODI_TOP,
       N.${cfg.campoDataAlter}   AS DUMANUT,
+      N.PEDI_PED                AS PEDI_PED,
+      N.SERI_PED                AS SERI_PED,
       T.${cfgOp.campoTran}      AS TRAN_TOP,
       T.${cfgOp.campoTipo}      AS TIPO_TOP,
       T.${cfgOp.campoTemplate}  AS CODI_TPL,
@@ -52,6 +54,7 @@ async function sincronizar() {
     tran_top:       row.TRAN_TOP ? String(row.TRAN_TOP).trim() : null,
     // TIPO_TOP: S=Saída (venda), E=Entrada (devolução de venda)
     tipo_top:       row.TIPO_TOP ? String(row.TIPO_TOP).trim() : null,
+    pedido_id:      row.PEDI_PED && row.SERI_PED ? `${row.PEDI_PED}_${row.SERI_PED}` : null,
     data_alteracao: row.DUMANUT || null,
     _dados:         JSON.stringify(row),
     _source:        'siagri',
@@ -72,11 +75,12 @@ async function sincronizar() {
     `;
     const resultItens = await oracle.query(sqlItens, bindIds);
     const itens = (resultItens.rows || []).map((row) => ({
-      id:        `${row[cfg.campoItemNfId]}_${row[cfg.campoItemSeq]}`,
-      nf_id:     String(row[cfg.campoItemNfId]),
+      id:         `${row[cfg.campoItemNfId]}_${row[cfg.campoItemSeq]}`,
+      nf_id:      String(row[cfg.campoItemNfId]),
       produto_id: row[cfg.campoItemProduto] ? String(row[cfg.campoItemProduto]) : null,
-      _dados:    JSON.stringify(row),
-      _source:   'siagri',
+      pedido_id:  row.PEDI_PED && row.SERI_PED ? `${row.PEDI_PED}_${row.SERI_PED}` : null,
+      _dados:     JSON.stringify(row),
+      _source:    'siagri',
     }));
     if (itens.length) await upsertRaw('raw.faturamento_itens', itens);
   }
