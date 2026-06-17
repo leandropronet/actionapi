@@ -53,9 +53,12 @@ async function sincronizar() {
     const rows = result.rows || [];
     if (rows.length) {
       const registros = rows.map((row) => ({
-        id:     String(row[cfgs.clientes.campoId]),
-        _dados: JSON.stringify(row),
-        _source:'siagri',
+        id:          String(row[cfgs.clientes.campoId]),
+        razao_social: row[cfgs.clientes.campoRazao]    || null,
+        cgc_cnpj:    row[cfgs.clientes.campoCpfCnpj]  || null,
+        status:      row.SITU_TRA ? String(row.SITU_TRA).trim() : null,
+        _dados:      JSON.stringify(row),
+        _source:     'siagri',
       }));
       await upsertRaw('raw.clientes', registros);
       await atualizarSync('clientes');

@@ -346,12 +346,19 @@ CREATE TABLE IF NOT EXISTS raw.contabil (
 -- DIMENSÕES (cadastros)
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw.clientes (
-  id              TEXT NOT NULL,
+  id              TEXT NOT NULL,   -- CODI_TRA
+  razao_social    TEXT,            -- RAZA_TRA
+  cgc_cnpj        TEXT,            -- CGC_TRA (CPF ou CNPJ)
+  status          CHAR(1),         -- SITU_TRA: A=Ativo, I=Inativo
   _dados          JSONB NOT NULL,
   _sync_at        TIMESTAMPTZ DEFAULT NOW(),
   _source         TEXT DEFAULT 'siagri',
   PRIMARY KEY (id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_clientes_razao  ON raw.clientes (razao_social);
+CREATE INDEX IF NOT EXISTS idx_clientes_cgc    ON raw.clientes (cgc_cnpj);
+CREATE INDEX IF NOT EXISTS idx_clientes_status ON raw.clientes (status);
 
 -- PRINATIVOS: princípios ativos cadastrados no ERP (vínculo via PRODSERV.CODI_PRI)
 CREATE TABLE IF NOT EXISTS raw.principios_ativos (
@@ -509,6 +516,28 @@ UPDATE raw.pedidos
 SET    origem = _dados->>'ORIG_PED'
 WHERE  origem IS NULL
   AND  _dados->>'ORIG_PED' IS NOT NULL;
+
+-- Colunas tipadas em raw.clientes + indexes de busca e cross-reference
+ALTER TABLE raw.clientes ADD COLUMN IF NOT EXISTS razao_social TEXT;
+ALTER TABLE raw.clientes ADD COLUMN IF NOT EXISTS cgc_cnpj     TEXT;
+ALTER TABLE raw.clientes ADD COLUMN IF NOT EXISTS status       CHAR(1);
+
+CREATE INDEX IF NOT EXISTS idx_clientes_razao  ON raw.clientes (razao_social);
+CREATE INDEX IF NOT EXISTS idx_clientes_cgc    ON raw.clientes (cgc_cnpj);
+CREATE INDEX IF NOT EXISTS idx_clientes_status ON raw.clientes (status);
+
+CREATE INDEX IF NOT EXISTS idx_faturamento_cliente
+  ON raw.faturamento ((_dados->>'CODI_TRA'));
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_cliente
+  ON raw.pedidos (cliente_id);
+
+-- Backfill clientes a partir de _dados
+UPDATE raw.clientes SET
+  razao_social = _dados->>'RAZA_TRA',
+  cgc_cnpj     = _dados->>'CGC_TRA',
+  status       = NULLIF(TRIM(_dados->>'SITU_TRA'), '')
+WHERE razao_social IS NULL;
 
 -- ---------------------------------------------------------------
 -- PAGAMENTOS — CPGBAIXA (baixas de contas a pagar)
