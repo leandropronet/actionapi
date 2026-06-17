@@ -1,4 +1,21 @@
 'use strict';
+/**
+ * services/faturamento.js
+ *
+ * Lógica de negócio para Notas Fiscais (NF-e).
+ *
+ * Fonte de dados: raw.faturamento (cabeçalho) + raw.faturamento_itens (itens)
+ *
+ * Filtros de produto (grupo/subgrupo/PA) usam buildProdutoExists():
+ *   gera um EXISTS (SELECT 1 FROM raw.faturamento_itens fi2 JOIN raw.produtos p2 ...)
+ *   para filtrar a lista de NFs sem expor os itens no payload da lista.
+ *
+ * Funções exportadas:
+ *   listar()      — lista paginada de NFs com filtros
+ *   buscarPorId() — NF completa com itens, grupos e princípios ativos
+ *   listarItens() — itens de NF com filtros, útil para relatórios por produto
+ *   resumo()      — totais por período (dia/mês/trimestre/ano)
+ */
 const db = require('../db/postgres');
 
 const SELECT_NF = `

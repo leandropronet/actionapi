@@ -1,4 +1,21 @@
 'use strict';
+/**
+ * jobs/faturamento.js
+ *
+ * ETL incremental de Notas Fiscais (NOTA + INOTA + TIPOOPER).
+ *
+ * Tabelas Oracle:
+ *   NOTA    — cabeçalho da NF (NPRE_NOT = PK interna, NOTA_NOT = número visível)
+ *   INOTA   — itens da NF (FK: NPRE_NOT; contém PEDI_PED/SERI_PED → link ao pedido)
+ *   TIPOOPER — operação fiscal (traz TRAN_TOP: 1=Entrada, 2=Saída, 3=Transferência)
+ *
+ * Tabelas PostgreSQL:
+ *   raw.faturamento       — um registro por NF, com pedido_id quando gerada por pedido
+ *   raw.faturamento_itens — itens com pedido_id (backfillado de _dados.PEDI_PED)
+ *
+ * Para relatórios de vendas: filtrar tran_top = '2' (saídas).
+ * O link NF → Pedido fica em: faturamento_itens.pedido_id = pedidos.id
+ */
 const oracle = require('../db/oracle');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
 const cfg = require('../oracle-config').faturamento;

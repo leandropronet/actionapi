@@ -1,4 +1,23 @@
 'use strict';
+/**
+ * services/pedidos.js
+ *
+ * Lógica de negócio para Pedidos de Venda.
+ *
+ * Fonte de dados: raw.pedidos + raw.pedidos_itens + raw.faturamento_itens
+ *
+ * Status financeiro (SITU_PED): 0=Não Lib | 1=Liberado | 5=Confirmado | 9=Cancelado
+ * Status comercial: calculado em calcularSaldo() comparando IPEDIDO vs INOTA
+ * Origem (ORIG_PED): null=ERP direto | S=CRM | M=Mobile
+ *
+ * Funções exportadas:
+ *   listar()            — lista paginada com filtros (inclui origem)
+ *   buscarPorId()       — pedido completo com itens e princípios ativos
+ *   listarItens()       — itens de pedido com filtros por produto/grupo/PA
+ *   resumo()            — totais por período + breakdown de status e origem
+ *   buscarFaturamento() — NFs geradas a partir do pedido (via faturamento_itens.pedido_id)
+ *   calcularSaldo()     — saldo por produto (qtde pedida - qtde faturada) + status comercial
+ */
 const db = require('../db/postgres');
 
 const SELECT_PED = `

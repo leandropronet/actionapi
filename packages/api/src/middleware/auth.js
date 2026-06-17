@@ -1,4 +1,12 @@
 'use strict';
+/**
+ * middleware/auth.js
+ *
+ * Autenticação por API Key via header X-API-Key.
+ * Chaves válidas são definidas em API_KEYS=chave1,chave2 no .env.
+ * Aplicado em todas as rotas /api/* via addHook('onRequest') no app.js.
+ * A rota /health é pública e não passa por aqui.
+ */
 const config = require('../config');
 
 async function authMiddleware(request, reply) {

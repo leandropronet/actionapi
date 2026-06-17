@@ -1,4 +1,20 @@
 'use strict';
+/**
+ * etl/src/index.js — ETL Service
+ *
+ * Scheduler principal do ETL incremental.
+ * Usa node-schedule (sintaxe cron Unix) para executar cada job no intervalo
+ * configurado no .env (CRON_FATURAMENTO, CRON_PEDIDOS, etc.).
+ *
+ * Após cada job bem-sucedido, dispara analytics.atualizar() para manter
+ * a camada analytics/ materializada.
+ *
+ * Para executar um job manualmente (sem aguardar o cron):
+ *   node -e "require('./src/jobs/faturamento').sincronizar().then(console.log)"
+ *
+ * Para carga inicial (5 anos de histórico):
+ *   node src/carga_inicial/index.js
+ */
 require('dotenv').config();
 const schedule = require('node-schedule');
 const oracle   = require('./db/oracle');

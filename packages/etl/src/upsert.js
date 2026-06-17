@@ -1,4 +1,14 @@
 'use strict';
+/**
+ * upsert.js
+ *
+ * Funções de persistência incremental para todas as tabelas raw.*.
+ * O ETL chama upsertRaw() após cada lote de dados Oracle — se o registro
+ * já existir (mesmo id), é atualizado; se não existir, é inserido.
+ *
+ * O campo _sync_at é sempre atualizado para rastrear quando o dado chegou.
+ * O controle de "onde parei" fica em etl_sync via atualizarSync/lerUltimoSync.
+ */
 const pg = require('./db/postgres');
 
 // Faz UPSERT em lote em qualquer tabela raw.

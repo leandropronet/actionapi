@@ -1,4 +1,25 @@
 'use strict';
+/**
+ * jobs/pedidos.js
+ *
+ * ETL incremental de Pedidos de Venda (PEDIDO + IPEDIDO).
+ *
+ * Tabelas Oracle:
+ *   PEDIDO   — cabeçalho do pedido; PK composta: PEDI_PED + SERI_PED
+ *   IPEDIDO  — itens do pedido; FK: PEDI_PED + SERI_PED
+ *
+ * Tabelas PostgreSQL:
+ *   raw.pedidos       — id = "{PEDI_PED}_{SERI_PED}"
+ *   raw.pedidos_itens — id = "{PEDI_PED}_{SERI_PED}_{ITEM_IPE}"
+ *
+ * Campos relevantes:
+ *   SITU_PED: 0=Não Liberado, 1=Liberado, 5=Confirmado, 9=Cancelado (status financeiro)
+ *   ORIG_PED: null=ERP direto, S=CRM SiAGRI, M=Mobile (salvo em coluna origem)
+ *   STAT_PED: sempre NULL nesta base — status comercial deve ser derivado via saldo
+ *
+ * Status comercial (calculado em /pedidos/:id/saldo):
+ *   compara qtde em IPEDIDO vs qtde faturada em INOTA (link via PEDI_PED+SERI_PED)
+ */
 const oracle = require('../db/oracle');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
 const cfg = require('../oracle-config').pedidos;

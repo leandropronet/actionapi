@@ -1,4 +1,18 @@
 'use strict';
+/**
+ * app.js — ActionAPI
+ *
+ * Servidor Fastify v5. Todas as rotas /api/v1/* exigem X-API-Key.
+ * Porta configurada via PORT no .env (padrão 3000).
+ *
+ * Domínios disponíveis: faturamento, duplicatas, pedidos, estoque,
+ *   financeiro, contabil, clientes.
+ *
+ * Para adicionar um novo domínio:
+ *   1. Criar packages/api/src/services/<dominio>.js
+ *   2. Criar packages/api/src/routes/<dominio>.js
+ *   3. Registrar: app.register(require('./routes/<dominio>'), { prefix: '/api/v1' })
+ */
 require('dotenv').config();
 const Fastify = require('fastify');
 const { authMiddleware } = require('./middleware/auth');

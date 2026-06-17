@@ -1,10 +1,18 @@
 'use strict';
-// =============================================================
-// Mapeamento das tabelas e campos do Oracle SiAGRI — Schema SULGOIANO
-// Descoberto via planilha RBCAMPO_RBTABELA_RBRELACIONAMENTO.xlsx
-// Campos marcados com "TODO_VERIFICAR" devem ser confirmados
-// na primeira conexão ao banco (oracle.js → query exploratória).
-// =============================================================
+/**
+ * oracle-config.js
+ *
+ * Mapeamento completo das tabelas Oracle do SiAGRI para o ETL.
+ * Cada entrada define os nomes reais dos campos Oracle, evitando hardcode
+ * nos jobs. Os jobs importam apenas a entrada relevante:
+ *   const cfg = require('./oracle-config').faturamento;
+ *
+ * Schema Oracle: SULGOIANO (definido via ORACLE_SCHEMA no .env)
+ * Todas as tabelas são acessadas como SULGOIANO.<TABELA>.
+ *
+ * Campo de incremento universal: DUMANUT (Data/Hora Última Manutenção)
+ * Presente em quase todas as tabelas — usado em WHERE DUMANUT > :ultimoSync.
+ */
 
 const SCHEMA = process.env.ORACLE_SCHEMA || 'SULGOIANO';
 

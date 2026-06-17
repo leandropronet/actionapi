@@ -1,4 +1,21 @@
 'use strict';
+/**
+ * db/oracle.js
+ *
+ * Pool de conexão com o Oracle ERP (SiAGRI).
+ *
+ * Usa oracledb v6 em thin mode — puro JavaScript, sem Oracle Instant Client
+ * instalado no sistema. Basta ter Node.js.
+ *
+ * Configuração via .env: ORACLE_HOST, ORACLE_PORT, ORACLE_SERVICE,
+ *   ORACLE_USER, ORACLE_PASS, ORACLE_POOL_MAX (padrão 3).
+ *
+ * Comportamento especial:
+ *   - CLOBs são retornados como strings JS automaticamente (fetchAsString)
+ *   - Null bytes (\x00) são removidos das strings — PostgreSQL JSONB rejeita
+ *   - Buffers Oracle são convertidos para hex
+ *   - Acesso READ-ONLY — nunca executar DML/DDL no Oracle
+ */
 require('dotenv').config();
 const oracledb = require('oracledb');
 
