@@ -565,4 +565,164 @@ module.exports = {
     campoDataAlter: 'DUMANUT',
   },
 
+  // ──────────────────────────────────────────────
+  // PLANO DE CONTAS — PLCONTAS
+  //   Cabeçalho do plano. CODI_PLC referenciado em CONTASPL e CCUSTO.
+  // ──────────────────────────────────────────────
+  plcontas: {
+    schema:      SCHEMA,
+    tabela:      'PLCONTAS',
+    campoId:     'CODI_PLC',
+    campoDesc:   'DESC_PLC',
+    campoStatus: 'SITU_PLC',  // N=Não liberado, L=Liberado, E=Encerrado, M=Manutenção
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // CONTAS DO PLANO DE CONTAS — CONTASPL
+  //   PK composta: CODI_PLC + CODI_CPC
+  //   GRUP_CPC classifica automaticamente para DRE e Balanço:
+  //     1=Ativo  2=Passivo  3=Custos  4=Despesas  5=Receitas  6/7=Compensações
+  //   CONT_FOL='S' → conta usada na integração da folha de pagamento
+  //   CORR_CPC='4' → conta bancária/caixa (disponibilidade)
+  //   CTPL_CPC='S' → conta de patrimônio líquido
+  //   DIRP_CPC='S' → despesa dedutível do IRPJ
+  // ──────────────────────────────────────────────
+  contaspl: {
+    schema:          SCHEMA,
+    tabela:          'CONTASPL',
+    campoPlanoConta: 'CODI_PLC',   // parte da PK (FK → PLCONTAS)
+    campoConta:      'CODI_CPC',   // parte da PK
+    campoDesc:       'DESC_CPC',   // Descrição/nome da conta
+    campoGrupo:      'GRUP_CPC',   // 1=Ativo,2=Passivo,3=Custos,4=Despesas,5=Receitas
+    campoNatureza:   'NATU_CPC',   // Natureza detalhada
+    campoSituacao:   'SITU_CPC',   // A=Ativo, I=Inativo
+    campoClassif:    'CLAS_CPC',   // Classificação do lançamento
+    campoFolha:      'CONT_FOL',   // S=Integra folha de pagamento
+    campoCorrentista:'CORR_CPC',   // 1=Pessoal,2=Parceiro,4=Banco,5=Material,9=Nenhum
+    campoPatrLiq:    'CTPL_CPC',   // S=Patrimônio Líquido
+    campoRedutora:   'REDU_CPC',   // S=Conta redutora (ex: depreciação acumulada)
+    campoUsaCC:      'UCEC_CPC',   // S=Utiliza centro de custo
+    campoIRPJ:       'DIRP_CPC',   // S=Dedutível do IRPJ
+    campoCodRed:     'CRED_CPC',   // Código reduzido
+    campoDataAlter:  'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // HISTÓRICOS CONTÁBEIS — HISTORICO
+  //   Descrições para HIST_HIS referenciado em LANCONTAB
+  //   DESC_HIS = texto do lançamento (ex: "Pagamento de fornecedor")
+  // ──────────────────────────────────────────────
+  historico: {
+    schema:      SCHEMA,
+    tabela:      'HISTORICO',
+    campoId:     'HIST_HIS',
+    campoDesc:   'DESC_HIS',
+    campoTipo:   'TIPO_HIS',   // D=Débito/Entrada, C=Crédito/Saída, N=Neutro
+    campoStatus: 'SITU_HIS',   // A=Ativo, I=Inativo
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // CENTROS DE CUSTO — CCUSTO
+  //   CODI_CCU referenciado em CCUSTOLAN (rateio de lançamentos)
+  //   DEPT_FOL = código do departamento na folha (rateio de RH entre filiais)
+  // ──────────────────────────────────────────────
+  ccusto: {
+    schema:          SCHEMA,
+    tabela:          'CCUSTO',
+    campoId:         'CODI_CCU',
+    campoPlanoConta: 'CODI_PLC',
+    campoDesc:       'DESC_CCU',
+    campoStatus:     'SITU_CCU',   // A=Ativo, I=Inativo
+    campoDeptFolha:  'DEPT_FOL',   // Departamento p/ integração folha
+    campoDataAlter:  'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // DESDOBRAMENTO DE LANÇAMENTO POR CENTRO DE CUSTO — CCUSTOLAN
+  //   PK composta: SEQU_LCT + CODI_CCU
+  //   Detalha o rateio de cada partida contábil por centro de custo.
+  //   Habilita DRE por filial/departamento e análise de despesas de RH rateadas.
+  // ──────────────────────────────────────────────
+  ccustolan: {
+    schema:          SCHEMA,
+    tabela:          'CCUSTOLAN',
+    campoLancId:     'SEQU_LCT',   // FK → LANCONTAB
+    campoCCusto:     'CODI_CCU',   // FK → CCUSTO
+    campoPlanoConta: 'CODI_PLC',
+    campoValor:      'VLOR_LCT',
+    campoDataAlter:  'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // LINHAS DA DRE — IDRE
+  //   Estrutura/hierarquia da Demonstração de Resultado do Exercício.
+  //   NIVE_IDR + POSI_IDR = hierarquia de agrupamento (pai → filho)
+  //   O SiAGRI já tem a DRE pré-mapeada — basta trazer essa estrutura.
+  // ──────────────────────────────────────────────
+  idre: {
+    schema:        SCHEMA,
+    tabela:        'IDRE',
+    campoId:       'CODI_IDR',
+    campoDesc:     'DESC_IDR',   // Nome da linha (ex: "Receita Bruta", "Lucro Bruto")
+    campoGrupo:    'GRUP_IDR',
+    campoNivel:    'NIVE_IDR',   // Nível na hierarquia (1=topo, N=folha)
+    campoPai:      'POSI_IDR',   // CODI_IDR do item pai
+    campoTipo:     'TIPO_IDR',
+    campoDataAlter:'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // MAPEAMENTO CONTA → LINHA DA DRE — CONTASDRE
+  //   Liga cada conta contábil (CODI_CPC) a uma linha da DRE (CODI_IDR).
+  //   SOSU_DRC indica se o saldo da conta soma ou subtrai na linha.
+  // ──────────────────────────────────────────────
+  contasdre: {
+    schema:       SCHEMA,
+    tabela:       'CONTASDRE',
+    campoId:      'CODI_DRC',   // PK da tabela
+    campoIdre:    'CODI_IDR',   // FK → IDRE
+    campoConta:   'CODI_CPC',   // FK → CONTASPL
+    campoSomaSub: 'SOSU_DRC',   // S=Soma, U=Subtrai na linha da DRE
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // CONTRATOS DE FINANCIAMENTO/EMPRÉSTIMOS — CONTRATOFIN
+  //   CODI_TRA = agente financeiro (banco credor) → TRANSAC
+  //   PCJU_CFE = percentual de juros do contrato
+  // ──────────────────────────────────────────────
+  contratofin: {
+    schema:          SCHEMA,
+    tabela:          'CONTRATOFIN',
+    campoId:         'CODI_CFE',
+    campoFilial:     'CODI_EMP',
+    campoNumero:     'NUME_CFE',
+    campoDesc:       'DESC_CFE',
+    campoValor:      'VLOR_CFE',    // Valor total do contrato
+    campoDataDoc:    'DTDO_CFE',    // Data do documento
+    campoVencimento: 'DTVC_CFE',    // Data de vencimento
+    campoTaxaJuros:  'PCJU_CFE',    // Percentual de juros
+    campoAgente:     'CODI_TRA',    // FK → TRANSAC (banco credor)
+    campoTipoFin:    'CODI_TFI',    // FK → TIPOFINAN
+    campoDataAlter:  'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // DESDOBRAMENTO DE LANÇAMENTO POR PESSOA — CORLANPES
+  //   PK composta: SEQU_LCT + CODI_PES
+  //   Vincula cada lançamento de folha ao colaborador correspondente.
+  //   Como o módulo folha não é usado no SiAGRI, os lançamentos de RH chegam
+  //   pela contabilidade — CORLANPES é o link para identificar custo por pessoa.
+  // ──────────────────────────────────────────────
+  corlanpes: {
+    schema:        SCHEMA,
+    tabela:        'CORLANPES',
+    campoLancId:   'SEQU_LCT',   // FK → LANCONTAB
+    campoPessoa:   'CODI_PES',   // FK → PESSOAL
+    campoValor:    'VLOR_LCT',
+    campoDataAlter:'DUMANUT',
+  },
+
 };

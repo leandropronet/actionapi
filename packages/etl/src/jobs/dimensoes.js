@@ -202,6 +202,114 @@ async function sincronizar() {
     })
   );
 
+  // Plano de contas (cabeçalho) — PLCONTAS
+  await sincronizarTabela(
+    cfgs.plcontas, 'plcontas', 'raw.plcontas',
+    (row) => ({
+      id:             String(row[cfgs.plcontas.campoId]),
+      descricao:      row[cfgs.plcontas.campoDesc] || null,
+      status:         row[cfgs.plcontas.campoStatus] ? String(row[cfgs.plcontas.campoStatus]).trim() : null,
+      data_alteracao: row[cfgs.plcontas.campoDataAlter] || null,
+      _dados:         JSON.stringify(row),
+      _source:        'siagri',
+    })
+  );
+
+  // Contas do plano de contas — CONTASPL (PK composta: CODI_PLC + CODI_CPC)
+  {
+    const ultimoSync = await lerUltimoSync('contaspl');
+    const sql = `SELECT * FROM ${cfgs.contaspl.schema}.${cfgs.contaspl.tabela}
+                  WHERE ${cfgs.contaspl.campoDataAlter} > :ultimoSync`;
+    const result = await oracle.query(sql, { ultimoSync });
+    const rows = result.rows || [];
+    if (rows.length) {
+      const registros = rows.map((row) => ({
+        id:          `${row[cfgs.contaspl.campoPlanoConta]}_${row[cfgs.contaspl.campoConta]}`,
+        plano_id:    String(row[cfgs.contaspl.campoPlanoConta]),
+        conta_id:    String(row[cfgs.contaspl.campoConta]),
+        descricao:   row[cfgs.contaspl.campoDesc] || null,
+        grupo:       row[cfgs.contaspl.campoGrupo] ? String(row[cfgs.contaspl.campoGrupo]).trim() : null,
+        natureza:    row[cfgs.contaspl.campoNatureza] || null,
+        situacao:    row[cfgs.contaspl.campoSituacao] ? String(row[cfgs.contaspl.campoSituacao]).trim() : null,
+        classificacao: row[cfgs.contaspl.campoClassif] ? String(row[cfgs.contaspl.campoClassif]).trim() : null,
+        flag_folha:  row[cfgs.contaspl.campoFolha]      ? String(row[cfgs.contaspl.campoFolha]).trim()      : null,
+        correntista: row[cfgs.contaspl.campoCorrentista] ? String(row[cfgs.contaspl.campoCorrentista]).trim() : null,
+        flag_pl:     row[cfgs.contaspl.campoPatrLiq]    ? String(row[cfgs.contaspl.campoPatrLiq]).trim()    : null,
+        flag_redutora: row[cfgs.contaspl.campoRedutora] ? String(row[cfgs.contaspl.campoRedutora]).trim()   : null,
+        flag_cc:     row[cfgs.contaspl.campoUsaCC]      ? String(row[cfgs.contaspl.campoUsaCC]).trim()      : null,
+        flag_irpj:   row[cfgs.contaspl.campoIRPJ]       ? String(row[cfgs.contaspl.campoIRPJ]).trim()       : null,
+        cod_reduzido: row[cfgs.contaspl.campoCodRed] ? String(row[cfgs.contaspl.campoCodRed]) : null,
+        data_alteracao: row[cfgs.contaspl.campoDataAlter] || null,
+        _dados:      JSON.stringify(row),
+        _source:     'siagri',
+      }));
+      await upsertRaw('raw.contaspl', registros);
+      await atualizarSync('contaspl');
+      console.log(`[contaspl] ${registros.length} contas sincronizadas`);
+    } else {
+      console.log('[contaspl] sem alterações');
+    }
+  }
+
+  // Históricos contábeis — HISTORICO (HIST_HIS → DESC_HIS)
+  await sincronizarTabela(
+    cfgs.historico, 'historico', 'raw.historico',
+    (row) => ({
+      id:            String(row[cfgs.historico.campoId]),
+      descricao:     row[cfgs.historico.campoDesc] || null,
+      tipo:          row[cfgs.historico.campoTipo]   ? String(row[cfgs.historico.campoTipo]).trim()   : null,
+      situacao:      row[cfgs.historico.campoStatus] ? String(row[cfgs.historico.campoStatus]).trim() : null,
+      data_alteracao: row[cfgs.historico.campoDataAlter] || null,
+      _dados:        JSON.stringify(row),
+      _source:       'siagri',
+    })
+  );
+
+  // Centros de custo — CCUSTO
+  await sincronizarTabela(
+    cfgs.ccusto, 'ccusto', 'raw.ccusto',
+    (row) => ({
+      id:            String(row[cfgs.ccusto.campoId]),
+      plano_id:      row[cfgs.ccusto.campoPlanoConta] ? String(row[cfgs.ccusto.campoPlanoConta]) : null,
+      descricao:     row[cfgs.ccusto.campoDesc] || null,
+      situacao:      row[cfgs.ccusto.campoStatus]     ? String(row[cfgs.ccusto.campoStatus]).trim()  : null,
+      dept_folha:    row[cfgs.ccusto.campoDeptFolha]  ? String(row[cfgs.ccusto.campoDeptFolha])      : null,
+      data_alteracao: row[cfgs.ccusto.campoDataAlter] || null,
+      _dados:        JSON.stringify(row),
+      _source:       'siagri',
+    })
+  );
+
+  // Linhas da DRE — IDRE (hierarquia: NIVE_IDR + POSI_IDR)
+  await sincronizarTabela(
+    cfgs.idre, 'idre', 'raw.idre',
+    (row) => ({
+      id:            String(row[cfgs.idre.campoId]),
+      descricao:     row[cfgs.idre.campoDesc]   || null,
+      grupo:         row[cfgs.idre.campoGrupo]  ? String(row[cfgs.idre.campoGrupo])  : null,
+      nivel:         row[cfgs.idre.campoNivel]  ?? null,
+      posicao_pai:   row[cfgs.idre.campoPai]    ? String(row[cfgs.idre.campoPai])    : null,
+      tipo:          row[cfgs.idre.campoTipo]   ? String(row[cfgs.idre.campoTipo]).trim() : null,
+      data_alteracao: row[cfgs.idre.campoDataAlter] || null,
+      _dados:        JSON.stringify(row),
+      _source:       'siagri',
+    })
+  );
+
+  // Mapeamento conta → linha da DRE — CONTASDRE
+  await sincronizarTabela(
+    cfgs.contasdre, 'contasdre', 'raw.contasdre',
+    (row) => ({
+      id:          String(row[cfgs.contasdre.campoId]),
+      idre_id:     row[cfgs.contasdre.campoIdre]    ? String(row[cfgs.contasdre.campoIdre])    : null,
+      conta_id:    row[cfgs.contasdre.campoConta]   ? String(row[cfgs.contasdre.campoConta])   : null,
+      soma_subtrai:row[cfgs.contasdre.campoSomaSub] ? String(row[cfgs.contasdre.campoSomaSub]).trim() : null,
+      data_alteracao: row[cfgs.contasdre.campoDataAlter] || null,
+      _dados:      JSON.stringify(row),
+      _source:     'siagri',
+    })
+  );
+
   // Tipos de operação — necessário para filtrar faturamento por tran_top
   await sincronizarTabela(
     cfgs.operacoes, 'operacoes', 'raw.operacoes',

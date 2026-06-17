@@ -38,7 +38,17 @@ INSERT INTO etl_sync (dominio) VALUES
   ('propriedades_vendedor'),
   ('principios_ativos'),
   ('principios_ativos_rec'),
-  ('produto_principio_ativo_rec')
+  ('produto_principio_ativo_rec'),
+  -- contábil — novas tabelas (jun/2026)
+  ('plcontas'),
+  ('contaspl'),
+  ('historico'),
+  ('ccusto'),
+  ('ccustolan'),
+  ('idre'),
+  ('contasdre'),
+  ('contratofin'),
+  ('corlanpes')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -559,3 +569,192 @@ CREATE TABLE IF NOT EXISTS raw.pagamentos (
   _source         TEXT DEFAULT 'siagri',
   PRIMARY KEY (id)
 );
+
+-- ---------------------------------------------------------------
+-- PLANO DE CONTAS — PLCONTAS (cabeçalho do plano)
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.plcontas (
+  id              TEXT NOT NULL,   -- CODI_PLC
+  descricao       TEXT,            -- DESC_PLC
+  status          CHAR(1),         -- N=Não liberado, L=Liberado, E=Encerrado, M=Manutenção
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- CONTAS DO PLANO DE CONTAS — CONTASPL
+--   PK composta: CODI_PLC + CODI_CPC
+--   GRUP_CPC: 1=Ativo, 2=Passivo, 3=Custos, 4=Despesas, 5=Receitas, 6/7=Compensações
+--   Flags: CONT_FOL=folha, CORR_CPC=caixa/banco, CTPL_CPC=PL, DIRP_CPC=IRPJ dedutível
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.contaspl (
+  id              TEXT NOT NULL,   -- CODI_PLC_CODI_CPC (PK composta)
+  plano_id        TEXT,            -- CODI_PLC → raw.plcontas
+  conta_id        TEXT,            -- CODI_CPC
+  descricao       TEXT,            -- DESC_CPC
+  grupo           TEXT,            -- GRUP_CPC: 1=Ativo, 2=Passivo, 3=Custos, 4=Desp, 5=Rec
+  natureza        TEXT,            -- NATU_CPC
+  situacao        CHAR(1),         -- SITU_CPC: A=Ativo, I=Inativo
+  classificacao   TEXT,            -- CLAS_CPC
+  flag_folha      CHAR(1),         -- CONT_FOL: S=integra folha
+  correntista     CHAR(1),         -- CORR_CPC: 4=banco/caixa
+  flag_pl         CHAR(1),         -- CTPL_CPC: S=patrimônio líquido
+  flag_redutora   CHAR(1),         -- REDU_CPC: S=conta redutora
+  flag_cc         CHAR(1),         -- UCEC_CPC: S=utiliza centro de custo
+  flag_irpj       CHAR(1),         -- DIRP_CPC: S=dedutível IRPJ
+  cod_reduzido    TEXT,            -- CRED_CPC
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contaspl_plano   ON raw.contaspl (plano_id);
+CREATE INDEX IF NOT EXISTS idx_contaspl_conta   ON raw.contaspl (conta_id);
+CREATE INDEX IF NOT EXISTS idx_contaspl_grupo   ON raw.contaspl (grupo);
+CREATE INDEX IF NOT EXISTS idx_contaspl_folha   ON raw.contaspl (flag_folha) WHERE flag_folha = 'S';
+CREATE INDEX IF NOT EXISTS idx_contaspl_banco   ON raw.contaspl (correntista) WHERE correntista = '4';
+
+-- ---------------------------------------------------------------
+-- HISTÓRICOS CONTÁBEIS — HISTORICO
+--   DESC_HIS: texto livre do lançamento (ex: "Pagamento de fornecedor")
+--   TIPO_HIS: D=Débito, C=Crédito, N=Neutro
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.historico (
+  id              TEXT NOT NULL,   -- HIST_HIS
+  descricao       TEXT,            -- DESC_HIS
+  tipo            CHAR(1),         -- D=Débito, C=Crédito, N=Neutro
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- CENTROS DE CUSTO — CCUSTO
+--   DEPT_FOL: código do departamento para rateio de folha entre filiais
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.ccusto (
+  id              TEXT NOT NULL,   -- CODI_CCU
+  plano_id        TEXT,            -- CODI_PLC → raw.plcontas
+  descricao       TEXT,            -- DESC_CCU
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  dept_folha      TEXT,            -- DEPT_FOL (departamento para integração folha)
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- DESDOBRAMENTO DE LANÇAMENTO POR CENTRO DE CUSTO — CCUSTOLAN
+--   PK composta: SEQU_LCT + CODI_CCU
+--   Habilita DRE por filial/departamento e análise de despesas de RH rateadas.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.ccustolan (
+  id              TEXT NOT NULL,   -- SEQU_LCT_CODI_CCU (PK composta)
+  lancamento_id   TEXT,            -- FK → raw.contabil
+  ccusto_id       TEXT,            -- FK → raw.ccusto
+  plano_id        TEXT,            -- CODI_PLC
+  valor           NUMERIC(18,2),   -- VLOR_LCT (valor rateado neste CC)
+  data_alteracao  TIMESTAMPTZ,
+  _source         TEXT DEFAULT 'siagri',
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ccustolan_lancamento ON raw.ccustolan (lancamento_id);
+CREATE INDEX IF NOT EXISTS idx_ccustolan_ccusto     ON raw.ccustolan (ccusto_id);
+
+-- ---------------------------------------------------------------
+-- LINHAS DA DRE — IDRE
+--   Estrutura hierárquica pré-definida no SiAGRI.
+--   NIVE_IDR: nível na hierarquia (1=topo). POSI_IDR: CODI_IDR do pai.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.idre (
+  id              TEXT NOT NULL,   -- CODI_IDR
+  descricao       TEXT,            -- DESC_IDR (ex: "Receita Bruta", "Lucro Bruto")
+  grupo           TEXT,            -- GRUP_IDR
+  nivel           INT,             -- NIVE_IDR (1=topo, N=folha)
+  pai_id          TEXT,            -- POSI_IDR → raw.idre (autorreferência)
+  tipo            TEXT,            -- TIPO_IDR
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- ---------------------------------------------------------------
+-- MAPEAMENTO CONTA → LINHA DA DRE — CONTASDRE
+--   Liga cada conta contábil (CODI_CPC) a uma linha da DRE (CODI_IDR).
+--   SOSU_DRC: S=Soma, U=Subtrai na linha da DRE.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.contasdre (
+  id              TEXT NOT NULL,   -- CODI_DRC (PK)
+  idre_id         TEXT,            -- CODI_IDR → raw.idre
+  conta_id        TEXT,            -- CODI_CPC → raw.contaspl
+  soma_subtrai    CHAR(1),         -- SOSU_DRC: S=Soma, U=Subtrai
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contasdre_idre  ON raw.contasdre (idre_id);
+CREATE INDEX IF NOT EXISTS idx_contasdre_conta ON raw.contasdre (conta_id);
+
+-- ---------------------------------------------------------------
+-- CONTRATOS DE FINANCIAMENTO/EMPRÉSTIMOS — CONTRATOFIN
+--   CODI_TRA = agente financeiro (banco credor)
+--   PCJU_CFE = percentual de juros do contrato
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.contratofin (
+  id              TEXT NOT NULL,   -- CODI_CFE
+  filial_id       TEXT,            -- CODI_EMP
+  numero          TEXT,            -- NUME_CFE
+  descricao       TEXT,            -- DESC_CFE
+  valor           NUMERIC(18,2),   -- VLOR_CFE (valor total do contrato)
+  data_documento  DATE,            -- DTDO_CFE
+  data_vencimento DATE,            -- DTVC_CFE
+  taxa_juros      NUMERIC(10,4),   -- PCJU_CFE (percentual de juros)
+  agente_id       TEXT,            -- CODI_TRA → raw.clientes (banco credor)
+  tipo_fin_id     TEXT,            -- CODI_TFI → TIPOFINAN
+  data_alteracao  TIMESTAMPTZ,
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contratofin_filial  ON raw.contratofin (filial_id);
+CREATE INDEX IF NOT EXISTS idx_contratofin_agente  ON raw.contratofin (agente_id);
+CREATE INDEX IF NOT EXISTS idx_contratofin_vencto  ON raw.contratofin (data_vencimento);
+
+-- ---------------------------------------------------------------
+-- DESDOBRAMENTO DE LANÇAMENTO POR PESSOA — CORLANPES
+--   PK composta: SEQU_LCT + CODI_PES
+--   Link entre lançamento contábil de folha e o colaborador.
+--   Permite calcular custo real por colaborador sem módulo folha do SiAGRI.
+-- ---------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS raw.corlanpes (
+  id              TEXT NOT NULL,   -- SEQU_LCT_CODI_PES (PK composta)
+  lancamento_id   TEXT,            -- FK → raw.contabil
+  pessoa_id       TEXT,            -- FK → raw.vendedores (PESSOAL)
+  valor           NUMERIC(18,2),   -- VLOR_LCT (valor atribuído a esta pessoa)
+  data_alteracao  TIMESTAMPTZ,
+  _source         TEXT DEFAULT 'siagri',
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_corlanpes_lancamento ON raw.corlanpes (lancamento_id);
+CREATE INDEX IF NOT EXISTS idx_corlanpes_pessoa     ON raw.corlanpes (pessoa_id);

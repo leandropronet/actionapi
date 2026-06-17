@@ -1,8 +1,9 @@
 'use strict';
 const oracle = require('../db/oracle');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
-const cfgCp = require('../oracle-config').financeiro_cp;
-const cfgCr = require('../oracle-config').financeiro_cr;
+const cfgCp  = require('../oracle-config').financeiro_cp;
+const cfgCr  = require('../oracle-config').financeiro_cr;
+const cfgFin = require('../oracle-config').contratofin;
 
 // Sincroniza CP (CABPAGAR + PAGAR) ou CR (CABREC + RECEBER)
 async function sincronizarTipo(cfg, dominio, tabela) {
@@ -58,6 +59,48 @@ async function sincronizarTipo(cfg, dominio, tabela) {
 async function sincronizar() {
   await sincronizarTipo(cfgCp, 'financeiro_cp', 'raw.financeiro_cp');
   await sincronizarTipo(cfgCr, 'financeiro_cr', 'raw.financeiro_cr');
+
+  // ── CONTRATOFIN: contratos de empréstimos e financiamentos ───────────────
+  const ultimoSyncFin = await lerUltimoSync('contratofin');
+  console.log(`[contratofin] sync incremental desde ${ultimoSyncFin.toISOString()}`);
+
+  const sqlFin = `
+    SELECT
+      ${cfgFin.campoId}         AS CODI_CFE,
+      ${cfgFin.campoFilial}     AS CODI_EMP,
+      ${cfgFin.campoNumero}     AS NUME_CFE,
+      ${cfgFin.campoDesc}       AS DESC_CFE,
+      ${cfgFin.campoValor}      AS VLOR_CFE,
+      ${cfgFin.campoDataDoc}    AS DTDO_CFE,
+      ${cfgFin.campoVencimento} AS DTVC_CFE,
+      ${cfgFin.campoTaxaJuros}  AS PCJU_CFE,
+      ${cfgFin.campoAgente}     AS CODI_TRA,
+      ${cfgFin.campoTipoFin}    AS CODI_TFI,
+      ${cfgFin.campoDataAlter}  AS DUMANUT
+    FROM ${cfgFin.schema}.${cfgFin.tabela}
+    WHERE ${cfgFin.campoDataAlter} > :ultimoSync
+    ORDER BY ${cfgFin.campoDataAlter}
+  `;
+
+  const resFin = await oracle.query(sqlFin, { ultimoSync: ultimoSyncFin });
+  const rowsFin = resFin.rows || [];
+
+  if (rowsFin.length) {
+    const registrosFin = rowsFin.map((row) => ({
+      id:              String(row.CODI_CFE),
+      filial_id:       row.CODI_EMP ? String(row.CODI_EMP) : null,
+      data_documento:  row.DTDO_CFE || null,
+      data_vencimento: row.DTVC_CFE || null,
+      data_alteracao:  row.DUMANUT  || null,
+      _dados:          JSON.stringify(row),
+      _source:         'siagri',
+    }));
+    await upsertRaw('raw.contratofin', registrosFin);
+    await atualizarSync('contratofin');
+    console.log(`[contratofin] ${registrosFin.length} contratos sincronizados`);
+  } else {
+    console.log('[contratofin] sem alterações');
+  }
 }
 
 module.exports = { sincronizar };

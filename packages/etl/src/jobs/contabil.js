@@ -1,10 +1,24 @@
 'use strict';
+/**
+ * jobs/contabil.js
+ *
+ * Sincroniza lançamentos contábeis e as tabelas de desdobramento vinculadas.
+ *
+ * Tabelas sincronizadas:
+ *   raw.contabil    — CABLANCTB + LANCONTAB (uma linha por partida D/C)
+ *   raw.ccustolan   — CCUSTOLAN (desdobramento por centro de custo)
+ *   raw.corlanpes   — CORLANPES (desdobramento por pessoa — custo de RH)
+ *
+ * Frequência padrão: diária às 01:00 (CRON_CONTABIL)
+ */
 const oracle = require('../db/oracle');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
-const cfg = require('../oracle-config').contabil;
+const cfg    = require('../oracle-config').contabil;
+const cfgCC  = require('../oracle-config').ccustolan;
+const cfgPes = require('../oracle-config').corlanpes;
 
 // CABLANCTB (cabeçalho) + LANCONTAB (partidas D/C)
-// Uma linha em raw.contabil = um lançamento contábil completo (agrupado por cabeçalho)
+// Uma linha em raw.contabil = uma partida contábil com dados do cabeçalho embutidos.
 async function sincronizar() {
   const ultimoSync = await lerUltimoSync('contabil');
   console.log(`[contabil] sync incremental desde ${ultimoSync.toISOString()}`);
@@ -62,6 +76,78 @@ async function sincronizar() {
   await upsertRaw('raw.contabil', registros);
   await atualizarSync('contabil');
   console.log(`[contabil] ${registros.length} partidas sincronizadas`);
+
+  // ── CCUSTOLAN: desdobramento por centro de custo ──────────────────────────
+  // Cada partida pode ser rateada em vários CCs — PK composta SEQU_LCT + CODI_CCU
+  const ultimoSyncCC = await lerUltimoSync('ccustolan');
+  console.log(`[ccustolan] sync incremental desde ${ultimoSyncCC.toISOString()}`);
+
+  const sqlCC = `
+    SELECT
+      ${cfgCC.campoLancId}     AS SEQU_LCT,
+      ${cfgCC.campoCCusto}     AS CODI_CCU,
+      ${cfgCC.campoPlanoConta} AS CODI_PLC,
+      ${cfgCC.campoValor}      AS VLOR_LCT,
+      ${cfgCC.campoDataAlter}  AS DUMANUT
+    FROM ${cfgCC.schema}.${cfgCC.tabela}
+    WHERE ${cfgCC.campoDataAlter} > :ultimoSync
+    ORDER BY ${cfgCC.campoDataAlter}
+  `;
+
+  const resCC = await oracle.query(sqlCC, { ultimoSync: ultimoSyncCC });
+  const rowsCC = resCC.rows || [];
+
+  if (rowsCC.length) {
+    const registrosCC = rowsCC.map((row) => ({
+      id:            `${row.SEQU_LCT}_${row.CODI_CCU}`,
+      lancamento_id: String(row.SEQU_LCT),
+      ccusto_id:     String(row.CODI_CCU),
+      plano_id:      row.CODI_PLC ? String(row.CODI_PLC) : null,
+      valor:         row.VLOR_LCT ?? null,
+      data_alteracao: row.DUMANUT || null,
+      _source:       'siagri',
+    }));
+    await upsertRaw('raw.ccustolan', registrosCC);
+    await atualizarSync('ccustolan');
+    console.log(`[ccustolan] ${registrosCC.length} rateios por CC sincronizados`);
+  } else {
+    console.log('[ccustolan] sem alterações');
+  }
+
+  // ── CORLANPES: desdobramento por pessoa (custo de RH) ────────────────────
+  // Vincula o lançamento de folha ao colaborador — PK composta SEQU_LCT + CODI_PES
+  const ultimoSyncPes = await lerUltimoSync('corlanpes');
+  console.log(`[corlanpes] sync incremental desde ${ultimoSyncPes.toISOString()}`);
+
+  const sqlPes = `
+    SELECT
+      ${cfgPes.campoLancId}    AS SEQU_LCT,
+      ${cfgPes.campoPessoa}    AS CODI_PES,
+      ${cfgPes.campoValor}     AS VLOR_LCT,
+      ${cfgPes.campoDataAlter} AS DUMANUT
+    FROM ${cfgPes.schema}.${cfgPes.tabela}
+    WHERE ${cfgPes.campoDataAlter} > :ultimoSync
+    ORDER BY ${cfgPes.campoDataAlter}
+  `;
+
+  const resPes = await oracle.query(sqlPes, { ultimoSync: ultimoSyncPes });
+  const rowsPes = resPes.rows || [];
+
+  if (rowsPes.length) {
+    const registrosPes = rowsPes.map((row) => ({
+      id:            `${row.SEQU_LCT}_${row.CODI_PES}`,
+      lancamento_id: String(row.SEQU_LCT),
+      pessoa_id:     String(row.CODI_PES),
+      valor:         row.VLOR_LCT ?? null,
+      data_alteracao: row.DUMANUT || null,
+      _source:       'siagri',
+    }));
+    await upsertRaw('raw.corlanpes', registrosPes);
+    await atualizarSync('corlanpes');
+    console.log(`[corlanpes] ${registrosPes.length} rateios por pessoa sincronizados`);
+  } else {
+    console.log('[corlanpes] sem alterações');
+  }
 }
 
 module.exports = { sincronizar };
