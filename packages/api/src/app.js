@@ -6,7 +6,7 @@
  * Porta configurada via PORT no .env (padrão 3000).
  *
  * Domínios disponíveis: faturamento, duplicatas, pedidos, estoque,
- *   financeiro, contabil, clientes.
+ *   financeiro, contabil, clientes, lotes.
  *
  * Para adicionar um novo domínio:
  *   1. Criar packages/api/src/services/<dominio>.js
@@ -38,6 +38,7 @@ app.register(require('./routes/estoque'),     { prefix: '/api/v1' });
 app.register(require('./routes/financeiro'),  { prefix: '/api/v1' });
 app.register(require('./routes/contabil'),    { prefix: '/api/v1' });
 app.register(require('./routes/clientes'),    { prefix: '/api/v1' });
+app.register(require('./routes/lotes'),      { prefix: '/api/v1' });
 
 // Handler de erros genérico
 app.setErrorHandler((err, req, reply) => {

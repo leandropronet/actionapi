@@ -293,8 +293,8 @@ Erro padrão:
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/api/v1/duplicatas` | Lista duplicatas com filtros |
-| GET | `/api/v1/duplicatas/resumo` | Totais por período |
-| GET | `/api/v1/duplicatas/:id` | Duplicata completa com parcelas |
+
+**Filtros:** `filialId`, `clienteId`, `nfId`, `vencimentoDe`, `vencimentoAte`, `status` (A=Aberto, B=Baixado, C=Cancelado), `page`, `pageSize`
 
 #### Estoque
 
@@ -303,14 +303,28 @@ Erro padrão:
 | GET | `/api/v1/estoque` | Saldo de estoque por produto/filial/depósito |
 | GET | `/api/v1/estoque/saldo-lote` | Saldo por lote com data de validade |
 
+#### Lotes
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/v1/lotes` | Saldo de lotes com filtros (snapshot diário) |
+| GET | `/api/v1/lotes/vencendo` | Lotes vencendo nos próximos N dias |
+| GET | `/api/v1/lotes/resumo` | Totais por grupo e filial |
+
+**Filtros de `/lotes`:** `filialId`, `produtoId`, `grupoId`, `vencendoEm` (dias), `saldoMinimo`, `page`, `pageSize` (máx 1000)  
+**Filtros de `/lotes/vencendo`:** `dias` (padrão 30), `filialId`, `grupoId`
+
 #### Financeiro
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/v1/financeiro/cp` | Contas a pagar |
-| GET | `/api/v1/financeiro/cr` | Contas a receber |
-| GET | `/api/v1/financeiro/recebimentos` | Baixas de CR |
-| GET | `/api/v1/financeiro/pagamentos` | Baixas de CP |
+| GET | `/api/v1/financeiro?tipo=CP` | Contas a pagar |
+| GET | `/api/v1/financeiro?tipo=CR` | Contas a receber |
+| GET | `/api/v1/financeiro/fluxo-caixa` | Saldo diário receber−pagar por período |
+
+**Filtros:** `tipo` (CP/CR), `filialId`, `vencimentoDe`, `vencimentoAte`, `page`, `pageSize`
+
+> Campos extraídos: `cab_id`, `parcela_nr`, `valor` (VLOR), `flag_assina`. Status de quitação não capturado; consulte `raw.recebimentos`/`raw.pagamentos` (baixas) para verificar se quitado.
 
 #### Clientes
 
@@ -318,13 +332,23 @@ Erro padrão:
 |---|---|---|
 | GET | `/api/v1/clientes` | Lista clientes |
 | GET | `/api/v1/clientes/:id` | Cliente completo |
+| GET | `/api/v1/clientes/:id/faturamento` | NFs emitidas para o cliente |
+| GET | `/api/v1/clientes/:id/pedidos` | Pedidos do cliente |
+| GET | `/api/v1/clientes/:id/propriedades` | Propriedades rurais vinculadas |
+| GET | `/api/v1/clientes/:id/resumo` | Totais de faturamento e pedidos |
+
+**Filtros de `/clientes`:** `search` (razão social ou fantasia), `cgcCnpj`, `status` (A/I), `page`, `pageSize`
 
 #### Contabilidade
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/v1/contabil` | Lançamentos contábeis |
-| GET | `/api/v1/contabil/resumo` | Saldos por conta/período |
+| GET | `/api/v1/contabil` | Partidas contábeis com filtros |
+| GET | `/api/v1/contabil/saldo-contas` | Débito/crédito/saldo por conta e competência |
+| GET | `/api/v1/contabil/resumo` | Totais mensais por competência |
+
+**Filtros de `/contabil`:** `filialId`, `competencia` (AAAA-MM), `conta` (CODI_CPC), `planoContas` (CODI_PLC), `tipo` (F=Fiscal, S=Societário), `page`, `pageSize`  
+**Campos retornados:** `lancamento_id`, `documento`, `tipo`, `conta`, `plano_contas`, `tipo_partida` (D=Débito/C=Crédito), `valor`, `historico`
 
 ---
 
@@ -430,7 +454,7 @@ O servidor alvo já roda outros serviços em `C:\OnPremise\compose.yaml`.
 | Financeiro CP/CR | ✅ | ✅ | — |
 | Recebimentos / Baixas CR | ✅ | ✅ | — |
 | Pagamentos / Baixas CP | ✅ | ✅ | — |
-| Lotes | ✅ | — | ETL feito, API pendente |
-| Contabilidade | ✅ | parcial | — |
-| Clientes | ✅ | parcial | — |
+| Lotes | ✅ | ✅ | 3 endpoints: listar, vencendo, resumo |
+| Contabilidade | ✅ | ✅ | 3 endpoints: partidas, saldo-contas, resumo mensal |
+| Clientes | ✅ | ✅ | 6 endpoints + resumo, propriedades |
 | Pedidos pagos (financeiro) | — | — | Requer link Pedido→Duplicata→Recebimento |
