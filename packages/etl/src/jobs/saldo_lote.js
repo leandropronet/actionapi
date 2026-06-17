@@ -36,7 +36,6 @@ async function sincronizar() {
     JOIN SULGOIANO.LOTE     L ON L.CODI_PSV = D.CODI_PSV
     WHERE L.SITU_LOT   = 'A'
       AND L.VALG_LOT   IS NOT NULL
-      AND D.SITU_DAD   = 'A'
       AND (SELECT QTDE FROM TABLE(SALDO_LOTE(
             D.CODI_EMP, D.CODI_PSV, L.LOTE_LOT, SYSDATE, 'F', NULL
           ))) > 0

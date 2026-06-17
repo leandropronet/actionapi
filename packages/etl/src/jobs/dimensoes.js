@@ -117,6 +117,58 @@ async function sincronizar() {
     })
   );
 
+  // Princípios ativos ERP — PRINATIVOS (212 registros, full refresh)
+  await sincronizarTabela(
+    cfgs.prinativos, 'principios_ativos', 'raw.principios_ativos',
+    (row) => ({
+      id:        String(row[cfgs.prinativos.campoId]),
+      descricao: row[cfgs.prinativos.campoDesc] || null,
+      status:    row[cfgs.prinativos.campoStatus] ? String(row[cfgs.prinativos.campoStatus]).trim() : null,
+      _dados:    JSON.stringify(row),
+      _source:   'siagri',
+    })
+  );
+
+  // Princípios ativos do receituário — PRINCIPIOATIVO_REC (2.352 registros, DESC_PRA é CLOB)
+  await sincronizarTabela(
+    cfgs.principiosAtivosRec, 'principios_ativos_rec', 'raw.principios_ativos_rec',
+    (row) => ({
+      id:           String(row[cfgs.principiosAtivosRec.campoId]),
+      descricao:    row[cfgs.principiosAtivosRec.campoDesc] || null,
+      concentracao: row[cfgs.principiosAtivosRec.campoConc] ?? null,
+      status:       row[cfgs.principiosAtivosRec.campoStatus] ? String(row[cfgs.principiosAtivosRec.campoStatus]).trim() : null,
+      _dados:       JSON.stringify(row),
+      _source:      'siagri',
+    })
+  );
+
+  // Vínculo produto ↔ PA do receituário — resolve CODI_PSV no ETL via JOIN com PRODUTO
+  // Cadeia: PRODSERV.CODI_PSV → PRODUTO.CODI_PRR → PRODPRIATIVO_REC.CODI_PRR → PRINCIPIOATIVO_REC.CODI_PRA
+  {
+    const ultimoSync = await lerUltimoSync('produto_principio_ativo_rec');
+    const sql = `
+      SELECT PP.CODI_PDA, PS.CODI_PSV, PP.CODI_PRA
+      FROM ${cfgs.produtoPrincipioAtivoRec.schema}.PRODPRIATIVO_REC PP
+      JOIN ${cfgs.produtoPrincipioAtivoRec.schema}.PRODUTO PT ON PT.CODI_PRR = PP.CODI_PRR
+      JOIN ${cfgs.produtoPrincipioAtivoRec.schema}.PRODSERV PS ON PS.CODI_PSV = PT.CODI_PSV
+      WHERE PP.DUMANUT > :ultimoSync
+    `;
+    const result = await oracle.query(sql, { ultimoSync });
+    const rows = result.rows || [];
+    if (rows.length) {
+      const registros = rows.map((row) => ({
+        id:           String(row.CODI_PDA),
+        produto_id:   String(row.CODI_PSV),
+        principio_id: String(row.CODI_PRA),
+        _dados:       JSON.stringify(row),
+        _source:      'siagri',
+      }));
+      await upsertRaw('raw.produto_principio_ativo_rec', registros);
+      await atualizarSync('produto_principio_ativo_rec');
+      console.log(`[produto_principio_ativo_rec] ${registros.length} vínculos sincronizados`);
+    }
+  }
+
   // Grupos de produto (Defensivos, Sementes, Adubos...)
   await sincronizarTabela(
     cfgs.grupos, 'grupos', 'raw.grupos',

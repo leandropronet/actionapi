@@ -4,6 +4,8 @@ const oracledb = require('oracledb');
 
 // oracledb v6+ usa thin mode por padrão (puro JS, sem Oracle Instant Client)
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+// Retorna CLOBs como strings JavaScript automaticamente (evita Lob objects)
+oracledb.fetchAsString = [oracledb.CLOB];
 
 let pool = null;
 

@@ -35,7 +35,10 @@ INSERT INTO etl_sync (dominio) VALUES
   ('param_oper'),
   ('param_oper_detalhe'),
   ('propriedades'),
-  ('propriedades_vendedor')
+  ('propriedades_vendedor'),
+  ('principios_ativos'),
+  ('principios_ativos_rec'),
+  ('produto_principio_ativo_rec')
 ON CONFLICT (dominio) DO NOTHING;
 
 -- Controle da carga inicial (batch por janela mensal + filial)
@@ -176,6 +179,7 @@ CREATE TABLE IF NOT EXISTS raw.saldo_lote (
   saldo            NUMERIC(18,4),   -- retorno de SALDO_LOTE(..., 'F', NULL)
   data_referencia  DATE NOT NULL,   -- data do snapshot (SYSDATE ao gerar)
   _source          TEXT DEFAULT 'siagri',
+  _sync_at         TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (id)
 );
 
@@ -344,6 +348,47 @@ CREATE TABLE IF NOT EXISTS raw.clientes (
   _source         TEXT DEFAULT 'siagri',
   PRIMARY KEY (id)
 );
+
+-- PRINATIVOS: princípios ativos cadastrados no ERP (vínculo via PRODSERV.CODI_PRI)
+CREATE TABLE IF NOT EXISTS raw.principios_ativos (
+  id              TEXT NOT NULL,   -- CODI_PRI
+  descricao       TEXT,            -- DESC_PRI
+  status          CHAR(1),         -- A=Ativo, I=Inativo
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- PRINCIPIOATIVO_REC: princípios ativos do módulo de receituário agronômico (2.352 registros)
+CREATE TABLE IF NOT EXISTS raw.principios_ativos_rec (
+  id              TEXT NOT NULL,   -- CODI_PRA
+  descricao       TEXT,            -- DESC_PRA (CLOB)
+  concentracao    NUMERIC,         -- CONC_PRA
+  status          CHAR(1),         -- SITU_PRA
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+-- PRODPRIATIVO_REC: vínculo produto ↔ princípio ativo do receituário
+-- Cadeia: PRODSERV.CODI_PSV → PRODUTO.CODI_PRR → PRODPRIATIVO_REC.CODI_PRR → PRINCIPIOATIVO_REC.CODI_PRA
+CREATE TABLE IF NOT EXISTS raw.produto_principio_ativo_rec (
+  id              TEXT NOT NULL,   -- CODI_PDA
+  produto_id      TEXT,            -- CODI_PSV (resolvido via PRODUTO.CODI_PRR)
+  principio_id    TEXT,            -- CODI_PRA → raw.principios_ativos_rec
+  _dados          JSONB NOT NULL,
+  _sync_at        TIMESTAMPTZ DEFAULT NOW(),
+  _source         TEXT DEFAULT 'siagri',
+  PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prod_pa_rec_produto
+  ON raw.produto_principio_ativo_rec (produto_id);
+
+CREATE INDEX IF NOT EXISTS idx_prod_pa_rec_pa
+  ON raw.produto_principio_ativo_rec (principio_id);
 
 CREATE TABLE IF NOT EXISTS raw.produtos (
   id              TEXT NOT NULL,

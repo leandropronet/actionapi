@@ -368,6 +368,45 @@ module.exports = {
   //   Agrupa CODI_TOP em funções Adicionar/Subtrair para relatórios de faturamento.
   //   47 registros (jun/2026). Full refresh diário.
   // ──────────────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // PRINCÍPIOS ATIVOS — PRINATIVOS (212 registros, jun/2026)
+  //   CODI_PRI referenciado em PRODSERV.CODI_PRI.
+  //   Full refresh diário (tabela pequena, sem DUMANUT confiável).
+  // ──────────────────────────────────────────────
+  prinativos: {
+    schema:       SCHEMA,
+    tabela:       'PRINATIVOS',
+    campoId:      'CODI_PRI',
+    campoDesc:    'DESC_PRI',
+    campoStatus:  'SITU_PRI',
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // PRINCÍPIOS ATIVOS DO RECEITUÁRIO — PRINCIPIOATIVO_REC (2.352 registros)
+  //   Módulo de receituário agronômico. DESC_PRA é CLOB.
+  //   Vínculo com produto: PRODSERV → PRODUTO.CODI_PRR → PRODPRIATIVO_REC → aqui.
+  // ──────────────────────────────────────────────
+  principiosAtivosRec: {
+    schema:       SCHEMA,
+    tabela:       'PRINCIPIOATIVO_REC',
+    campoId:      'CODI_PRA',
+    campoDesc:    'DESC_PRA',   // CLOB — requer fetchAsString=[oracledb.CLOB]
+    campoConc:    'CONC_PRA',
+    campoStatus:  'SITU_PRA',
+    campoDataAlter: 'DUMANUT',
+  },
+
+  // ──────────────────────────────────────────────
+  // VÍNCULO PRODUTO ↔ PA RECEITUÁRIO — PRODPRIATIVO_REC (via PRODUTO.CODI_PRR)
+  //   Query com JOIN: PRODSERV → PRODUTO → PRODPRIATIVO_REC → PRINCIPIOATIVO_REC
+  //   Resolve CODI_PSV na sincronização para evitar join em runtime na API.
+  // ──────────────────────────────────────────────
+  produtoPrincipioAtivoRec: {
+    schema: SCHEMA,
+    // JOIN query monta-se manualmente em dimensoes.js
+  },
+
   partoper: {
     schema:    SCHEMA,
     tabela:    'PARTOPER',
