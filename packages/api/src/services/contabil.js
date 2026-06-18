@@ -132,4 +132,62 @@ async function resumo({ filialId, anoInicio, anoFim }) {
   return { data: res.rows };
 }
 
-module.exports = { listar, saldoContas, resumo };
+/**
+ * balancete({ dataInicio, dataFim, filialId })
+ *
+ * Retorna débito, crédito e saldo por grupo contábil (Ativo, Passivo, etc.)
+ * para o intervalo de datas informado. Requer raw.contaspl populado.
+ *
+ * GRUP_CPC: 1=Ativo, 2=Passivo, 3=Custos, 4=Despesas, 5=Receitas, 6/7=Compensações
+ * Saldo Ativo/Custos/Despesas: débito - crédito (natureza devedora)
+ * Saldo Passivo/Receitas/PL:   crédito - débito (natureza credora)
+ */
+async function balancete({ dataInicio, dataFim, filialId }) {
+  const conditions = ['c.data_lancamento BETWEEN $1 AND $2'];
+  const params = [dataInicio, dataFim];
+
+  if (filialId) { params.push(filialId); conditions.push(`c.filial_id = $${params.length}`); }
+
+  const where = conditions.join(' AND ');
+
+  // O SiAGRI agrupa o balancete pelo primeiro dígito do código contábil (CODI_CPC):
+  //   1xxx = Ativo  |  2xxx = Passivo  |  3xxx = Receitas
+  //   4xxx = Custos/Despesas  |  6xxx = Compensações  |  9xxx = Mov. Transitórios
+  const res = await db.query(
+    `SELECT
+       SUBSTRING(c._dados->>'CODI_CPC', 1, 1) AS grupo,
+       CASE SUBSTRING(c._dados->>'CODI_CPC', 1, 1)
+         WHEN '1' THEN 'Ativo'
+         WHEN '2' THEN 'Passivo'
+         WHEN '3' THEN 'Receitas'
+         WHEN '4' THEN 'Custo/Despesas'
+         WHEN '6' THEN 'Compensacoes'
+         WHEN '9' THEN 'Mov.Transitorios'
+         ELSE 'Outros'
+       END AS tipo,
+       COUNT(DISTINCT c._dados->>'CODI_CPC')::INT AS qtd_contas,
+       ROUND(SUM((c._dados->>'VLOR_LCT')::NUMERIC)
+         FILTER (WHERE c._dados->>'TIPO_LCT' = 'D'), 2) AS total_debito,
+       ROUND(SUM((c._dados->>'VLOR_LCT')::NUMERIC)
+         FILTER (WHERE c._dados->>'TIPO_LCT' = 'C'), 2) AS total_credito,
+       ROUND(
+         COALESCE(SUM((c._dados->>'VLOR_LCT')::NUMERIC) FILTER (WHERE c._dados->>'TIPO_LCT' = 'D'), 0)
+         - COALESCE(SUM((c._dados->>'VLOR_LCT')::NUMERIC) FILTER (WHERE c._dados->>'TIPO_LCT' = 'C'), 0)
+       , 2) AS saldo_dc
+     FROM raw.contabil c
+     WHERE ${where}
+     GROUP BY SUBSTRING(c._dados->>'CODI_CPC', 1, 1)
+     ORDER BY SUBSTRING(c._dados->>'CODI_CPC', 1, 1) NULLS LAST`,
+    params,
+  );
+
+  return {
+    periodo: { dataInicio, dataFim },
+    filialId: filialId || null,
+    grupos: res.rows,
+    ativo:   res.rows.find((r) => r.grupo === '1') || null,
+    passivo: res.rows.find((r) => r.grupo === '2') || null,
+  };
+}
+
+module.exports = { listar, saldoContas, resumo, balancete };

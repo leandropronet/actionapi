@@ -5,6 +5,7 @@
  * GET /api/v1/contabil              — partidas contábeis com filtros
  * GET /api/v1/contabil/saldo-contas — débito/crédito/saldo por conta e competência
  * GET /api/v1/contabil/resumo       — totais mensais (lançamentos, partidas, D/C) por competência
+ * GET /api/v1/contabil/balancete    — D/C/saldo por grupo (Ativo, Passivo, Custos...) em intervalo de datas
  *
  * Filtros de /contabil:
  *   filialId, competencia (AAAA-MM), conta (CODI_CPC), planoContas (CODI_PLC),
@@ -15,6 +16,9 @@
  *
  * Filtros de /contabil/resumo:
  *   filialId, anoInicio (AAAA), anoFim (AAAA)
+ *
+ * Filtros de /contabil/balancete:
+ *   dataInicio (AAAA-MM-DD, obrigatória), dataFim (AAAA-MM-DD, obrigatória), filialId
  */
 const svc = require('../services/contabil');
 
@@ -33,6 +37,15 @@ module.exports = async function (fastify) {
   fastify.get('/contabil/resumo', async (req) => {
     const { filialId, anoInicio, anoFim } = req.query;
     return svc.resumo({ filialId, anoInicio, anoFim });
+  });
+
+  // GET /api/v1/contabil/balancete
+  fastify.get('/contabil/balancete', async (req, reply) => {
+    const { dataInicio, dataFim, filialId } = req.query;
+    if (!dataInicio || !dataFim) {
+      return reply.code(400).send({ error: 'dataInicio e dataFim sao obrigatorios (AAAA-MM-DD)', code: 'MISSING_PARAMS' });
+    }
+    return svc.balancete({ dataInicio, dataFim, filialId });
   });
 
   // GET /api/v1/contabil

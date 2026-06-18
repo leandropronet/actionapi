@@ -10,8 +10,14 @@
  *   raw.corlanpes   — CORLANPES (desdobramento por pessoa — custo de RH)
  *
  * Frequência padrão: diária às 01:00 (CRON_CONTABIL)
+ *
+ * Reconciliação automática (executada após o sync incremental):
+ *   Compara IDs Oracle × PostgreSQL para o ano corrente e o anterior.
+ *   Registros em PG que não existem mais no Oracle são excluídos automaticamente.
+ *   Isso garante fidelidade mesmo quando o ERP deleta ou renumera lançamentos.
  */
 const oracle = require('../db/oracle');
+const pg     = require('../db/postgres');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
 const cfg    = require('../oracle-config').contabil;
 const cfgCC  = require('../oracle-config').ccustolan;
@@ -150,4 +156,67 @@ async function sincronizar() {
   }
 }
 
-module.exports = { sincronizar };
+/**
+ * reconciliar()
+ *
+ * Compara IDs entre Oracle e PostgreSQL para o ano corrente e o anterior.
+ * Exclui do PG qualquer partida que não existe mais no Oracle — cobre casos
+ * de deleção direta, renumeração de lançamentos e refazimento de encerramentos.
+ *
+ * Executada automaticamente após sincronizar(). Pode ser chamada manualmente
+ * para forçar uma conferência pontual.
+ */
+async function reconciliar() {
+  const anoAtual    = new Date().getFullYear();
+  const anoAnterior = anoAtual - 1;
+  // Janela: 1/Jan do ano anterior até hoje (cobre ajustes de encerramento tardio).
+  // Usa string ISO para evitar conversão de timezone no bind Oracle: ambos os lados
+  // usam exatamente a mesma data-limite, sem buffer.
+  const dataCorteStr = `${anoAnterior}-01-01`;
+
+  console.log(`[contabil] reconciliando ${anoAnterior}–${anoAtual}...`);
+
+  // ── 1. Buscar todos os IDs do Oracle para a janela ────────────────────────
+  const resOracle = await oracle.query(
+    `SELECT TO_CHAR(CAB.${cfg.campoCabId}) || '_' || TO_CHAR(LCT.${cfg.campoLancId}) AS ID
+     FROM ${cfg.schema}.${cfg.tabelaCab} CAB
+     JOIN ${cfg.schema}.${cfg.tabelaLanc} LCT
+       ON LCT.${cfg.campoLancCabId} = CAB.${cfg.campoCabId}
+     WHERE CAB.${cfg.campoCabData} >= TO_DATE(:dataCorte, 'YYYY-MM-DD')`,
+    { dataCorte: dataCorteStr },
+  );
+  const oracleIds = new Set(resOracle.rows.map((r) => r.ID));
+
+  // ── 2. Buscar todos os IDs do PG para a mesma janela ─────────────────────
+  // Mesma data-limite de ambos os lados — sem buffer — para não deletar
+  // registros legítimos com data_lancamento = último dia do ano anterior.
+  const resPg = await pg.query(
+    `SELECT id FROM raw.contabil WHERE data_lancamento >= $1`,
+    [dataCorteStr],
+  );
+
+  // ── 3. Identificar órfãos (IDs em PG que não existem mais no Oracle) ──────
+  const orfaos = resPg.rows.map((r) => r.id).filter((id) => !oracleIds.has(id));
+
+  if (!orfaos.length) {
+    console.log('[contabil] reconciliação: nenhum registro órfão');
+    return;
+  }
+
+  // ── 4. Excluir órfãos do PG em lotes de 1000 ─────────────────────────────
+  const LOTE = 1000;
+  let totalExcluidos = 0;
+  for (let i = 0; i < orfaos.length; i += LOTE) {
+    const lote = orfaos.slice(i, i + LOTE);
+    await pg.query('DELETE FROM raw.contabil WHERE id = ANY($1)', [lote]);
+    totalExcluidos += lote.length;
+  }
+  console.log(`[contabil] reconciliação: ${totalExcluidos} registros órfãos excluídos`);
+}
+
+async function sincronizarComReconciliacao() {
+  await sincronizar();
+  await reconciliar();
+}
+
+module.exports = { sincronizar: sincronizarComReconciliacao, reconciliar };
