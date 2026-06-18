@@ -134,6 +134,7 @@ tr:last-child td { border-bottom: 0; }
 .explorer-form { display: grid; grid-template-columns: minmax(220px, .7fr) 1fr auto; gap: .8rem; }
 .text-link { color: var(--green); font-size: .84rem; font-weight: 750; text-decoration: none; }
 .result-toolbar { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-top: 1rem; }
+.result-actions { display: flex; gap: .5rem; }
 .result-toolbar code { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
 .result-toolbar .button-quiet { color: var(--green); }
 .json-view { min-height: 260px; max-height: 620px; overflow: auto; padding: 1.2rem; border-radius: 12px; color: #d8eadf; background: #10231a; line-height: 1.5; }

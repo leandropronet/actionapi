@@ -263,6 +263,7 @@ Dimensões (`dim_produto`, `dim_cliente`, etc.) e fatos (`fact_faturamento`, etc
 | `saldo_lote` | DADOSPRO + LOTE + fn SALDO_LOTE() | `raw.saldo_lote` | Diário 06:30 |
 | `estoque` | CCSALDO (view) | `raw.estoque` | A cada 10 min |
 | `contabil` | CABLANCTB + LANCONTAB | `raw.contabil` + `raw.contabil_lancamentos` | Diário 01:00 |
+| `conciliacao` | CABLANCTB + CABPAGAR + CABREC | cabeçalhos para BI e conciliação | A cada hora, minuto 15 |
 
 O ETL é **incremental**: cada job lê `etl_sync.ultimo_sync` e busca apenas `WHERE DUMANUT > :ultimoSync`. CLOBs do Oracle são convertidos para string automaticamente via `oracledb.fetchAsString = [oracledb.CLOB]`.
 
@@ -408,6 +409,23 @@ pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
 
 **Filtros de `/contabil`:** `filialId`, `competencia` (AAAA-MM), `conta` (CODI_CPC), `planoContas` (CODI_PLC), `tipo` (F=Fiscal, S=Societário), `page`, `pageSize`  
 **Campos retornados:** `lancamento_id`, `documento`, `tipo`, `conta`, `plano_contas`, `tipo_partida` (D=Débito/C=Crédito), `valor`, `historico`
+
+#### Power BI, Excel e Conciliação
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/v1/bi/financeiro` | Dataset plano por parcela, título e baixa |
+| GET | `/api/v1/bi/contabil` | Dataset plano por partida contábil |
+| GET | `/api/v1/conciliacao/financeiro-contabil` | Situação de cada título |
+| GET | `/api/v1/conciliacao/financeiro-contabil/divergencias` | Apenas inconsistências |
+| GET | `/api/v1/conciliacao/financeiro-contabil/resumo` | Totais por tipo e classificação |
+
+Todos exigem `dataInicio` e `dataFim`. Use `format=csv` para Excel ou consumo
+tabular simples. O JSON é paginado e aceita até 10.000 linhas por página.
+
+Além dos datasets especializados, todas as rotas GET de `/api/v1/*` aceitam
+`format=csv`, inclusive faturamento, pedidos, estoque, lotes, clientes,
+baixas, contabilidade e DRE.
 
 ---
 

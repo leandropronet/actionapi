@@ -132,3 +132,73 @@ Status mais comuns:
 | `500` | Erro interno |
 
 O catálogo completo e sempre executável está disponível em `/docs`.
+
+## Power BI e Excel
+
+Todas as rotas GET de `/api/v1/*` aceitam `format=csv`. Isso inclui
+faturamento, entradas, pedidos, duplicatas, estoque, lotes, clientes,
+financeiro, baixas, contabilidade, DRE e conciliação.
+
+Exemplos:
+
+```text
+/api/v1/faturamento?dataInicio=2025-01-01&dataFim=2025-12-31&format=csv
+/api/v1/clientes?status=A&format=csv
+/api/v1/lotes?vencendoEm=90&format=csv
+/api/v1/contabil?competencia=2025-01&format=csv
+```
+
+Além da exportação geral, estes endpoints retornam fatos planos especialmente
+adequados para tabela dinâmica:
+
+```http
+GET /api/v1/bi/financeiro
+GET /api/v1/bi/contabil
+```
+
+Os dois exigem `dataInicio` e `dataFim`. Para CSV:
+
+```text
+/api/v1/bi/financeiro?dataInicio=2025-01-01&dataFim=2025-12-31&format=csv&pageSize=10000
+```
+
+No Power BI, use **Obter dados → Web** e informe a URL. Em opções avançadas,
+adicione o header:
+
+```text
+X-API-Key: sua-chave
+```
+
+As APIs respeitam o `pageSize` máximo de cada rota. Para grandes volumes,
+divida a carga por mês ou use paginação. Os datasets `/bi/*` aceitam até
+10.000 linhas por página.
+
+O CSV usa separador `;`, UTF-8 com BOM e proteção contra fórmulas injetadas no
+Excel. Os campos de data, filial, parceiro, título, parcela, valores, baixas,
+contas, débitos e créditos são retornados em colunas independentes.
+
+## Conciliação financeiro × contábil
+
+```http
+GET /api/v1/conciliacao/financeiro-contabil
+GET /api/v1/conciliacao/financeiro-contabil/divergencias
+GET /api/v1/conciliacao/financeiro-contabil/resumo
+```
+
+Classificações:
+
+- `OK`;
+- `SEM_LANCAMENTO_CONTABIL`;
+- `MULTIPLOS_LANCAMENTOS`;
+- `VALOR_DIVERGENTE`.
+- `NAO_APLICAVEL_REGRA_AUTOMATICA`.
+
+Regras confirmadas no ERP:
+
+- CP normal (`TDRL_CPG=NN`): origem contábil `DP`, vinculada pelo controle do título;
+- CR normal de venda (`CODI_TDO=101`): origem contábil `NE`, vinculada por número,
+  série, filial e parceiro;
+- retenções, caixa, cancelamentos e outros documentos ficam como
+  `NAO_APLICAVEL_REGRA_AUTOMATICA`, pois podem ser contabilizados agrupados.
+
+A tolerância padrão é R$ 0,01 e pode ser alterada pelo parâmetro `tolerancia`.

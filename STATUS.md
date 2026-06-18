@@ -109,6 +109,8 @@ Reprodução pela API:
 | Rate limit, Helmet, CSP e auditoria | ✅ Implementado |
 | Docker sem root, filesystem read-only e bind local padrão | ✅ Implementado |
 | Guia de API e segurança em `docs/` | ✅ Implementado |
+| Datasets planos para Power BI/Excel | ✅ Implementado |
+| Conciliação financeiro × contábil | ✅ Implementado |
 
 ---
 

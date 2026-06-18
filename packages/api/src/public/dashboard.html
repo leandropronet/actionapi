@@ -100,6 +100,9 @@
             <option value="/api/v1/lotes?pageSize=20">Lotes</option>
             <option value="/api/v1/clientes?pageSize=20">Clientes</option>
             <option value="/api/v1/contabil?pageSize=20">Contabilidade</option>
+            <option value="/api/v1/conciliacao/financeiro-contabil/divergencias?dataInicio=2025-01-01&dataFim=2025-12-31&pageSize=100">Divergências financeiro × contábil</option>
+            <option value="/api/v1/bi/financeiro?dataInicio=2025-01-01&dataFim=2025-12-31&pageSize=100">Dataset financeiro para BI</option>
+            <option value="/api/v1/bi/contabil?dataInicio=2025-01-01&dataFim=2025-12-31&pageSize=100">Dataset contábil para BI</option>
           </select>
           <input id="extra-query" placeholder="Filtros adicionais: filialId=1&dataInicio=2025-01-01">
           <button type="submit">Executar</button>
@@ -107,7 +110,10 @@
 
         <div class="result-toolbar">
           <code id="request-url">—</code>
-          <button id="copy-result" class="button-quiet" type="button">Copiar JSON</button>
+          <div class="result-actions">
+            <button id="download-csv" class="button-quiet" type="button">Baixar CSV</button>
+            <button id="copy-result" class="button-quiet" type="button">Copiar JSON</button>
+          </div>
         </div>
         <pre id="json-result" class="json-view">Selecione uma consulta.</pre>
       </section>

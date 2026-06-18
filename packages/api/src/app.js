@@ -24,6 +24,7 @@ const openapi = require('./openapi');
 const { verifyPassword } = require('./security/password');
 const { adminSessionMiddleware, authMiddleware } = require('./middleware/auth');
 const { auditResponse } = require('./middleware/audit');
+const { csvExportHook } = require('./middleware/export');
 
 async function buildApp({ validateConfig = true } = {}) {
   if (validateConfig) config.validateConfig();
@@ -110,6 +111,7 @@ async function buildApp({ validateConfig = true } = {}) {
     }
   });
   app.addHook('onResponse', auditResponse);
+  app.addHook('onSend', csvExportHook);
 
   app.get('/', async (request, reply) => reply.redirect('/painel'));
   app.get('/health', {
@@ -189,6 +191,7 @@ async function buildApp({ validateConfig = true } = {}) {
   app.register(require('./routes/lotes'), { prefix: '/api/v1' });
   app.register(require('./routes/baixas'), { prefix: '/api/v1' });
   app.register(require('./routes/dre'), { prefix: '/api/v1' });
+  app.register(require('./routes/bi'), { prefix: '/api/v1' });
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);

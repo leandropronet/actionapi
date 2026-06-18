@@ -3,6 +3,7 @@
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const quantity = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 let lastJson = '';
+let lastUrl = '';
 
 async function apiFetch(url, options) {
   const response = await fetch(url, options);
@@ -88,6 +89,7 @@ document.querySelector('#explorer-form').addEventListener('submit', async (event
   const base = document.querySelector('#endpoint').value;
   const extra = document.querySelector('#extra-query').value.trim().replace(/^\?/, '');
   const url = extra ? `${base}${base.includes('?') ? '&' : '?'}${extra}` : base;
+  lastUrl = url;
   document.querySelector('#request-url').textContent = url;
   const view = document.querySelector('#json-result');
   view.textContent = 'Consultando…';
@@ -108,6 +110,12 @@ document.querySelector('#copy-result').addEventListener('click', async () => {
   const button = document.querySelector('#copy-result');
   button.textContent = 'Copiado';
   setTimeout(() => { button.textContent = 'Copiar JSON'; }, 1200);
+});
+
+document.querySelector('#download-csv').addEventListener('click', () => {
+  if (!lastUrl) return;
+  const separator = lastUrl.includes('?') ? '&' : '?';
+  window.location.assign(`${lastUrl}${separator}format=csv`);
 });
 
 document.querySelector('#logout').addEventListener('click', async () => {

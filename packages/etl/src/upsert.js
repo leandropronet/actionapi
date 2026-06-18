@@ -39,6 +39,40 @@ async function upsertRaw(table, rows, extraFields = {}) {
   return rows.length;
 }
 
+// UPSERT em lotes para cargas de cabeçalhos com grande volume.
+// Todos os registros devem possuir o mesmo conjunto de campos.
+async function upsertRawBatch(table, rows, { chunkSize = 500 } = {}) {
+  if (!rows.length) return 0;
+
+  const fields = Object.keys(rows[0]);
+  const updates = fields
+    .filter((field) => field !== 'id')
+    .map((field) => `${field} = EXCLUDED.${field}`);
+
+  for (let offset = 0; offset < rows.length; offset += chunkSize) {
+    const chunk = rows.slice(offset, offset + chunkSize);
+    const values = [];
+    const tuples = chunk.map((row) => {
+      const placeholders = fields.map((field) => {
+        values.push(row[field]);
+        return `$${values.length}`;
+      });
+      return `(${placeholders.join(', ')})`;
+    });
+
+    await pg.query(
+      `INSERT INTO ${table} (${fields.join(', ')})
+       VALUES ${tuples.join(', ')}
+       ON CONFLICT (id) DO UPDATE SET
+         ${updates.join(', ')},
+         _sync_at = NOW()`,
+      values,
+    );
+  }
+
+  return rows.length;
+}
+
 // Atualiza o timestamp de último sync incremental
 async function atualizarSync(dominio) {
   await pg.query(
@@ -56,4 +90,4 @@ async function lerUltimoSync(dominio) {
   return res.rows[0]?.ultimo_sync || new Date('2020-01-01');
 }
 
-module.exports = { upsertRaw, atualizarSync, lerUltimoSync };
+module.exports = { upsertRaw, upsertRawBatch, atualizarSync, lerUltimoSync };

@@ -302,7 +302,86 @@ const paths = {
   '/api/v1/dre/estrutura': {
     get: get('Consultar estrutura da DRE', 'Contabilidade'),
   },
+  '/api/v1/bi/financeiro': {
+    get: get(
+      'Dataset financeiro plano para Power BI e Excel',
+      'BI e Conciliação',
+      [
+        ...dateParams, filial,
+        stringQuery('tipo', 'CP ou CR.'),
+        stringQuery('parceiroId', 'Código do parceiro.'),
+        stringQuery('status', 'Status da parcela.'),
+        stringQuery('format', 'json ou csv.', 'json'),
+        ...pagination,
+      ],
+      'Uma linha por parcela, com título, parceiro, baixas agregadas e saldo calculado.',
+    ),
+  },
+  '/api/v1/bi/contabil': {
+    get: get(
+      'Dataset contábil plano para Power BI e Excel',
+      'BI e Conciliação',
+      [
+        ...dateParams, filial,
+        stringQuery('parceiroId', 'Código do parceiro.'),
+        stringQuery('conta', 'Código da conta contábil.'),
+        stringQuery('origem', 'Origem do lançamento, como DP ou NE.'),
+        stringQuery('tipoPartida', 'D=débito ou C=crédito.'),
+        stringQuery('format', 'json ou csv.', 'json'),
+        ...pagination,
+      ],
+      'Uma linha por partida contábil, com cabeçalho, conta, histórico, débito e crédito.',
+    ),
+  },
+  '/api/v1/conciliacao/financeiro-contabil': {
+    get: get('Conciliação financeiro × contábil', 'BI e Conciliação', [
+      ...dateParams, filial,
+      stringQuery('tipo', 'CP ou CR.'),
+      stringQuery('parceiroId', 'Código do parceiro.'),
+      stringQuery('statusConciliacao', 'OK, SEM_LANCAMENTO_CONTABIL, MULTIPLOS_LANCAMENTOS, VALOR_DIVERGENTE ou NAO_APLICAVEL_REGRA_AUTOMATICA.'),
+      stringQuery('tolerancia', 'Tolerância monetária para diferença.', '0.01'),
+      stringQuery('format', 'json ou csv.', 'json'),
+      ...pagination,
+    ]),
+  },
+  '/api/v1/conciliacao/financeiro-contabil/divergencias': {
+    get: get('Somente divergências financeiro × contábil', 'BI e Conciliação', [
+      ...dateParams, filial,
+      stringQuery('tipo', 'CP ou CR.'),
+      stringQuery('parceiroId', 'Código do parceiro.'),
+      stringQuery('tolerancia', 'Tolerância monetária para diferença.', '0.01'),
+      stringQuery('format', 'json ou csv.', 'json'),
+      ...pagination,
+    ]),
+  },
+  '/api/v1/conciliacao/financeiro-contabil/resumo': {
+    get: get('Resumo da conciliação por tipo e status', 'BI e Conciliação', [
+      ...dateParams, filial,
+      stringQuery('tipo', 'CP ou CR.'),
+      stringQuery('parceiroId', 'Código do parceiro.'),
+      stringQuery('tolerancia', 'Tolerância monetária para diferença.', '0.01'),
+    ]),
+  },
 };
+
+// Parâmetro comum: qualquer consulta GET pode ser exportada em CSV.
+for (const pathItem of Object.values(paths)) {
+  if (!pathItem.get) continue;
+  const hasFormat = pathItem.get.parameters?.some((parameter) => parameter.name === 'format');
+  if (!hasFormat) {
+    pathItem.get.parameters = [
+      ...(pathItem.get.parameters || []),
+      stringQuery('format', 'Use csv para baixar uma tabela compatível com Excel/Power BI.', 'json'),
+    ];
+  }
+  pathItem.get.responses[200] = {
+    description: 'Consulta em JSON ou CSV quando format=csv.',
+    content: {
+      'application/json': { schema: { type: 'object', additionalProperties: true } },
+      'text/csv': { schema: { type: 'string' } },
+    },
+  };
+}
 
 module.exports = {
   openapi: '3.0.3',
@@ -326,6 +405,7 @@ module.exports = {
     { name: 'Estoque' },
     { name: 'Clientes' },
     { name: 'Contabilidade' },
+    { name: 'BI e Conciliação' },
   ],
   paths,
   components: {
