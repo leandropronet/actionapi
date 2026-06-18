@@ -1,53 +1,68 @@
 'use strict';
+/**
+ * routes/faturamento.js
+ *
+ * GET /api/v1/faturamento         — NFs com filtros de cabeçalho
+ * GET /api/v1/faturamento/resumo  — totais por período
+ * GET /api/v1/faturamento/itens   — nível de item com filtros de produto/grupo
+ * GET /api/v1/faturamento/:id     — NF completa com itens
+ *
+ * Filtros de data (dois conjuntos, use um por vez):
+ *   dataInicio / dataFim     → filtra por data de EMISSÃO (DEMI_NOT)
+ *   dataSaidaDe / dataSaidaAte → filtra por data de SAÍDA (DSAI_NOT)
+ *   O relatório "Saídas Faturadas Analítico" do SiAGRI usa dataSaidaDe/dataSaidaAte.
+ *
+ * Outros filtros de /faturamento e /faturamento/itens:
+ *   filialId, clienteId, vendedorId, status (0/5/9), tranTop (1/2/3),
+ *   operacaoId, grupoId, subgrupoId, produtoId, principioAtivoId
+ *   page, pageSize (padrão 100, máx 500 para NFs; padrão 200, máx 1000 para itens)
+ *
+ * Filtros de /faturamento/resumo:
+ *   agrupamento (dia|mes|trimestre|ano), filialId, tranTop
+ *   + os filtros de data acima (emissão ou saída)
+ */
 const svc = require('../services/faturamento');
 
 module.exports = async function (fastify) {
-  // GET /api/v1/faturamento
-  // Filtros: dataInicio, dataFim, filialId, clienteId, vendedorId,
-  //          status, tranTop, operacaoId, grupoId, subgrupoId, produtoId
   fastify.get('/faturamento', async (req) => {
     const {
-      dataInicio, dataFim, filialId, clienteId, vendedorId,
+      dataInicio, dataFim, dataSaidaDe, dataSaidaAte,
+      filialId, clienteId, vendedorId,
       status, tranTop, operacaoId, grupoId, subgrupoId, produtoId, principioAtivoId,
       page, pageSize,
     } = req.query;
 
     return svc.listar({
-      dataInicio, dataFim, filialId, clienteId, vendedorId,
+      dataInicio, dataFim, dataSaidaDe, dataSaidaAte,
+      filialId, clienteId, vendedorId,
       status, tranTop, operacaoId, grupoId, subgrupoId, produtoId, principioAtivoId,
       page:     Number(page)     || 1,
       pageSize: Math.min(Number(pageSize) || 100, 500),
     });
   });
 
-  // GET /api/v1/faturamento/resumo
-  // Filtros: agrupamento (dia/mes/trimestre/ano), filialId, dataInicio, dataFim, tranTop
   fastify.get('/faturamento/resumo', async (req) => {
-    const { agrupamento, filialId, dataInicio, dataFim, tranTop } = req.query;
-    return svc.resumo({ agrupamento, filialId, dataInicio, dataFim, tranTop });
+    const { agrupamento, filialId, dataInicio, dataFim, dataSaidaDe, dataSaidaAte, tranTop } = req.query;
+    return svc.resumo({ agrupamento, filialId, dataInicio, dataFim, dataSaidaDe, dataSaidaAte, tranTop });
   });
 
-  // GET /api/v1/faturamento/itens
-  // Nível de item — ideal para filtrar por grupo, subgrupo, produto específico.
-  // Filtros: dataInicio, dataFim, filialId, clienteId, vendedorId, tranTop,
-  //          grupoId, subgrupoId, produtoId
   fastify.get('/faturamento/itens', async (req) => {
     const {
-      dataInicio, dataFim, filialId, clienteId, vendedorId, tranTop,
+      dataInicio, dataFim, dataSaidaDe, dataSaidaAte,
+      filialId, clienteId, vendedorId, tranTop,
       grupoId, subgrupoId, produtoId, principioAtivoId,
       page, pageSize,
     } = req.query;
 
     return svc.listarItens({
-      dataInicio, dataFim, filialId, clienteId, vendedorId, tranTop,
+      dataInicio, dataFim, dataSaidaDe, dataSaidaAte,
+      filialId, clienteId, vendedorId, tranTop,
       grupoId, subgrupoId, produtoId, principioAtivoId,
       page:     Number(page)     || 1,
       pageSize: Math.min(Number(pageSize) || 200, 1000),
     });
   });
 
-  // GET /api/v1/faturamento/:id
-  // NF completa com itens (inclui grupo, subgrupo, unidade de cada item)
   fastify.get('/faturamento/:id', async (req, reply) => {
     const nf = await svc.buscarPorId(req.params.id);
     if (!nf) return reply.code(404).send({ error: 'NF não encontrada', code: 'NOT_FOUND' });

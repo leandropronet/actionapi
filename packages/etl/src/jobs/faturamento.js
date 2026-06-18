@@ -15,6 +15,9 @@
  *
  * Para relatórios de vendas: filtrar tran_top = '2' (saídas).
  * O link NF → Pedido fica em: faturamento_itens.pedido_id = pedidos.id
+ *
+ * Nota: NFs no SiAGRI nunca são excluídas — apenas canceladas (SITU_NOT=9),
+ *   desfeitas ou devolvidas. Por isso, não há reconciliação para este módulo.
  */
 const oracle = require('../db/oracle');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');

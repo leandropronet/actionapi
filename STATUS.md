@@ -65,15 +65,32 @@ Resultado dos testes em 17/06/2026:
 
 ---
 
-### ⏳ Faturamento
+### ✅ Faturamento — VALIDADO com relatório ERP
 
 | Item | Status |
 |------|--------|
 | ETL incremental `raw.faturamento` + `raw.faturamento_itens` | ✅ Funcionando |
 | Endpoint `GET /api/v1/faturamento` | ✅ Implementado |
 | Endpoint `GET /api/v1/faturamento/resumo` | ✅ Implementado |
-| Validação contra relatório ERP | ⏳ Pendente |
-| Reconciliação automática de exclusões | ⏳ Pendente |
+| Filtro por data de saída (`dataSaidaDe`/`dataSaidaAte`) | ✅ Implementado |
+| **Validação contra relatório SiAGRI (Saídas Faturadas Analítico 2025)** | ✅ Validado |
+| Reconciliação automática | N/A — NF nunca é excluída no SiAGRI (só cancelada) |
+
+#### Validação 2025 — param 102 (VENDAS-DEVOLUCAO), período 01/01 a 31/12/2025
+
+Relatório SiAGRI: Saídas Faturadas - Analítico, função 102, Indexador R$
+
+| Métrica | API (PG) | SiAGRI (PDF p.991) | Diferença |
+|---------|----------|-------------------|-----------|
+| Total líquido (A−S) | R$ 197.961.182,47 | R$ 197.643.773,21 | R$ 317.409,26 (+0,16%) |
+| Quantidade itens (A−S) | 3.110.926,550 | 3.098.335,750 | 12.590,800 |
+
+**Filtro correto:** O relatório SiAGRI usa **data de saída** (DSAI_NOT), não data de emissão.
+  Usar `?dataSaidaDe=2025-01-01&dataSaidaAte=2025-12-31` na API para reproduzir o relatório.
+
+**Gap residual de 0,16%:** Causado por itens com VLOR_INO/QTDE_INO alterados no Oracle  
+  sem atualizar DUMANUT da NF cabeçalho (sync incremental não captura essas alterações).  
+  Confirmado: zero NFs fantasmas (reconciliação inválida para faturamento — NF só cancela).
 
 ---
 
@@ -244,10 +261,15 @@ GET /api/v1/contabil/resumo                       Totais mensais por competênci
 GET /api/v1/contabil/balancete?dataInicio=&dataFim= Balancete por grupo (Ativo, Passivo…)
 ```
 
-### Faturamento
+### Faturamento ✅ Validado
 ```
 GET /api/v1/faturamento                           NFs com filtros
-GET /api/v1/faturamento/resumo                    Totais por competência
+GET /api/v1/faturamento/resumo                    Totais por período
+GET /api/v1/faturamento/itens                     Itens com filtros de produto/grupo/PA
+GET /api/v1/faturamento/:id                       NF completa com itens
+
+Filtro por data de emissão: ?dataInicio=AAAA-MM-DD&dataFim=AAAA-MM-DD
+Filtro por data de saída:   ?dataSaidaDe=AAAA-MM-DD&dataSaidaAte=AAAA-MM-DD  ← uso no relatório SiAGRI
 ```
 
 ### Duplicatas

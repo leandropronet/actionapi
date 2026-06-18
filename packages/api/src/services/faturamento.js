@@ -10,6 +10,12 @@
  *   gera um EXISTS (SELECT 1 FROM raw.faturamento_itens fi2 JOIN raw.produtos p2 ...)
  *   para filtrar a lista de NFs sem expor os itens no payload da lista.
  *
+ * Filtro de data: dois conjuntos disponíveis.
+ *   dataInicio/dataFim  → filtram por DEMI_NOT (data de emissão)
+ *   dataSaidaDe/dataSaidaAte → filtram por DSAI_NOT (data de saída)
+ *   O relatório "Saídas Faturadas Analítico" do SiAGRI usa data de SAÍDA.
+ *   NFs com DSAI_NOT nulo são automaticamente excluídas do filtro de saída.
+ *
  * Funções exportadas:
  *   listar()      — lista paginada de NFs com filtros
  *   buscarPorId() — NF completa com itens, grupos e princípios ativos
@@ -68,15 +74,18 @@ function buildProdutoExists(conds, params, { grupoId, subgrupoId, produtoId, pri
 }
 
 async function listar({
-  dataInicio, dataFim, filialId, clienteId, vendedorId,
+  dataInicio, dataFim, dataSaidaDe, dataSaidaAte,
+  filialId, clienteId, vendedorId,
   status, tranTop, operacaoId, grupoId, subgrupoId, produtoId, principioAtivoId,
   page = 1, pageSize = 100,
 }) {
   const conds = [];
   const params = [];
 
-  if (dataInicio)  { params.push(dataInicio);  conds.push(`f.data_emissao >= $${params.length}`); }
-  if (dataFim)     { params.push(dataFim);     conds.push(`f.data_emissao <= $${params.length}`); }
+  if (dataInicio)   { params.push(dataInicio);   conds.push(`f.data_emissao >= $${params.length}`); }
+  if (dataFim)      { params.push(dataFim);      conds.push(`f.data_emissao <= $${params.length}`); }
+  if (dataSaidaDe)  { params.push(dataSaidaDe);  conds.push(`(f._dados->>'DSAI_NOT')::DATE >= $${params.length}`); }
+  if (dataSaidaAte) { params.push(dataSaidaAte); conds.push(`(f._dados->>'DSAI_NOT')::DATE <= $${params.length}`); }
   if (filialId)    { params.push(filialId);    conds.push(`f.filial_id = $${params.length}`); }
   if (tranTop)     { params.push(tranTop);     conds.push(`f.tran_top = $${params.length}`); }
   if (operacaoId)  { params.push(operacaoId);  conds.push(`f.operacao_id = $${params.length}`); }
@@ -141,15 +150,18 @@ async function buscarPorId(id) {
 }
 
 async function listarItens({
-  dataInicio, dataFim, filialId, clienteId, vendedorId, tranTop,
+  dataInicio, dataFim, dataSaidaDe, dataSaidaAte,
+  filialId, clienteId, vendedorId, tranTop,
   grupoId, subgrupoId, produtoId, principioAtivoId,
   page = 1, pageSize = 200,
 }) {
   const conds = [];
   const params = [];
 
-  if (dataInicio)  { params.push(dataInicio);  conds.push(`f.data_emissao >= $${params.length}`); }
-  if (dataFim)     { params.push(dataFim);     conds.push(`f.data_emissao <= $${params.length}`); }
+  if (dataInicio)   { params.push(dataInicio);   conds.push(`f.data_emissao >= $${params.length}`); }
+  if (dataFim)      { params.push(dataFim);      conds.push(`f.data_emissao <= $${params.length}`); }
+  if (dataSaidaDe)  { params.push(dataSaidaDe);  conds.push(`(f._dados->>'DSAI_NOT')::DATE >= $${params.length}`); }
+  if (dataSaidaAte) { params.push(dataSaidaAte); conds.push(`(f._dados->>'DSAI_NOT')::DATE <= $${params.length}`); }
   if (filialId)    { params.push(filialId);    conds.push(`f.filial_id = $${params.length}`); }
   if (tranTop)     { params.push(tranTop);     conds.push(`f.tran_top = $${params.length}`); }
   if (clienteId)   { params.push(clienteId);   conds.push(`f._dados->>'CODI_TRA' = $${params.length}`); }
@@ -213,21 +225,25 @@ async function listarItens({
   return { data: dataRes.rows, total: countRes.rows[0].total, page, pageSize };
 }
 
-async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, tranTop }) {
+async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, dataSaidaDe, dataSaidaAte, tranTop }) {
   const conds = [];
   const params = [];
 
-  if (filialId)  { params.push(filialId);  conds.push(`filial_id = $${params.length}`); }
-  if (dataInicio){ params.push(dataInicio); conds.push(`data_emissao >= $${params.length}`); }
-  if (dataFim)   { params.push(dataFim);   conds.push(`data_emissao <= $${params.length}`); }
-  if (tranTop)   { params.push(tranTop);   conds.push(`tran_top = $${params.length}`); }
+  if (filialId)    { params.push(filialId);    conds.push(`filial_id = $${params.length}`); }
+  if (dataInicio)  { params.push(dataInicio);  conds.push(`data_emissao >= $${params.length}`); }
+  if (dataFim)     { params.push(dataFim);     conds.push(`data_emissao <= $${params.length}`); }
+  if (dataSaidaDe) { params.push(dataSaidaDe); conds.push(`(_dados->>'DSAI_NOT')::DATE >= $${params.length}`); }
+  if (dataSaidaAte){ params.push(dataSaidaAte);conds.push(`(_dados->>'DSAI_NOT')::DATE <= $${params.length}`); }
+  if (tranTop)     { params.push(tranTop);     conds.push(`tran_top = $${params.length}`); }
 
   const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
-  const trunc = agrupamento === 'dia'       ? `DATE_TRUNC('day',     data_emissao)`
-              : agrupamento === 'trimestre' ? `DATE_TRUNC('quarter', data_emissao)`
-              : agrupamento === 'ano'       ? `DATE_TRUNC('year',    data_emissao)`
-              :                              `DATE_TRUNC('month',    data_emissao)`;
+  // Se filtro por data_saida, o período usa data_saida; caso contrário data_emissao
+  const dateCol = (dataSaidaDe || dataSaidaAte) ? `(_dados->>'DSAI_NOT')::DATE` : `data_emissao`;
+  const trunc = agrupamento === 'dia'       ? `DATE_TRUNC('day',     ${dateCol})`
+              : agrupamento === 'trimestre' ? `DATE_TRUNC('quarter', ${dateCol})`
+              : agrupamento === 'ano'       ? `DATE_TRUNC('year',    ${dateCol})`
+              :                              `DATE_TRUNC('month',    ${dateCol})`;
 
   const res = await db.query(
     `SELECT
