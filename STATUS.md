@@ -1,6 +1,6 @@
 # ActionAPI — Status de Desenvolvimento e Validação
 
-> Última atualização: 2026-06-17  
+> Última atualização: 2026-06-18
 > Branch: main
 
 ---
@@ -97,6 +97,18 @@ Para o parâmetro 102 em 2025:
 Reprodução pela API:
 
 `GET /api/v1/faturamento/resumo?paramId=102&dataInicio=2025-01-01&dataFim=2025-12-31`
+
+### ✅ Portal, documentação e segurança
+
+| Item | Status |
+|---|---|
+| Swagger/OpenAPI protegido em `/docs` | ✅ Implementado |
+| Painel administrativo somente leitura em `/painel` | ✅ Implementado |
+| Login com senha `scrypt` e sessão em cookie HttpOnly | ✅ Implementado |
+| API key com comparação em tempo constante | ✅ Implementado |
+| Rate limit, Helmet, CSP e auditoria | ✅ Implementado |
+| Docker sem root, filesystem read-only e bind local padrão | ✅ Implementado |
+| Guia de API e segurança em `docs/` | ✅ Implementado |
 
 ---
 

@@ -11,9 +11,9 @@ Oracle ERP (SiAGRI)
        ▼
 PostgreSQL 16 — schema raw.*
        │
-       │  Fastify REST API (X-API-Key)
+       │  Fastify REST API (X-API-Key ou sessão)
        ▼
-SaaS / Dashboards
+Integrações / Painel / Swagger
 ```
 
 O ERP SiAGRI roda on-premise com banco Oracle. O ActionAPI lê os dados do Oracle via ETL incremental, armazena no PostgreSQL local e expõe via API REST somente leitura. A Fase 2 (write-back: baixa de duplicatas, protocolo NF) está planejada mas não implementada.
@@ -30,6 +30,8 @@ O ERP SiAGRI roda on-premise com banco Oracle. O ActionAPI lê os dados do Oracl
 | Data warehouse | PostgreSQL | 16 |
 | Driver PostgreSQL | `pg` (node-postgres) | — |
 | API framework | Fastify | 5.x |
+| Documentação | OpenAPI + Swagger UI | 3.0 |
+| Frontend | HTML/CSS/JS servido pelo Fastify | — |
 | Runtime | Node.js | 20+ |
 | Containers | Docker / Docker Compose | — |
 | OS destino | Windows Server 2019 | — |
@@ -79,7 +81,9 @@ ActionAPI/
 │           ├── app.js               # Fastify: registra rotas, auth hook, error handler
 │           ├── config.js            # Lê PORT, LOG_LEVEL do .env
 │           ├── db/postgres.js       # Pool PostgreSQL compartilhado
-│           ├── middleware/auth.js   # X-API-Key (header obrigatório em /api/*)
+│           ├── middleware/auth.js   # X-API-Key ou sessão administrativa
+│           ├── openapi.js           # Contrato Swagger/OpenAPI
+│           ├── public/              # Login e painel somente leitura
 │           ├── routes/              # Um arquivo por domínio
 │           └── services/            # Queries PostgreSQL, lógica de negócio
 │
@@ -138,6 +142,14 @@ PG_PASS=<senha forte>
 # Auth API
 API_KEYS=chave1,chave2  # múltiplas chaves separadas por vírgula
 
+# Painel e Swagger
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH=<gere com npm run hash-password>
+SESSION_SECRET=<segredo aleatório com 32+ caracteres>
+COOKIE_SECURE=true
+ENFORCE_HTTPS=true
+TRUST_PROXY=true
+
 # Porta da API
 PORT=3000
 ```
@@ -147,6 +159,16 @@ PORT=3000
 ```bash
 docker compose up -d
 ```
+
+Antes de subir, gere o hash da senha administrativa:
+
+```bash
+cd packages/api
+npm install
+npm run hash-password -- "uma-senha-longa-e-exclusiva"
+```
+
+Copie o resultado para `ADMIN_PASSWORD_HASH` no `.env`.
 
 Isso vai:
 1. Subir o PostgreSQL e rodar `migrations/001_schema_raw.sql` automaticamente
@@ -173,6 +195,16 @@ curl http://localhost:3000/health
 # Teste de autenticação
 curl -H "X-API-Key: chave1" "http://localhost:3000/api/v1/faturamento?dataInicio=2024-01-01"
 ```
+
+Interfaces web:
+
+- `https://seu-host/login` — autenticação;
+- `https://seu-host/painel` — consultas visuais;
+- `https://seu-host/docs` — Swagger/OpenAPI.
+
+Em desenvolvimento HTTP local, use `COOKIE_SECURE=false` e
+`ENFORCE_HTTPS=false`. Em produção, mantenha ambos como `true` atrás de um
+reverse proxy HTTPS.
 
 ---
 
@@ -221,6 +253,7 @@ Dimensões (`dim_produto`, `dim_cliente`, etc.) e fatos (`fact_faturamento`, etc
 |---|---|---|---|
 | `dimensoes` | CADEMP, TRANSAC, PRODSERV, GRUPO, PESSOAL, PROPRIED, PRINATIVOS, PRINCIPIOATIVO_REC, etc. | `raw.filiais`, `raw.clientes`, `raw.produtos`, `raw.grupos`, `raw.vendedores`, `raw.propriedades`, `raw.principios_ativos`, `raw.principios_ativos_rec`, `raw.produto_principio_ativo_rec` | Diário 06:00 |
 | `faturamento` | NOTA + INOTA + TIPOOPER | `raw.faturamento` + `raw.faturamento_itens` | A cada hora |
+| `nfe_entrada` | NFENTRA + INFENTRA | `raw.nfe_entrada` + `raw.nfe_entrada_itens` | A cada hora |
 | `pedidos` | PEDIDO + IPEDIDO | `raw.pedidos` + `raw.pedidos_itens` | A cada 30 min |
 | `duplicatas` | CABREC + RECEBER | `raw.duplicatas` + `raw.duplicatas_parcelas` | A cada hora |
 | `financeiro` | CABPAGAR+PAGAR, CABREC+RECEBER | `raw.financeiro_cp`, `raw.financeiro_cr` | A cada hora |
@@ -237,7 +270,14 @@ O ETL é **incremental**: cada job lê `etl_sync.ultimo_sync` e busca apenas `WH
 
 ## API REST
 
-Todas as rotas exigem o header `X-API-Key: <chave>`.
+Todas as rotas aceitam o header `X-API-Key: <chave>`. O painel e o Swagger
+também podem consultar as APIs pela sessão administrativa.
+
+Consulte também:
+
+- [Guia completo de uso](docs/API.md)
+- [Segurança e implantação](docs/SECURITY.md)
+- Swagger interativo em `/docs`
 
 Resposta padrão de lista:
 ```json
@@ -268,6 +308,20 @@ pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
 `GET /api/v1/faturamento/resumo?paramId=102&dataInicio=2025-01-01&dataFim=2025-12-31`
 
 **Nota:** `tran_top=2` = saídas (vendas). `tran_top=1` = entradas (devoluções de venda / compras).
+
+#### NF-e de Entrada e Devoluções
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/v1/entradas` | Lista NF-e de entrada |
+| GET | `/api/v1/entradas/resumo` | Totais agrupados por período |
+| GET | `/api/v1/entradas/itens` | Itens e dados tributários |
+| GET | `/api/v1/entradas/devolucoes` | Devoluções vinculadas ao parâmetro 102 |
+| GET | `/api/v1/entradas/:id` | NF-e de entrada completa |
+
+**Filtros:** `dataInicio`, `dataFim`, `dataRecebDe`, `dataRecebAte`,
+`filialId`, `parceiroId`, `operacaoId`, `grupoId`, `produtoId`, `paramId`,
+`funcao`, `page` e `pageSize`.
 
 #### Pedidos de Venda
 

@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${PG_USER:-actionapi}
       POSTGRES_PASSWORD: ${PG_PASS}
     ports:
-      - "5432:5432"
+      - "${PG_BIND_HOST:-127.0.0.1}:${PG_EXPOSE_PORT:-5432}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
@@ -38,7 +38,7 @@ services:
       context: ./packages/api
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-3000}:3000"
+      - "${BIND_HOST:-127.0.0.1}:${PORT:-3000}:3000"
     env_file: .env
     depends_on:
       postgres:
@@ -46,6 +46,11 @@ services:
     networks:
       - actionapi-net
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   pg_data:

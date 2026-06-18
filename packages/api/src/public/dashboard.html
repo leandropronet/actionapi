@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ActionAPI · Painel</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <div class="brand-row">
+          <div class="brand-mark small">A</div>
+          <div>
+            <strong>ActionAPI</strong>
+            <span>Consulta ERP</span>
+          </div>
+        </div>
+        <nav>
+          <a href="#faturamento">Faturamento</a>
+          <a href="#explorador">Explorador</a>
+          <a href="/docs" target="_blank" rel="noopener">Swagger ↗</a>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <span id="session-user"></span>
+        <button id="logout" class="button-quiet">Sair</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">PAINEL SOMENTE LEITURA</p>
+          <h1>Dados do ERP, sem atalhos obscuros.</h1>
+          <p class="muted">As consultas usam o PostgreSQL sincronizado. Nenhuma tela altera o Oracle.</p>
+        </div>
+        <div id="api-status" class="status-pill">Verificando API…</div>
+      </header>
+
+      <section id="faturamento" class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">CONSOLIDADO</p>
+            <h2>Faturamento líquido</h2>
+          </div>
+          <span class="hint">NOTA A−S + NFENTRA A−S</span>
+        </div>
+
+        <form id="billing-form" class="filters">
+          <label>Data inicial<input id="billing-start" type="date" value="2025-01-01" required></label>
+          <label>Data final<input id="billing-end" type="date" value="2025-12-31" required></label>
+          <label>Parâmetro<input id="billing-param" value="102" required></label>
+          <label>Filial<input id="billing-branch" placeholder="Todas"></label>
+          <button type="submit">Consultar</button>
+        </form>
+
+        <div class="metric-grid">
+          <article class="metric-card">
+            <span>Valor líquido</span>
+            <strong id="metric-value">—</strong>
+          </article>
+          <article class="metric-card">
+            <span>Quantidade líquida</span>
+            <strong id="metric-quantity">—</strong>
+          </article>
+          <article class="metric-card">
+            <span>Filiais</span>
+            <strong id="metric-branches">—</strong>
+          </article>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Filial</th><th>Quantidade líquida</th><th>Valor líquido</th></tr></thead>
+            <tbody id="billing-table"><tr><td colspan="3">Faça uma consulta.</td></tr></tbody>
+          </table>
+        </div>
+        <p id="billing-error" class="error-message" hidden></p>
+      </section>
+
+      <section id="explorador" class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">CONSULTA RÁPIDA</p>
+            <h2>Explorador de APIs</h2>
+          </div>
+          <a class="text-link" href="/docs" target="_blank" rel="noopener">Ver documentação completa ↗</a>
+        </div>
+
+        <form id="explorer-form" class="explorer-form">
+          <select id="endpoint">
+            <option value="/api/v1/faturamento?pageSize=20">Notas fiscais</option>
+            <option value="/api/v1/entradas?pageSize=20">NF-e de entrada</option>
+            <option value="/api/v1/entradas/devolucoes?paramId=102">Devoluções</option>
+            <option value="/api/v1/pedidos?pageSize=20">Pedidos</option>
+            <option value="/api/v1/duplicatas?pageSize=20">Duplicatas</option>
+            <option value="/api/v1/estoque?pageSize=20">Estoque</option>
+            <option value="/api/v1/lotes?pageSize=20">Lotes</option>
+            <option value="/api/v1/clientes?pageSize=20">Clientes</option>
+            <option value="/api/v1/contabil?pageSize=20">Contabilidade</option>
+          </select>
+          <input id="extra-query" placeholder="Filtros adicionais: filialId=1&dataInicio=2025-01-01">
+          <button type="submit">Executar</button>
+        </form>
+
+        <div class="result-toolbar">
+          <code id="request-url">—</code>
+          <button id="copy-result" class="button-quiet" type="button">Copiar JSON</button>
+        </div>
+        <pre id="json-result" class="json-view">Selecione uma consulta.</pre>
+      </section>
+    </main>
+  </div>
+  <script src="/assets/dashboard.js" defer></script>
+</body>
+</html>

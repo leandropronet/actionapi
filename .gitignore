@@ -8,3 +8,8 @@ dist/
 .DS_Store
 Thumbs.db
 .claude/
+
+# Diagnósticos locais podem conter parâmetros e credenciais do ambiente
+packages/api/diag_*.js
+packages/api/carga_nfe_entrada.js
+packages/api/migrate_nfe_entrada.js

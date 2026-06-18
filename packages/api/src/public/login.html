@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ActionAPI · Acesso</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <div class="brand-mark">A</div>
+    <p class="eyebrow">SULGOIANO · DADOS ERP</p>
+    <h1>ActionAPI</h1>
+    <p class="muted">Painel somente leitura e documentação técnica.</p>
+
+    <form id="login-form" class="stack">
+      <label>
+        Usuário
+        <input id="username" name="username" autocomplete="username" required>
+      </label>
+      <label>
+        Senha
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit">Entrar</button>
+      <p id="login-error" class="error-message" role="alert" hidden></p>
+    </form>
+
+    <p class="security-note">Sessão protegida por cookie HttpOnly. Nenhuma credencial do Oracle é exposta.</p>
+  </main>
+  <script src="/assets/login.js" defer></script>
+</body>
+</html>

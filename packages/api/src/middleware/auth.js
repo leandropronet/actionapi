@@ -2,26 +2,70 @@
 /**
  * middleware/auth.js
  *
- * Autenticação por API Key via header X-API-Key.
- * Chaves válidas são definidas em API_KEYS=chave1,chave2 no .env.
- * Aplicado em todas as rotas /api/* via addHook('onRequest') no app.js.
- * A rota /health é pública e não passa por aqui.
+ * Autenticação híbrida:
+ *   - integrações usam o header X-API-Key;
+ *   - o painel e Swagger usam sessão JWT em cookie HttpOnly.
  */
+const crypto = require('crypto');
 const config = require('../config');
 
-async function authMiddleware(request, reply) {
-  if (!config.apiKeys.length) {
-    reply.code(500).send({ error: 'API_KEYS não configurada no servidor', code: 'CONFIG_ERROR' });
-    return;
-  }
-  const key = request.headers['x-api-key'];
-  if (!key) {
-    reply.code(401).send({ error: 'Header X-API-Key ausente', code: 'MISSING_API_KEY' });
-    return;
-  }
-  if (!config.apiKeys.includes(key)) {
-    reply.code(401).send({ error: 'API Key inválida', code: 'INVALID_API_KEY' });
+function safeEqual(valueA, valueB) {
+  const a = Buffer.from(String(valueA));
+  const b = Buffer.from(String(valueB));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function apiKeyIdentity(key) {
+  return crypto.createHash('sha256').update(key).digest('hex').slice(0, 12);
+}
+
+function validApiKey(key) {
+  return Boolean(key) && config.apiKeys.some((candidate) => safeEqual(key, candidate));
+}
+
+async function verifyAdminSession(request) {
+  try {
+    const payload = await request.jwtVerify({ onlyCookie: true });
+    if (payload.role !== 'admin' || payload.sub !== config.admin.username) return null;
+    return payload;
+  } catch {
+    return null;
   }
 }
 
-module.exports = { authMiddleware };
+async function authMiddleware(request, reply) {
+  const key = request.headers['x-api-key'];
+  if (validApiKey(key)) {
+    request.auth = { type: 'api_key', id: apiKeyIdentity(key) };
+    return;
+  }
+
+  const session = await verifyAdminSession(request);
+  if (session) {
+    request.auth = { type: 'admin_session', id: session.sub };
+    return;
+  }
+
+  const code = key ? 'INVALID_API_KEY' : 'AUTH_REQUIRED';
+  return reply.code(401).send({
+    error: 'Autenticação necessária. Use X-API-Key ou sessão administrativa.',
+    code,
+  });
+}
+
+async function adminSessionMiddleware(request, reply) {
+  const session = await verifyAdminSession(request);
+  if (!session) {
+    if (request.headers.accept?.includes('text/html')) {
+      return reply.redirect('/login');
+    }
+    return reply.code(401).send({ error: 'Sessão administrativa inválida', code: 'SESSION_REQUIRED' });
+  }
+  request.auth = { type: 'admin_session', id: session.sub };
+}
+
+module.exports = {
+  adminSessionMiddleware,
+  authMiddleware,
+  verifyAdminSession,
+};
