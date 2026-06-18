@@ -5,7 +5,10 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "carga-inicial": "node src/carga_inicial/index.js"
+    "carga-inicial": "node src/carga_inicial/index.js",
+    "analise-contabil:generate": "node src/scripts/analise-contabil-mapping.js generate",
+    "analise-contabil:load": "node src/scripts/analise-contabil-mapping.js load",
+    "contabil:backfill-cabecalhos": "node src/scripts/backfill-contabil-cabecalhos.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

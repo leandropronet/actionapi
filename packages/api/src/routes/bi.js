@@ -38,10 +38,10 @@ function sendDataset(reply, result, format, filename) {
     .send(`\uFEFF${csv}`);
 }
 
-function pageOptions(query) {
+function pageOptions(query, maxPageSize = 10000) {
   return {
     page: Number(query.page) || 1,
-    pageSize: Math.min(Number(query.pageSize) || 1000, 10000),
+    pageSize: Math.min(Number(query.pageSize) || 1000, maxPageSize),
   };
 }
 
@@ -56,6 +56,15 @@ module.exports = async function (fastify) {
     if (!requirePeriod(req, reply)) return;
     const result = await bi.contabil({ ...req.query, ...pageOptions(req.query) });
     return sendDataset(reply, result, req.query.format, 'contabil.csv');
+  });
+
+  fastify.get('/bi/analise-contabil', async (req, reply) => {
+    if (!requirePeriod(req, reply)) return;
+    const result = await bi.analiseContabil({
+      ...req.query,
+      ...pageOptions(req.query, 200000),
+    });
+    return sendDataset(reply, result, req.query.format, 'analise-contabil.csv');
   });
 
   fastify.get('/conciliacao/financeiro-contabil', async (req, reply) => {

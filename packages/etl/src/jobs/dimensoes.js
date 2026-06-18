@@ -1,5 +1,6 @@
 'use strict';
 const oracle = require('../db/oracle');
+const pg = require('../db/postgres');
 const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
 const cfgs = require('../oracle-config');
 
@@ -9,8 +10,17 @@ async function sincronizarTabela(cfg, dominio, tabela, mapper) {
   let sql, rows;
 
   if (cfg.campoDataAlter) {
-    sql = `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE ${cfg.campoDataAlter} > :ultimoSync ${extra}`;
-    const result = await oracle.query(sql, { ultimoSync });
+    // Uma tabela raw vazia precisa de carga completa, mesmo que etl_sync já
+    // possua uma data recente. Isso permite recuperar cargas iniciais
+    // interrompidas sem alterar o controle incremental manualmente.
+    const target = await pg.query(
+      `SELECT EXISTS (SELECT 1 FROM ${tabela} LIMIT 1) AS possui_registros`,
+    );
+    const cargaCompleta = !target.rows[0].possui_registros;
+    sql = cargaCompleta
+      ? `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE 1=1 ${extra}`
+      : `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE ${cfg.campoDataAlter} > :ultimoSync ${extra}`;
+    const result = await oracle.query(sql, cargaCompleta ? {} : { ultimoSync });
     rows = result.rows || [];
   } else {
     sql = `SELECT * FROM ${cfg.schema}.${cfg.tabela} WHERE 1=1 ${extra}`;
@@ -258,7 +268,7 @@ async function sincronizar() {
       id:            String(row[cfgs.historico.campoId]),
       descricao:     row[cfgs.historico.campoDesc] || null,
       tipo:          row[cfgs.historico.campoTipo]   ? String(row[cfgs.historico.campoTipo]).trim()   : null,
-      situacao:      row[cfgs.historico.campoStatus] ? String(row[cfgs.historico.campoStatus]).trim() : null,
+      status:        row[cfgs.historico.campoStatus] ? String(row[cfgs.historico.campoStatus]).trim() : null,
       data_alteracao: row[cfgs.historico.campoDataAlter] || null,
       _dados:        JSON.stringify(row),
       _source:       'siagri',
@@ -269,10 +279,11 @@ async function sincronizar() {
   await sincronizarTabela(
     cfgs.ccusto, 'ccusto', 'raw.ccusto',
     (row) => ({
-      id:            String(row[cfgs.ccusto.campoId]),
+      id:            `${row[cfgs.ccusto.campoPlanoConta]}_${row[cfgs.ccusto.campoId]}`,
+      ccusto_id:     String(row[cfgs.ccusto.campoId]),
       plano_id:      row[cfgs.ccusto.campoPlanoConta] ? String(row[cfgs.ccusto.campoPlanoConta]) : null,
       descricao:     row[cfgs.ccusto.campoDesc] || null,
-      situacao:      row[cfgs.ccusto.campoStatus]     ? String(row[cfgs.ccusto.campoStatus]).trim()  : null,
+      status:        row[cfgs.ccusto.campoStatus]     ? String(row[cfgs.ccusto.campoStatus]).trim()  : null,
       dept_folha:    row[cfgs.ccusto.campoDeptFolha]  ? String(row[cfgs.ccusto.campoDeptFolha])      : null,
       data_alteracao: row[cfgs.ccusto.campoDataAlter] || null,
       _dados:        JSON.stringify(row),
@@ -288,7 +299,7 @@ async function sincronizar() {
       descricao:     row[cfgs.idre.campoDesc]   || null,
       grupo:         row[cfgs.idre.campoGrupo]  ? String(row[cfgs.idre.campoGrupo])  : null,
       nivel:         row[cfgs.idre.campoNivel]  ?? null,
-      posicao_pai:   row[cfgs.idre.campoPai]    ? String(row[cfgs.idre.campoPai])    : null,
+      pai_id:        row[cfgs.idre.campoPai]    ? String(row[cfgs.idre.campoPai])    : null,
       tipo:          row[cfgs.idre.campoTipo]   ? String(row[cfgs.idre.campoTipo]).trim() : null,
       data_alteracao: row[cfgs.idre.campoDataAlter] || null,
       _dados:        JSON.stringify(row),

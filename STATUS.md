@@ -182,6 +182,21 @@ Reprodução pela API:
 
 ---
 
+### Análise contábil gerencial
+
+| Item | Status |
+|------|--------|
+| Endpoint `GET /api/v1/bi/analise-contabil` | ✅ Implementado |
+| Exportação CSV para Excel e Power BI | ✅ Implementado |
+| Hierarquia gerencial e classificação EBITDA/RF/DA | ✅ 249 contas mapeadas |
+| Centros de custo com chave composta plano + código | ✅ Corrigido |
+| Backfill de cabeçalhos contábeis desde 2020 | ✅ Executado localmente |
+| Regra de encerramento `ZR` | ✅ Excluída conforme a planilha |
+| Período de safra | ✅ 01/07 a 30/06 |
+| Validação amostral | ✅ Conta `4.2.1.1.02.0016`, Goiatuba/Cesar, dez-2024 = -111,44 |
+
+---
+
 ### ⏳ Clientes / Parceiros
 
 | Item | Status |

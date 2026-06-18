@@ -416,12 +416,31 @@ pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
 |---|---|---|
 | GET | `/api/v1/bi/financeiro` | Dataset plano por parcela, título e baixa |
 | GET | `/api/v1/bi/contabil` | Dataset plano por partida contábil |
+| GET | `/api/v1/bi/analise-contabil` | Dataset mensal no modelo da planilha de análise contábil |
 | GET | `/api/v1/conciliacao/financeiro-contabil` | Situação de cada título |
 | GET | `/api/v1/conciliacao/financeiro-contabil/divergencias` | Apenas inconsistências |
 | GET | `/api/v1/conciliacao/financeiro-contabil/resumo` | Totais por tipo e classificação |
 
 Todos exigem `dataInicio` e `dataFim`. Use `format=csv` para Excel ou consumo
 tabular simples. O JSON é paginado e aceita até 10.000 linhas por página.
+
+`/api/v1/bi/analise-contabil` retorna uma linha por competência, loja, conta
+e centro de custo. Inclui natureza contábil, grupos de nível 1 a 3, safra e
+classificação `EBITDA`, `RF` ou `DA`. A regra reproduz a planilha exemplo:
+plano de contas `1000002`, contabilidade fiscal, exclusão da origem `ZR`,
+crédito positivo e débito negativo.
+
+O período de safra é de **1º de julho a 30 de junho**. Portanto,
+`Safra 2024/2025` compreende de `2024-07-01` até `2025-06-30`.
+
+```text
+/api/v1/bi/analise-contabil?dataInicio=2025-01-01&dataFim=2025-12-31&pageSize=10000
+/api/v1/bi/analise-contabil?dataInicio=2025-01-01&dataFim=2025-12-31&format=csv&pageSize=10000
+```
+
+Filtros adicionais: `filialId`, `conta`, `ccustoId`, `naturezaContabil`,
+`classificacaoEbitda` e `safra`. Neste endpoint, `pageSize` aceita até 200.000
+linhas para permitir a extração integral do período em CSV.
 
 Além dos datasets especializados, todas as rotas GET de `/api/v1/*` aceitam
 `format=csv`, inclusive faturamento, pedidos, estoque, lotes, clientes,

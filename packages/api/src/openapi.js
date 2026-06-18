@@ -333,6 +333,23 @@ const paths = {
       'Uma linha por partida contábil, com cabeçalho, conta, histórico, débito e crédito.',
     ),
   },
+  '/api/v1/bi/analise-contabil': {
+    get: get(
+      'Analise contabil gerencial para Power BI e Excel',
+      'BI e Conciliacao',
+      [
+        ...dateParams, filial,
+        stringQuery('conta', 'Conta formatada (4.2.1...) ou codigo interno.'),
+        stringQuery('ccustoId', 'Codigo do centro de custo.'),
+        stringQuery('naturezaContabil', 'Natureza gerencial da planilha.'),
+        stringQuery('classificacaoEbitda', 'EBITDA, RF ou DA.'),
+        stringQuery('safra', 'Período de 01/07 a 30/06. Exemplo: Safra 2024/2025.'),
+        stringQuery('format', 'json ou csv.', 'json'),
+        ...pagination,
+      ],
+      'Uma linha mensal por loja, conta e centro de custo, com a mesma hierarquia gerencial da planilha exemplo. Exclui encerramentos ZR e usa credito positivo/debito negativo.',
+    ),
+  },
   '/api/v1/conciliacao/financeiro-contabil': {
     get: get('Conciliação financeiro × contábil', 'BI e Conciliação', [
       ...dateParams, filial,

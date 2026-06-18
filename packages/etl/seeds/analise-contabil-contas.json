@@ -1,0 +1,2243 @@
+[
+  {
+    "conta_id": "3111010001",
+    "conta_formatada": "3.1.1.1.01.0001",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Vendas De Mercadorias Em Geral",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111010002",
+    "conta_formatada": "3.1.1.1.01.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Vendas De Mercadorias Em Geral",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111010090",
+    "conta_formatada": "3.1.1.1.01.0090",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Vendas De Mercadorias Em Geral",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111020001",
+    "conta_formatada": "3.1.1.1.02.0001",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111020002",
+    "conta_formatada": "3.1.1.1.02.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111020005",
+    "conta_formatada": "3.1.1.1.02.0005",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111030001",
+    "conta_formatada": "3.1.1.1.03.0001",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111030002",
+    "conta_formatada": "3.1.1.1.03.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111030005",
+    "conta_formatada": "3.1.1.1.03.0005",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111040001",
+    "conta_formatada": "3.1.1.1.04.0001",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Sementes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111040002",
+    "conta_formatada": "3.1.1.1.04.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Sementes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111040005",
+    "conta_formatada": "3.1.1.1.04.0005",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "1-Receitas Com Vendas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Venda De Sementes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111050002",
+    "conta_formatada": "3.1.1.1.05.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Prestaçao De Servico/Locacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3111080001",
+    "conta_formatada": "3.1.1.1.08.0001",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "1-Receita Bruta Com Vendas",
+    "grupo_nivel_3": "Avp Receitas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112010002",
+    "conta_formatada": "3.1.1.2.01.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Mercadorias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112010003",
+    "conta_formatada": "3.1.1.2.01.0003",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Mercadorias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112010004",
+    "conta_formatada": "3.1.1.2.01.0004",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Mercadorias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112010005",
+    "conta_formatada": "3.1.1.2.01.0005",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Mercadorias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112010090",
+    "conta_formatada": "3.1.1.2.01.0090",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Mercadorias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112010091",
+    "conta_formatada": "3.1.1.2.01.0091",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Mercadorias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112020002",
+    "conta_formatada": "3.1.1.2.02.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112020003",
+    "conta_formatada": "3.1.1.2.02.0003",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112020051",
+    "conta_formatada": "3.1.1.2.02.0051",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112020052",
+    "conta_formatada": "3.1.1.2.02.0052",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Defensivos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112030002",
+    "conta_formatada": "3.1.1.2.03.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112030003",
+    "conta_formatada": "3.1.1.2.03.0003",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112030051",
+    "conta_formatada": "3.1.1.2.03.0051",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112030052",
+    "conta_formatada": "3.1.1.2.03.0052",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Fertilizantes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112040002",
+    "conta_formatada": "3.1.1.2.04.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Sementes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112040003",
+    "conta_formatada": "3.1.1.2.04.0003",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "5-Impostos Incidentes Sobre Vendas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Sobre Vendas Sementes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112050001",
+    "conta_formatada": "3.1.1.2.05.0001",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Da Receita Bruta De Servicos E Locacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112050002",
+    "conta_formatada": "3.1.1.2.05.0002",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Da Receita Bruta De Servicos E Locacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "3112050003",
+    "conta_formatada": "3.1.1.2.05.0003",
+    "natureza_contabil": "1-Receitas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "2-Deducoes Da Receita Bruta De Vendas De Mercadorias",
+    "grupo_nivel_3": "Deducoes Da Receita Bruta De Servicos E Locacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010001",
+    "conta_formatada": "4.1.1.1.01.0001",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010002",
+    "conta_formatada": "4.1.1.1.01.0002",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010003",
+    "conta_formatada": "4.1.1.1.01.0003",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010010",
+    "conta_formatada": "4.1.1.1.01.0010",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010013",
+    "conta_formatada": "4.1.1.1.01.0013",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010014",
+    "conta_formatada": "4.1.1.1.01.0014",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010015",
+    "conta_formatada": "4.1.1.1.01.0015",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010016",
+    "conta_formatada": "4.1.1.1.01.0016",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010017",
+    "conta_formatada": "4.1.1.1.01.0017",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010018",
+    "conta_formatada": "4.1.1.1.01.0018",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010019",
+    "conta_formatada": "4.1.1.1.01.0019",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010047",
+    "conta_formatada": "4.1.1.1.01.0047",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010050",
+    "conta_formatada": "4.1.1.1.01.0050",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111010052",
+    "conta_formatada": "4.1.1.1.01.0052",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020001",
+    "conta_formatada": "4.1.1.1.02.0001",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020003",
+    "conta_formatada": "4.1.1.1.02.0003",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020010",
+    "conta_formatada": "4.1.1.1.02.0010",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020013",
+    "conta_formatada": "4.1.1.1.02.0013",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020014",
+    "conta_formatada": "4.1.1.1.02.0014",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020015",
+    "conta_formatada": "4.1.1.1.02.0015",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020016",
+    "conta_formatada": "4.1.1.1.02.0016",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020017",
+    "conta_formatada": "4.1.1.1.02.0017",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020018",
+    "conta_formatada": "4.1.1.1.02.0018",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020019",
+    "conta_formatada": "4.1.1.1.02.0019",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020020",
+    "conta_formatada": "4.1.1.1.02.0020",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020050",
+    "conta_formatada": "4.1.1.1.02.0050",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111020051",
+    "conta_formatada": "4.1.1.1.02.0051",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Do Defensivos Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030001",
+    "conta_formatada": "4.1.1.1.03.0001",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030002",
+    "conta_formatada": "4.1.1.1.03.0002",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030003",
+    "conta_formatada": "4.1.1.1.03.0003",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030010",
+    "conta_formatada": "4.1.1.1.03.0010",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030013",
+    "conta_formatada": "4.1.1.1.03.0013",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030014",
+    "conta_formatada": "4.1.1.1.03.0014",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030015",
+    "conta_formatada": "4.1.1.1.03.0015",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030016",
+    "conta_formatada": "4.1.1.1.03.0016",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030017",
+    "conta_formatada": "4.1.1.1.03.0017",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030018",
+    "conta_formatada": "4.1.1.1.03.0018",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030019",
+    "conta_formatada": "4.1.1.1.03.0019",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111030050",
+    "conta_formatada": "4.1.1.1.03.0050",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Fertilizantes Vendidos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040001",
+    "conta_formatada": "4.1.1.1.04.0001",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040002",
+    "conta_formatada": "4.1.1.1.04.0002",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040003",
+    "conta_formatada": "4.1.1.1.04.0003",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040010",
+    "conta_formatada": "4.1.1.1.04.0010",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040013",
+    "conta_formatada": "4.1.1.1.04.0013",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040014",
+    "conta_formatada": "4.1.1.1.04.0014",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040015",
+    "conta_formatada": "4.1.1.1.04.0015",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040018",
+    "conta_formatada": "4.1.1.1.04.0018",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040020",
+    "conta_formatada": "4.1.1.1.04.0020",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040021",
+    "conta_formatada": "4.1.1.1.04.0021",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111040050",
+    "conta_formatada": "4.1.1.1.04.0050",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "4-Custos Mercadorias",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Das Sementes Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111050020",
+    "conta_formatada": "4.1.1.1.05.0020",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Custos Dos Servicos Prestados",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4111070001",
+    "conta_formatada": "4.1.1.1.07.0001",
+    "natureza_contabil": "2-Custos",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "3-Custos S/ Vendas",
+    "grupo_nivel_3": "Avp Custo",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211010001",
+    "conta_formatada": "4.2.1.1.01.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Com Rh Diretores",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211010002",
+    "conta_formatada": "4.2.1.1.01.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Com Rh Diretores",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211010003",
+    "conta_formatada": "4.2.1.1.01.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Com Rh Diretores",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211010005",
+    "conta_formatada": "4.2.1.1.01.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Com Rh Diretores",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211010008",
+    "conta_formatada": "4.2.1.1.01.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Com Rh Diretores",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211010051",
+    "conta_formatada": "4.2.1.1.01.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Com Rh Diretores",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020001",
+    "conta_formatada": "4.2.1.1.02.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020002",
+    "conta_formatada": "4.2.1.1.02.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020003",
+    "conta_formatada": "4.2.1.1.02.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020004",
+    "conta_formatada": "4.2.1.1.02.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020005",
+    "conta_formatada": "4.2.1.1.02.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020006",
+    "conta_formatada": "4.2.1.1.02.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020007",
+    "conta_formatada": "4.2.1.1.02.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020009",
+    "conta_formatada": "4.2.1.1.02.0009",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020010",
+    "conta_formatada": "4.2.1.1.02.0010",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020011",
+    "conta_formatada": "4.2.1.1.02.0011",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020013",
+    "conta_formatada": "4.2.1.1.02.0013",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020014",
+    "conta_formatada": "4.2.1.1.02.0014",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020015",
+    "conta_formatada": "4.2.1.1.02.0015",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020016",
+    "conta_formatada": "4.2.1.1.02.0016",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020017",
+    "conta_formatada": "4.2.1.1.02.0017",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020018",
+    "conta_formatada": "4.2.1.1.02.0018",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020019",
+    "conta_formatada": "4.2.1.1.02.0019",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020020",
+    "conta_formatada": "4.2.1.1.02.0020",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020021",
+    "conta_formatada": "4.2.1.1.02.0021",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020022",
+    "conta_formatada": "4.2.1.1.02.0022",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020023",
+    "conta_formatada": "4.2.1.1.02.0023",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211020050",
+    "conta_formatada": "4.2.1.1.02.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Fixas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030001",
+    "conta_formatada": "4.2.1.1.03.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030002",
+    "conta_formatada": "4.2.1.1.03.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030004",
+    "conta_formatada": "4.2.1.1.03.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030005",
+    "conta_formatada": "4.2.1.1.03.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030006",
+    "conta_formatada": "4.2.1.1.03.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030007",
+    "conta_formatada": "4.2.1.1.03.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030008",
+    "conta_formatada": "4.2.1.1.03.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030009",
+    "conta_formatada": "4.2.1.1.03.0009",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030010",
+    "conta_formatada": "4.2.1.1.03.0010",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030012",
+    "conta_formatada": "4.2.1.1.03.0012",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030013",
+    "conta_formatada": "4.2.1.1.03.0013",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030051",
+    "conta_formatada": "4.2.1.1.03.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211030052",
+    "conta_formatada": "4.2.1.1.03.0052",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas C/ Rh Variaveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040001",
+    "conta_formatada": "4.2.1.1.04.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040002",
+    "conta_formatada": "4.2.1.1.04.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040003",
+    "conta_formatada": "4.2.1.1.04.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040005",
+    "conta_formatada": "4.2.1.1.04.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040007",
+    "conta_formatada": "4.2.1.1.04.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040008",
+    "conta_formatada": "4.2.1.1.04.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211040009",
+    "conta_formatada": "4.2.1.1.04.0009",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Ocupaçao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050001",
+    "conta_formatada": "4.2.1.1.05.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050002",
+    "conta_formatada": "4.2.1.1.05.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050003",
+    "conta_formatada": "4.2.1.1.05.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050004",
+    "conta_formatada": "4.2.1.1.05.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050005",
+    "conta_formatada": "4.2.1.1.05.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050006",
+    "conta_formatada": "4.2.1.1.05.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050007",
+    "conta_formatada": "4.2.1.1.05.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050049",
+    "conta_formatada": "4.2.1.1.05.0049",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas NaoDedutiveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050050",
+    "conta_formatada": "4.2.1.1.05.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211050051",
+    "conta_formatada": "4.2.1.1.05.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080001",
+    "conta_formatada": "4.2.1.1.08.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080002",
+    "conta_formatada": "4.2.1.1.08.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080003",
+    "conta_formatada": "4.2.1.1.08.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Depreciacoes e Amortizacoes",
+    "classificacao_ebitda": "DA"
+  },
+  {
+    "conta_id": "4211080004",
+    "conta_formatada": "4.2.1.1.08.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080005",
+    "conta_formatada": "4.2.1.1.08.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080007",
+    "conta_formatada": "4.2.1.1.08.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080008",
+    "conta_formatada": "4.2.1.1.08.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080009",
+    "conta_formatada": "4.2.1.1.08.0009",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080010",
+    "conta_formatada": "4.2.1.1.08.0010",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080011",
+    "conta_formatada": "4.2.1.1.08.0011",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080049",
+    "conta_formatada": "4.2.1.1.08.0049",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas NaoDedutiveis",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080050",
+    "conta_formatada": "4.2.1.1.08.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211080051",
+    "conta_formatada": "4.2.1.1.08.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas De Funcionamento/Utilidades e Servicos",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090001",
+    "conta_formatada": "4.2.1.1.09.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090002",
+    "conta_formatada": "4.2.1.1.09.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090003",
+    "conta_formatada": "4.2.1.1.09.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090004",
+    "conta_formatada": "4.2.1.1.09.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090005",
+    "conta_formatada": "4.2.1.1.09.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090006",
+    "conta_formatada": "4.2.1.1.09.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090050",
+    "conta_formatada": "4.2.1.1.09.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090051",
+    "conta_formatada": "4.2.1.1.09.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090053",
+    "conta_formatada": "4.2.1.1.09.0053",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211090054",
+    "conta_formatada": "4.2.1.1.09.0054",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Serviços Profissionais",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211100001",
+    "conta_formatada": "4.2.1.1.10.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Comunicacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211100003",
+    "conta_formatada": "4.2.1.1.10.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Comunicacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211100004",
+    "conta_formatada": "4.2.1.1.10.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Comunicacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211100050",
+    "conta_formatada": "4.2.1.1.10.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Comunicacao",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120001",
+    "conta_formatada": "4.2.1.1.12.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120002",
+    "conta_formatada": "4.2.1.1.12.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120003",
+    "conta_formatada": "4.2.1.1.12.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120004",
+    "conta_formatada": "4.2.1.1.12.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120006",
+    "conta_formatada": "4.2.1.1.12.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120050",
+    "conta_formatada": "4.2.1.1.12.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211120051",
+    "conta_formatada": "4.2.1.1.12.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Propaganda E Publicidade",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130001",
+    "conta_formatada": "4.2.1.1.13.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130002",
+    "conta_formatada": "4.2.1.1.13.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130005",
+    "conta_formatada": "4.2.1.1.13.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130006",
+    "conta_formatada": "4.2.1.1.13.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Depreciacoes e Amortizacoes",
+    "classificacao_ebitda": "DA"
+  },
+  {
+    "conta_id": "4211130007",
+    "conta_formatada": "4.2.1.1.13.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130008",
+    "conta_formatada": "4.2.1.1.13.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130009",
+    "conta_formatada": "4.2.1.1.13.0009",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130010",
+    "conta_formatada": "4.2.1.1.13.0010",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130011",
+    "conta_formatada": "4.2.1.1.13.0011",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130013",
+    "conta_formatada": "4.2.1.1.13.0013",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130014",
+    "conta_formatada": "4.2.1.1.13.0014",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130015",
+    "conta_formatada": "4.2.1.1.13.0015",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130016",
+    "conta_formatada": "4.2.1.1.13.0016",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130049",
+    "conta_formatada": "4.2.1.1.13.0049",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130050",
+    "conta_formatada": "4.2.1.1.13.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130051",
+    "conta_formatada": "4.2.1.1.13.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211130052",
+    "conta_formatada": "4.2.1.1.13.0052",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Frota",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140001",
+    "conta_formatada": "4.2.1.1.14.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140002",
+    "conta_formatada": "4.2.1.1.14.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140003",
+    "conta_formatada": "4.2.1.1.14.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140004",
+    "conta_formatada": "4.2.1.1.14.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140005",
+    "conta_formatada": "4.2.1.1.14.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140007",
+    "conta_formatada": "4.2.1.1.14.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140010",
+    "conta_formatada": "4.2.1.1.14.0010",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211140050",
+    "conta_formatada": "4.2.1.1.14.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Transporte/ Logisticas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180001",
+    "conta_formatada": "4.2.1.1.18.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180002",
+    "conta_formatada": "4.2.1.1.18.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180003",
+    "conta_formatada": "4.2.1.1.18.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180004",
+    "conta_formatada": "4.2.1.1.18.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180005",
+    "conta_formatada": "4.2.1.1.18.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180006",
+    "conta_formatada": "4.2.1.1.18.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180007",
+    "conta_formatada": "4.2.1.1.18.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180008",
+    "conta_formatada": "4.2.1.1.18.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180010",
+    "conta_formatada": "4.2.1.1.18.0010",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180011",
+    "conta_formatada": "4.2.1.1.18.0011",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180012",
+    "conta_formatada": "4.2.1.1.18.0012",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180013",
+    "conta_formatada": "4.2.1.1.18.0013",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "9-Ativo Fixo",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180014",
+    "conta_formatada": "4.2.1.1.18.0014",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180015",
+    "conta_formatada": "4.2.1.1.18.0015",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211180050",
+    "conta_formatada": "4.2.1.1.18.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Tributos E Contribuicoes",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211200001",
+    "conta_formatada": "4.2.1.1.20.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Bancarias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211200002",
+    "conta_formatada": "4.2.1.1.20.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Bancarias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211200050",
+    "conta_formatada": "4.2.1.1.20.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Bancarias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211200051",
+    "conta_formatada": "4.2.1.1.20.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "4-Despesas Administrativas E Comerciais",
+    "grupo_nivel_3": "Despesas Bancarias",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4211250005",
+    "conta_formatada": "4.2.1.1.25.0005",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "6-Despesas Operacionais",
+    "grupo_nivel_2": "8-Provisoes Fiscais",
+    "grupo_nivel_3": "Custos Das Mercad Em Geral Vendidas",
+    "classificacao_ebitda": "EBITDA"
+  },
+  {
+    "conta_id": "4311010001",
+    "conta_formatada": "4.3.1.1.01.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311010002",
+    "conta_formatada": "4.3.1.1.01.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311010006",
+    "conta_formatada": "4.3.1.1.01.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311010007",
+    "conta_formatada": "4.3.1.1.01.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311010008",
+    "conta_formatada": "4.3.1.1.01.0008",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311010050",
+    "conta_formatada": "4.3.1.1.01.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311020001",
+    "conta_formatada": "4.3.1.1.02.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Comerciais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311020003",
+    "conta_formatada": "4.3.1.1.02.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Comerciais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311020006",
+    "conta_formatada": "4.3.1.1.02.0006",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Comerciais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311020007",
+    "conta_formatada": "4.3.1.1.02.0007",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Despesas Financeiras Comerciais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311030001",
+    "conta_formatada": "4.3.1.1.03.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Variações Cambiais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4311030050",
+    "conta_formatada": "4.3.1.1.03.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "5-Despesas Financeiras Totais",
+    "grupo_nivel_3": "Variações Cambiais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312010050",
+    "conta_formatada": "4.3.1.2.01.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "2-Receitas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Receitas Financeiras Bancarias",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312020001",
+    "conta_formatada": "4.3.1.2.02.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "2-Receitas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Receitas Financeiras Comercial",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312020003",
+    "conta_formatada": "4.3.1.2.02.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "2-Receitas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Receitas Financeiras Comercial",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312020004",
+    "conta_formatada": "4.3.1.2.02.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "2-Receitas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Receitas Financeiras Comercial",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312020052",
+    "conta_formatada": "4.3.1.2.02.0052",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "2-Receitas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Receitas Financeiras Comercial",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312030001",
+    "conta_formatada": "4.3.1.2.03.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Contribuiçoes Sociais Sobre Receitas Financeiras",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312030002",
+    "conta_formatada": "4.3.1.2.03.0002",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "8-Despesas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Contribuiçoes Sociais Sobre Receitas Financeiras",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4312040001",
+    "conta_formatada": "4.3.1.2.04.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "2-Receitas Financeiras",
+    "grupo_nivel_2": "6-Receitas Financeiras Totais",
+    "grupo_nivel_3": "Variações Cambiais",
+    "classificacao_ebitda": "RF"
+  },
+  {
+    "conta_id": "4331010003",
+    "conta_formatada": "4.3.3.1.01.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "7-Outras Receitas E Despesas Operacionais",
+    "grupo_nivel_3": "Outras Receitas",
+    "classificacao_ebitda": null
+  },
+  {
+    "conta_id": "4331040001",
+    "conta_formatada": "4.3.3.1.04.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "7-Outras Receitas E Despesas Operacionais",
+    "grupo_nivel_3": "Ganhos E Perdas De Capital",
+    "classificacao_ebitda": null
+  },
+  {
+    "conta_id": "4331060001",
+    "conta_formatada": "4.3.3.1.06.0001",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "3-Outras Receitas",
+    "grupo_nivel_2": "7-Outras Receitas E Despesas Operacionais",
+    "grupo_nivel_3": "Outras Receitas",
+    "classificacao_ebitda": null
+  },
+  {
+    "conta_id": "4331080050",
+    "conta_formatada": "4.3.3.1.08.0050",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "7-Outras Receitas E Despesas Operacionais",
+    "grupo_nivel_3": "Contribuicoes Sociais S/ Outras Receitas",
+    "classificacao_ebitda": null
+  },
+  {
+    "conta_id": "4331080051",
+    "conta_formatada": "4.3.3.1.08.0051",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "7-Outras Receitas E Despesas Operacionais",
+    "grupo_nivel_3": "Contribuicoes Sociais S/ Outras Receitas",
+    "classificacao_ebitda": null
+  },
+  {
+    "conta_id": "4341010003",
+    "conta_formatada": "4.3.4.1.01.0003",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "8-Provisoes Fiscais",
+    "grupo_nivel_3": "Imposto De Renda E Contribuicoes Social",
+    "classificacao_ebitda": null
+  },
+  {
+    "conta_id": "4341010004",
+    "conta_formatada": "4.3.4.1.01.0004",
+    "natureza_contabil": "3-Despesas",
+    "grupo_nivel_1": "99-Neutra",
+    "grupo_nivel_2": "8-Provisoes Fiscais",
+    "grupo_nivel_3": "Imposto De Renda E Contribuicoes Social",
+    "classificacao_ebitda": null
+  }
+]

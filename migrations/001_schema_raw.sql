@@ -641,7 +641,8 @@ CREATE TABLE IF NOT EXISTS raw.historico (
 --   DEPT_FOL: código do departamento para rateio de folha entre filiais
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS raw.ccusto (
-  id              TEXT NOT NULL,   -- CODI_CCU
+  id              TEXT NOT NULL,   -- CODI_PLC_CODI_CCU (PK técnica)
+  ccusto_id       TEXT,            -- CODI_CCU
   plano_id        TEXT,            -- CODI_PLC → raw.plcontas
   descricao       TEXT,            -- DESC_CCU
   status          CHAR(1),         -- A=Ativo, I=Inativo
@@ -652,6 +653,9 @@ CREATE TABLE IF NOT EXISTS raw.ccusto (
   _source         TEXT DEFAULT 'siagri',
   PRIMARY KEY (id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ccusto_plano_codigo
+  ON raw.ccusto (plano_id, ccusto_id);
 
 -- ---------------------------------------------------------------
 -- DESDOBRAMENTO DE LANÇAMENTO POR CENTRO DE CUSTO — CCUSTOLAN

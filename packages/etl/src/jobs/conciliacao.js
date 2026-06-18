@@ -10,42 +10,48 @@ const oracle = require('../db/oracle');
 const { upsertRawBatch, atualizarSync, lerUltimoSync } = require('../upsert');
 const schema = require('../oracle-config').contabil.schema;
 
-async function sincronizarContabilCabecalhos() {
+function mapContabilCabecalho(row) {
+  const data = row.DATA_CLC;
+  const filial = row.EDOC_CLC ?? row.CODI_EMP ?? row.CORI_EMP;
+  const competencia = data instanceof Date
+    ? `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+    : null;
+  return {
+    id: String(row.SEQU_CLC),
+    filial_id: filial != null ? String(filial) : null,
+    data_lancamento: data || null,
+    competencia,
+    origem: row.ORIG_CLC ? String(row.ORIG_CLC).trim() : null,
+    documento: row.CTRL_CLC != null ? String(row.CTRL_CLC) : null,
+    parceiro_id: row.CODI_TRA != null ? String(row.CODI_TRA) : null,
+    serie_documento: row.SDOC_CLC ? String(row.SDOC_CLC).trim() : null,
+    empresa_documento: row.EDOC_CLC != null ? String(row.EDOC_CLC) : null,
+    valor: row.VCON_CLC ?? null,
+    tipo: row.TIPO_CLC ? String(row.TIPO_CLC).trim() : null,
+    data_alteracao: row.DUMANUT || null,
+    _dados: JSON.stringify(row),
+    _source: 'siagri',
+  };
+}
+
+async function sincronizarContabilCabecalhos({ dataInicio } = {}) {
   const dominio = 'contabil_cabecalhos';
   const ultimoSync = await lerUltimoSync(dominio);
+  const where = dataInicio
+    ? `DATA_CLC >= TO_DATE(:dataInicio, 'YYYY-MM-DD')`
+    : 'DUMANUT > :ultimoSync';
+  const binds = dataInicio ? { dataInicio } : { ultimoSync };
   const result = await oracle.query(`
     SELECT
       SEQU_CLC, CODI_EMP, CORI_EMP, DATA_CLC, VCON_CLC, ORIG_CLC,
       CTRL_CLC, CODI_TRA, SDOC_CLC, EDOC_CLC, TIPO_CLC,
       CTRL_PAG, CTRL_NFE, DUMANUT
     FROM ${schema}.CABLANCTB
-    WHERE DUMANUT > :ultimoSync
+    WHERE ${where}
     ORDER BY DUMANUT
-  `, { ultimoSync });
+  `, binds);
 
-  const rows = (result.rows || []).map((row) => {
-    const data = row.DATA_CLC;
-    const filial = row.EDOC_CLC ?? row.CODI_EMP ?? row.CORI_EMP;
-    const competencia = data instanceof Date
-      ? `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
-      : null;
-    return {
-      id: String(row.SEQU_CLC),
-      filial_id: filial != null ? String(filial) : null,
-      data_lancamento: data || null,
-      competencia,
-      origem: row.ORIG_CLC ? String(row.ORIG_CLC).trim() : null,
-      documento: row.CTRL_CLC != null ? String(row.CTRL_CLC) : null,
-      parceiro_id: row.CODI_TRA != null ? String(row.CODI_TRA) : null,
-      serie_documento: row.SDOC_CLC ? String(row.SDOC_CLC).trim() : null,
-      empresa_documento: row.EDOC_CLC != null ? String(row.EDOC_CLC) : null,
-      valor: row.VCON_CLC ?? null,
-      tipo: row.TIPO_CLC ? String(row.TIPO_CLC).trim() : null,
-      data_alteracao: row.DUMANUT || null,
-      _dados: JSON.stringify(row),
-      _source: 'siagri',
-    };
-  });
+  const rows = (result.rows || []).map(mapContabilCabecalho);
 
   await upsertRawBatch('raw.contabil_cabecalhos', rows);
   await atualizarSync(dominio);
@@ -126,4 +132,4 @@ async function sincronizar() {
   await sincronizarTitulosCr();
 }
 
-module.exports = { sincronizar };
+module.exports = { sincronizar, sincronizarContabilCabecalhos };
