@@ -10,7 +10,7 @@
  * Filtros de data (dois conjuntos, use um por vez):
  *   dataInicio / dataFim     → filtra por data de EMISSÃO (DEMI_NOT)
  *   dataSaidaDe / dataSaidaAte → filtra por data de SAÍDA (DSAI_NOT)
- *   O relatório "Saídas Faturadas Analítico" do SiAGRI usa dataSaidaDe/dataSaidaAte.
+ *   O relatório "Saídas Faturadas Analítico" usa dataInicio/dataFim.
  *
  * Outros filtros de /faturamento e /faturamento/itens:
  *   filialId, clienteId, vendedorId, status (0/5/9), tranTop (1/2/3),
@@ -20,6 +20,8 @@
  * Filtros de /faturamento/resumo:
  *   agrupamento (dia|mes|trimestre|ano), filialId, tranTop
  *   + os filtros de data acima (emissão ou saída)
+ *   paramId (ex: 102) ativa o consolidado A−S de NOTA + NFENTRA
+ *   status (padrão 5 no modo consolidado)
  */
 const svc = require('../services/faturamento');
 
@@ -42,8 +44,14 @@ module.exports = async function (fastify) {
   });
 
   fastify.get('/faturamento/resumo', async (req) => {
-    const { agrupamento, filialId, dataInicio, dataFim, dataSaidaDe, dataSaidaAte, tranTop } = req.query;
-    return svc.resumo({ agrupamento, filialId, dataInicio, dataFim, dataSaidaDe, dataSaidaAte, tranTop });
+    const {
+      agrupamento, filialId, dataInicio, dataFim,
+      dataSaidaDe, dataSaidaAte, tranTop, paramId, status,
+    } = req.query;
+    return svc.resumo({
+      agrupamento, filialId, dataInicio, dataFim,
+      dataSaidaDe, dataSaidaAte, tranTop, paramId, status,
+    });
   });
 
   fastify.get('/faturamento/itens', async (req) => {

@@ -262,6 +262,11 @@ Erro padrão:
 
 **Filtros disponíveis:** `dataInicio`, `dataFim`, `filialId`, `clienteId`, `vendedorId`, `status`, `tranTop` (1=Entrada, 2=Saída), `operacaoId`, `grupoId`, `subgrupoId`, `produtoId`, `principioAtivoId`, `principioAtivoRecId`, `pedidoId`, `page`, `pageSize`
 
+No endpoint `/faturamento/resumo`, informe `paramId` para obter o consolidado
+pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
+
+`GET /api/v1/faturamento/resumo?paramId=102&dataInicio=2025-01-01&dataFim=2025-12-31`
+
 **Nota:** `tran_top=2` = saídas (vendas). `tran_top=1` = entradas (devoluções de venda / compras).
 
 #### Pedidos de Venda

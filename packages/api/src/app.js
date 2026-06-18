@@ -5,8 +5,8 @@
  * Servidor Fastify v5. Todas as rotas /api/v1/* exigem X-API-Key.
  * Porta configurada via PORT no .env (padrão 3000).
  *
- * Domínios disponíveis: faturamento, duplicatas, pedidos, estoque,
- *   financeiro, contabil, clientes, lotes, recebimentos, pagamentos, dre.
+ * Domínios disponíveis: faturamento, entradas (NF-e entrada), duplicatas, pedidos,
+ *   estoque, financeiro, contabil, clientes, lotes, recebimentos, pagamentos, dre.
  *
  * Para adicionar um novo domínio:
  *   1. Criar packages/api/src/services/<dominio>.js
@@ -31,7 +31,8 @@ app.addHook('onRequest', async (request, reply) => {
 });
 
 // Registra rotas
-app.register(require('./routes/faturamento'), { prefix: '/api/v1' });
+app.register(require('./routes/faturamento'),  { prefix: '/api/v1' });
+app.register(require('./routes/nfe_entrada'), { prefix: '/api/v1' });
 app.register(require('./routes/duplicatas'),  { prefix: '/api/v1' });
 app.register(require('./routes/pedidos'),     { prefix: '/api/v1' });
 app.register(require('./routes/estoque'),     { prefix: '/api/v1' });

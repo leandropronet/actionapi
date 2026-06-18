@@ -82,15 +82,21 @@ Relatório SiAGRI: Saídas Faturadas - Analítico, função 102, Indexador R$
 
 | Métrica | API (PG) | SiAGRI (PDF p.991) | Diferença |
 |---------|----------|-------------------|-----------|
-| Total líquido (A−S) | R$ 197.961.182,47 | R$ 197.643.773,21 | R$ 317.409,26 (+0,16%) |
-| Quantidade itens (A−S) | 3.110.926,550 | 3.098.335,750 | 12.590,800 |
+| Total líquido (A−S) | R$ 197.643.773,21 | R$ 197.643.773,21 | R$ 0,00 ✅ |
+| Quantidade itens (A−S) | 3.098.335,750 | 3.098.335,750 | 0,000 ✅ |
 
-**Filtro correto:** O relatório SiAGRI usa **data de saída** (DSAI_NOT), não data de emissão.
-  Usar `?dataSaidaDe=2025-01-01&dataSaidaAte=2025-12-31` na API para reproduzir o relatório.
+**Regra reproduzida:** o relatório usa o período de **emissão** e combina duas origens:
 
-**Gap residual de 0,16%:** Causado por itens com VLOR_INO/QTDE_INO alterados no Oracle  
-  sem atualizar DUMANUT da NF cabeçalho (sync incremental não captura essas alterações).  
-  Confirmado: zero NFs fantasmas (reconciliação inválida para faturamento — NF só cancela).
+1. `NOTA`: soma/subtrai `TOTA_NOT` conforme `FUNCAOTOPER.FUNC_TOP` (A/S)
+2. `NFENTRA`: soma/subtrai `QUAN_INF × VLIQ_INF` conforme a operação do item
+
+Para o parâmetro 102 em 2025:
+
+`R$ 199.262.171,46 (NOTA A−S) − R$ 1.618.398,25 (NFENTRA S) = R$ 197.643.773,21`
+
+Reprodução pela API:
+
+`GET /api/v1/faturamento/resumo?paramId=102&dataInicio=2025-01-01&dataFim=2025-12-31`
 
 ---
 

@@ -13,7 +13,8 @@
  * Filtro de data: dois conjuntos disponíveis.
  *   dataInicio/dataFim  → filtram por DEMI_NOT (data de emissão)
  *   dataSaidaDe/dataSaidaAte → filtram por DSAI_NOT (data de saída)
- *   O relatório "Saídas Faturadas Analítico" do SiAGRI usa data de SAÍDA.
+ *   O consolidado do relatório "Saídas Faturadas Analítico" usa data de EMISSÃO
+ *   e combina NOTA com devoluções registradas em NFENTRA.
  *   NFs com DSAI_NOT nulo são automaticamente excluídas do filtro de saída.
  *
  * Funções exportadas:
@@ -225,7 +226,166 @@ async function listarItens({
   return { data: dataRes.rows, total: countRes.rows[0].total, page, pageSize };
 }
 
-async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, dataSaidaDe, dataSaidaAte, tranTop }) {
+/**
+ * Reproduz o consolidado de faturamento do SiAGRI para um parâmetro de operação.
+ *
+ * Combina as funções A/S de duas origens:
+ *   - NOTA: valor de TOTA_NOT e quantidade dos itens de INOTA
+ *   - NFENTRA: quantidade e valor líquido dos itens de INFENTRA
+ *
+ * As devoluções de NFENTRA usam QUAN_INF × VLIQ_INF. O período é filtrado
+ * pela data de emissão em ambas as origens.
+ */
+async function resumoConsolidado({
+  paramId,
+  filialId,
+  dataInicio,
+  dataFim,
+  status = '5',
+}) {
+  const notaConds = [`pod.param_id = $1`];
+  const entradaConds = [`pod.param_id = $1`];
+  const params = [paramId];
+
+  if (filialId) {
+    params.push(filialId);
+    notaConds.push(`f.filial_id = $${params.length}`);
+    entradaConds.push(`n.filial_id = $${params.length}`);
+  }
+  if (dataInicio) {
+    params.push(dataInicio);
+    notaConds.push(`f.data_emissao >= $${params.length}`);
+    entradaConds.push(`n.data_emissao >= $${params.length}`);
+  }
+  if (dataFim) {
+    params.push(dataFim);
+    notaConds.push(`f.data_emissao <= $${params.length}`);
+    entradaConds.push(`n.data_emissao <= $${params.length}`);
+  }
+  if (status) {
+    params.push(status);
+    notaConds.push(`f._dados->>'SITU_NOT' = $${params.length}`);
+  }
+
+  const res = await db.query(
+    `WITH nota_valores AS (
+       SELECT
+         f.filial_id,
+         pod.funcao,
+         SUM((f._dados->>'TOTA_NOT')::NUMERIC) AS valor
+       FROM raw.faturamento f
+       JOIN raw.param_oper_detalhe pod
+         ON pod.operacao_id = f.operacao_id
+       WHERE ${notaConds.join(' AND ')}
+       GROUP BY f.filial_id, pod.funcao
+     ),
+     nota_quantidades AS (
+       SELECT
+         f.filial_id,
+         pod.funcao,
+         SUM((fi._dados->>'QTDE_INO')::NUMERIC) AS quantidade
+       FROM raw.faturamento f
+       JOIN raw.faturamento_itens fi ON fi.nf_id = f.id
+       JOIN raw.param_oper_detalhe pod
+         ON pod.operacao_id = f.operacao_id
+       WHERE ${notaConds.join(' AND ')}
+       GROUP BY f.filial_id, pod.funcao
+     ),
+     nota AS (
+       SELECT
+         'NOTA'::TEXT AS origem,
+         COALESCE(v.filial_id, q.filial_id) AS filial_id,
+         COALESCE(v.funcao, q.funcao) AS funcao,
+         COALESCE(q.quantidade, 0) AS quantidade,
+         COALESCE(v.valor, 0) AS valor
+       FROM nota_valores v
+       FULL JOIN nota_quantidades q
+         ON q.filial_id = v.filial_id
+        AND q.funcao = v.funcao
+     ),
+     entrada AS (
+       SELECT
+         'NFENTRA'::TEXT AS origem,
+         n.filial_id,
+         pod.funcao,
+         SUM(COALESCE((i._dados->>'QUAN_INF')::NUMERIC, 0)) AS quantidade,
+         SUM(
+           COALESCE((i._dados->>'QUAN_INF')::NUMERIC, 0)
+           * COALESCE((i._dados->>'VLIQ_INF')::NUMERIC, 0)
+         ) AS valor
+       FROM raw.nfe_entrada n
+       JOIN raw.nfe_entrada_itens i ON i.nfe_entrada_id = n.id
+       JOIN raw.param_oper_detalhe pod
+         ON pod.operacao_id = i.operacao_id
+       WHERE ${entradaConds.join(' AND ')}
+       GROUP BY n.filial_id, pod.funcao
+     ),
+     componentes AS (
+       SELECT * FROM nota
+       UNION ALL
+       SELECT * FROM entrada
+     )
+     SELECT
+       filial_id,
+       SUM(CASE WHEN funcao = 'A' THEN quantidade ELSE -quantidade END) AS quantidade_liquida,
+       SUM(CASE WHEN funcao = 'A' THEN valor ELSE -valor END) AS valor_liquido,
+       JSONB_AGG(
+         JSONB_BUILD_OBJECT(
+           'origem', origem,
+           'funcao', funcao,
+           'quantidade', quantidade,
+           'valor', valor
+         )
+         ORDER BY origem, funcao
+       ) AS componentes
+     FROM componentes
+     GROUP BY filial_id
+     ORDER BY filial_id`,
+    params,
+  );
+
+  const quantidadeLiquida = res.rows.reduce(
+    (total, row) => total + Number(row.quantidade_liquida || 0),
+    0,
+  );
+  const valorLiquido = res.rows.reduce(
+    (total, row) => total + Number(row.valor_liquido || 0),
+    0,
+  );
+
+  return {
+    param_id: paramId,
+    data_inicio: dataInicio || null,
+    data_fim: dataFim || null,
+    status,
+    quantidade_liquida: Number(quantidadeLiquida.toFixed(3)),
+    valor_liquido: Number(valorLiquido.toFixed(2)),
+    por_filial: res.rows,
+  };
+}
+
+async function resumo({
+  agrupamento = 'mes',
+  filialId,
+  dataInicio,
+  dataFim,
+  dataSaidaDe,
+  dataSaidaAte,
+  tranTop,
+  paramId,
+  status,
+}) {
+  if (paramId) {
+    if (dataSaidaDe || dataSaidaAte) {
+      const error = new Error(
+        'O resumo consolidado por paramId usa dataInicio/dataFim (data de emissão).',
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+    return resumoConsolidado({ paramId, filialId, dataInicio, dataFim, status });
+  }
+
   const conds = [];
   const params = [];
 
@@ -263,4 +423,4 @@ async function resumo({ agrupamento = 'mes', filialId, dataInicio, dataFim, data
   return { data: res.rows };
 }
 
-module.exports = { listar, buscarPorId, listarItens, resumo };
+module.exports = { listar, buscarPorId, listarItens, resumo, resumoConsolidado };

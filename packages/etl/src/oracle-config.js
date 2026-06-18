@@ -248,17 +248,29 @@ module.exports = {
     campoId:         'CTRL_NFE',
     campoFilial:     'CODI_EMP',
     campoFornecedor: 'CODI_TRA',
+    campoParceiro:   'CODI_TRA',
+    campoOperacao:   'CODI_TOP',
+    campoModelo:     'CODI_MDF',
+    campoNumero:     'NUME_NFE',
+    campoSerie:      'SERI_NFE',
     campoDataEmissao:'DEMI_NFE',
-    campoTotal:      'TOTA_NFE',
+    campoDataReceb:  'DREC_NFE',
+    campoTotal:      'TPRO_NFE',
+    campoChave:      'CHAV_NFE',
+    campoVendedor:   'COD1_PES',
     campoDataAlter:  'DUMANUT',
     // Itens da NF de entrada
     tabelaItens:     'INFENTRA',
     campoItemNfeId:  'CTRL_NFE',      // FK → NFENTRA
     campoItemSeq:    'ITEM_INF',
     campoItemProduto:'CODI_PSV',
+    campoItemOperacao:'CODI_TOP',
     campoItemQtd:    'QUAN_INF',      // Quantidade
     campoItemValor:  'VLOR_INF',      // Valor unitário
     campoItemValorLiq:'VLIQ_INF',     // Valor líquido
+    campoItemDsac:   'DSAC_INF',
+    campoItemCusto:  'CMED_INF',
+    campoItemDrec:   'DREC_INF',
   },
 
   // ──────────────────────────────────────────────
