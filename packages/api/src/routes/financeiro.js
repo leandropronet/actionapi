@@ -1,4 +1,18 @@
 'use strict';
+/**
+ * routes/financeiro.js
+ *
+ * GET /api/v1/financeiro            — parcelas CP ou CR com filtros de vencimento
+ * GET /api/v1/financeiro/fluxo-caixa — saldo diário (receber − pagar) por período
+ *
+ * Filtros de /financeiro:
+ *   tipo (CP=Contas a Pagar, CR=Contas a Receber — omitir retorna ambos)
+ *   filialId, vencimentoDe, vencimentoAte (AAAA-MM-DD)
+ *   page, pageSize (padrão 100, máx 500)
+ *
+ * Filtros de /financeiro/fluxo-caixa:
+ *   dataInicio, dataFim (obrigatórios, AAAA-MM-DD), filialId
+ */
 const svc = require('../services/financeiro');
 
 module.exports = async function (fastify) {

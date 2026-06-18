@@ -1,4 +1,20 @@
 'use strict';
+/**
+ * services/estoque.js
+ *
+ * Saldo de estoque por produto/filial/depósito (snapshot em tempo real).
+ *
+ * Fonte de dados: raw.estoque — sincronizado da view Oracle CCSALDO.
+ * A view já consolida saldo por produto, filial e tipo de controle (CODI_CTR).
+ *   CODI_CTR = 1 → Estoque Físico (posição atual disponível)
+ *   CODI_CTR = 3 → Pedido de Venda não entregue (reservado)
+ *
+ * Para saldo por LOTE com data de validade, use raw.saldo_lote
+ * (serviço: services/lotes.js, rota: GET /api/v1/lotes).
+ *
+ * Funções exportadas:
+ *   listar() — posição de estoque com filtros de filial, produto e depósito
+ */
 const db = require('../db/postgres');
 
 async function listar({ filialId, produtoId, depositoId, page = 1, pageSize = 200 }) {

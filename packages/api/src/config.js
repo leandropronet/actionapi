@@ -1,4 +1,10 @@
 'use strict';
+/**
+ * config.js
+ *
+ * Configuração centralizada da API. Lê variáveis do .env via dotenv.
+ * Variáveis obrigatórias: PORT, API_KEYS, PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASS.
+ */
 require('dotenv').config();
 
 module.exports = {
