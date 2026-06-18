@@ -124,8 +124,24 @@ Resultado dos testes em 17/06/2026:
 | ETL `raw.contratofin` (contratos de empréstimos) | ✅ Funcionando |
 | Endpoint `GET /api/v1/financeiro` | ✅ Implementado |
 | Endpoint `GET /api/v1/financeiro/fluxo-caixa` | ✅ Implementado |
+| Endpoint `GET /api/v1/recebimentos` | ✅ Implementado |
+| Endpoint `GET /api/v1/recebimentos/resumo` | ✅ Implementado |
+| Endpoint `GET /api/v1/pagamentos` | ✅ Implementado |
+| Endpoint `GET /api/v1/pagamentos/resumo` | ✅ Implementado |
 | Validação contra relatório ERP | ⏳ Pendente |
 | Reconciliação automática de exclusões | ⏳ Pendente |
+
+---
+
+### ⏳ DRE
+
+| Item | Status |
+|------|--------|
+| ETL `raw.idre` (estrutura hierárquica — IDRE) | ✅ Funcionando |
+| ETL `raw.contasdre` (mapeamento conta → linha DRE — CONTASDRE) | ✅ Funcionando |
+| Endpoint `GET /api/v1/dre?dataInicio=&dataFim=` | ✅ Implementado |
+| Endpoint `GET /api/v1/dre/estrutura` | ✅ Implementado |
+| Validação contra relatório ERP | ⏳ Pendente — validar sinal (soma_subtrai A/S) |
 
 ---
 
@@ -262,6 +278,20 @@ GET /api/v1/financeiro/fluxo-caixa?dataInicio=&dataFim= Saldo diário receber−
 ### Clientes
 ```
 GET /api/v1/clientes                              Parceiros/clientes
+```
+
+### Baixas (Recebimentos e Pagamentos)
+```
+GET /api/v1/recebimentos                          Baixas de CR (CRCBAIXA)
+GET /api/v1/recebimentos/resumo                   Totais por período (agrupamento=dia|mes|trimestre|ano)
+GET /api/v1/pagamentos                            Baixas de CP (CPGBAIXA)
+GET /api/v1/pagamentos/resumo                     Totais por período
+```
+
+### DRE
+```
+GET /api/v1/dre?dataInicio=&dataFim=              DRE por período (hierarquia de linhas com valores)
+GET /api/v1/dre/estrutura                         Hierarquia das linhas sem valores
 ```
 
 ---
