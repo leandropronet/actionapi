@@ -424,7 +424,7 @@ pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
 Todos exigem `dataInicio` e `dataFim`. Use `format=csv` para Excel ou consumo
 tabular simples. O JSON é paginado e aceita até 10.000 linhas por página.
 
-`/api/v1/bi/analise-contabil` retorna uma linha por competência, loja, conta
+`/api/v1/bi/analise-contabil` retorna uma linha por competência, código de loja, conta
 e centro de custo. Inclui natureza contábil, grupos de nível 1 a 3, safra e
 classificação `EBITDA`, `RF` ou `DA`. A regra reproduz a planilha exemplo:
 plano de contas `1000002`, contabilidade fiscal, exclusão da origem `ZR`,
@@ -439,8 +439,14 @@ O período de safra é de **1º de julho a 30 de junho**. Portanto,
 ```
 
 Filtros adicionais: `filialId`, `conta`, `ccustoId`, `naturezaContabil`,
-`classificacaoEbitda` e `safra`. Neste endpoint, `pageSize` aceita até 200.000
+`classificacaoEbitda`, `safra` e `statusLoja`. Neste endpoint, `pageSize` aceita até 200.000
 linhas para permitir a extração integral do período em CSV.
+
+O campo `codigo_loja` é sempre o código gravado no cabeçalho contábil
+`CABLANCTB`. A API não preenche lojas pelo centro de custo. Para auditoria,
+ela também retorna `codigo_loja_referencia_cc` e `status_loja`, permitindo
+identificar códigos ausentes ou diferentes da referência indicada pelo centro
+de custo sem substituir o dado original do ERP.
 
 Além dos datasets especializados, todas as rotas GET de `/api/v1/*` aceitam
 `format=csv`, inclusive faturamento, pedidos, estoque, lotes, clientes,

@@ -344,10 +344,11 @@ const paths = {
         stringQuery('naturezaContabil', 'Natureza gerencial da planilha.'),
         stringQuery('classificacaoEbitda', 'EBITDA, RF ou DA.'),
         stringQuery('safra', 'Período de 01/07 a 30/06. Exemplo: Safra 2024/2025.'),
+        stringQuery('statusLoja', 'OK, SEM_CODIGO_LOJA, CENTRO_CUSTO_SEM_REFERENCIA_LOJA ou CODIGO_LOJA_DIFERENTE_CENTRO_CUSTO.'),
         stringQuery('format', 'json ou csv.', 'json'),
         ...pagination,
       ],
-      'Uma linha mensal por loja, conta e centro de custo, com a mesma hierarquia gerencial da planilha exemplo. Exclui encerramentos ZR e usa credito positivo/debito negativo.',
+      'Uma linha mensal por codigo de loja, conta e centro de custo. O codigo oficial vem exclusivamente do CABLANCTB; o centro de custo e usado apenas para sinalizar inconsistencias.',
     ),
   },
   '/api/v1/conciliacao/financeiro-contabil': {

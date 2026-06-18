@@ -193,6 +193,8 @@ Reprodução pela API:
 | Backfill de cabeçalhos contábeis desde 2020 | ✅ Executado localmente |
 | Regra de encerramento `ZR` | ✅ Excluída conforme a planilha |
 | Período de safra | ✅ 01/07 a 30/06 |
+| Código da loja | ✅ Somente o valor original do `CABLANCTB`, sem inferência |
+| Conferência loja × centro de custo | ✅ Exposta em `status_loja` |
 | Validação amostral | ✅ Conta `4.2.1.1.02.0016`, Goiatuba/Cesar, dez-2024 = -111,44 |
 
 ---
