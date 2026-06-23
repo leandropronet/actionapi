@@ -28,11 +28,13 @@
  */
 const db = require('../db/postgres');
 
-async function calcular({ dataInicio, dataFim, filialId }) {
+async function calcular({ dataInicio, dataFim, filialId, dreId = '1' }) {
   const conds = [`c.data_lancamento BETWEEN $1 AND $2`];
   const params = [dataInicio, dataFim];
 
   if (filialId) { params.push(filialId); conds.push(`c.filial_id = $${params.length}`); }
+  params.push(dreId);
+  const dreParam = `$${params.length}`;
 
   const contabilWhere = conds.join(' AND ');
 
@@ -41,24 +43,31 @@ async function calcular({ dataInicio, dataFim, filialId }) {
        i.id                AS idre_id,
        i.descricao,
        i.nivel,
-       i.posicao_pai,
+       i.pai_id AS posicao_pai,
        i.tipo,
        i.grupo,
        COALESCE(
          SUM(
-           CASE WHEN cd.soma_subtrai = 'A'
-             THEN (c._dados->>'VLRD_LCT')::NUMERIC - (c._dados->>'VLRC_LCT')::NUMERIC
-             ELSE (c._dados->>'VLRC_LCT')::NUMERIC - (c._dados->>'VLRD_LCT')::NUMERIC
+           CASE WHEN cd.soma_subtrai = '-'
+             THEN CASE WHEN c._dados->>'TIPO_LCT' = 'C'
+               THEN (c._dados->>'VLOR_LCT')::NUMERIC
+               ELSE -(c._dados->>'VLOR_LCT')::NUMERIC
+             END
+             ELSE CASE WHEN c._dados->>'TIPO_LCT' = 'D'
+               THEN (c._dados->>'VLOR_LCT')::NUMERIC
+               ELSE -(c._dados->>'VLOR_LCT')::NUMERIC
+             END
            END
          ), 0
        ) AS valor
      FROM raw.idre i
      LEFT JOIN raw.contasdre cd ON cd.idre_id = i.id
      LEFT JOIN raw.contabil  c
-       ON c._dados->>'CODI_CPC' = cd.conta_id
+      ON c._dados->>'CODI_CPC' = cd.conta_id
       AND ${contabilWhere}
-     GROUP BY i.id, i.descricao, i.nivel, i.posicao_pai, i.tipo, i.grupo
-     ORDER BY i.nivel NULLS FIRST, i.posicao_pai NULLS FIRST, i.id`,
+     WHERE i._dados->>'CODI_DRE' = ${dreParam}
+     GROUP BY i.id, i.descricao, i.nivel, i.pai_id, i.tipo, i.grupo
+     ORDER BY i.nivel NULLS FIRST, i.pai_id NULLS FIRST, i.id`,
     params,
   );
 
@@ -69,11 +78,13 @@ async function calcular({ dataInicio, dataFim, filialId }) {
   };
 }
 
-async function estrutura() {
+async function estrutura({ dreId = '1' } = {}) {
   const res = await db.query(
-    `SELECT id, descricao, nivel, posicao_pai, tipo, grupo
+    `SELECT id, descricao, nivel, pai_id AS posicao_pai, tipo, grupo
      FROM raw.idre
+     WHERE _dados->>'CODI_DRE' = $1
      ORDER BY nivel NULLS FIRST, posicao_pai NULLS FIRST, id`,
+    [dreId],
   );
   return { linhas: res.rows };
 }

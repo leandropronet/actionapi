@@ -3,20 +3,34 @@ const oracle = require('../db/oracle');
 const { upsertRaw, atualizarSync } = require('../upsert');
 const cfg = require('../oracle-config').estoque;
 
-// CCSALDO é uma view realtime — não tem DUMANUT, então carregamos tudo a cada ciclo.
-// A tabela raw.estoque usa ON CONFLICT DO UPDATE, então é seguro rodar a cada 10 min.
+// CCSALDO NÃO é uma foto do saldo atual — é um histórico de saldo por data
+// (315.648 linhas para só 5.720 combinações filial+produto+tipo, com
+// registros voltando a 2008). Sem filtrar pela DATA_CCS mais recente por
+// combinação, o saldo carregado é arbitrário/desatualizado (achado real:
+// um produto carregado com saldo de 2020 quando o saldo real era de 2021,
+// validado em 2026-06-19). ROW_NUMBER() pega só a linha mais recente; o
+// filtro de saldo <> 0 é aplicado DEPOIS do ranking, nunca antes — senão um
+// produto zerado mais recentemente poderia "voltar" para um saldo antigo
+// não-zero por engano.
 async function sincronizar() {
-  console.log('[estoque] carregando saldo atual do CCSALDO...');
+  console.log('[estoque] carregando saldo mais recente do CCSALDO...');
 
   const sql = `
-    SELECT
-      ${cfg.campoFilial}   AS CODI_EMP,
-      ${cfg.campoProduto}  AS CODI_PSV,
-      ${cfg.campoTipoCtrl} AS CODI_CTR,
-      ${cfg.campoSaldo}    AS QTDE_CCS,
-      ${cfg.campoData}     AS DATA_CCS
-    FROM ${cfg.schema}.${cfg.tabela}
-    WHERE ${cfg.campoSaldo} <> 0
+    SELECT CODI_EMP, CODI_PSV, CODI_CTR, QTDE_CCS, DATA_CCS
+    FROM (
+      SELECT
+        ${cfg.campoFilial}   AS CODI_EMP,
+        ${cfg.campoProduto}  AS CODI_PSV,
+        ${cfg.campoTipoCtrl} AS CODI_CTR,
+        ${cfg.campoSaldo}    AS QTDE_CCS,
+        ${cfg.campoData}     AS DATA_CCS,
+        ROW_NUMBER() OVER (
+          PARTITION BY ${cfg.campoFilial}, ${cfg.campoProduto}, ${cfg.campoTipoCtrl}
+          ORDER BY ${cfg.campoData} DESC
+        ) AS RN
+      FROM ${cfg.schema}.${cfg.tabela}
+    )
+    WHERE RN = 1 AND QTDE_CCS <> 0
   `;
 
   const result = await oracle.query(sql, {});

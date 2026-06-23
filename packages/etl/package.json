@@ -8,7 +8,19 @@
     "carga-inicial": "node src/carga_inicial/index.js",
     "analise-contabil:generate": "node src/scripts/analise-contabil-mapping.js generate",
     "analise-contabil:load": "node src/scripts/analise-contabil-mapping.js load",
-    "contabil:backfill-cabecalhos": "node src/scripts/backfill-contabil-cabecalhos.js"
+    "analise-contabil:export": "node src/scripts/export-analise-contabil.js",
+    "contabil:backfill-cabecalhos": "node src/scripts/backfill-contabil-cabecalhos.js",
+    "contabil:backfill-filial": "node src/scripts/backfill-contabil-filial.js",
+    "financeiro:backfill-titulos": "node src/scripts/backfill-financeiro-titulos.js",
+    "financeiro:backfill-pagamentos": "node src/scripts/backfill-pagamentos.js",
+    "financeiro:backfill-parcelas-cp": "node src/scripts/backfill-parcelas-cp.js",
+    "financeiro:exportar-contas-pagar": "node src/scripts/export-contas-pagar-avancado.js",
+    "financeiro:recalcular-saldos": "node src/scripts/recalcular-saldos-financeiros.js",
+    "financeiro:validar-saldos": "node src/scripts/validar-saldos-financeiros.js",
+    "financeiro:sincronizar-agora": "node src/scripts/sincronizar-financeiro-agora.js",
+    "telegram:testar": "node src/scripts/testar-telegram.js",
+    "healthcheck": "node src/scripts/healthcheck.js",
+    "pedidos:backfill": "node --max-old-space-size=2048 src/scripts/backfill-pedidos.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

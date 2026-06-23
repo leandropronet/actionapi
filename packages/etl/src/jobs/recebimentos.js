@@ -1,6 +1,7 @@
 'use strict';
 const oracle = require('../db/oracle');
-const { upsertRaw, atualizarSync, lerUltimoSync } = require('../upsert');
+const { upsertRawBatch } = require('../upsert');
+const { abrirJanela, concluirJanela } = require('../incremental');
 const cfg = require('../oracle-config').recebimentos;
 
 const cfgDup = require('../oracle-config').duplicatas;
@@ -9,9 +10,33 @@ const cfgDup = require('../oracle-config').duplicatas;
 // JOIN com RECEBER + CABREC para trazer CODI_TDO (tipo do documento).
 // Necessário para separar duplicatas (101) de adiantamentos (103) e devoluções (106).
 // SITU_BAI: N=Normal, E=Estornada.
-async function sincronizar() {
-  const ultimoSync = await lerUltimoSync('recebimentos');
-  console.log(`[recebimentos] buscando alterações desde ${ultimoSync}`);
+async function sincronizar({ dataInicio, dataFim } = {}) {
+  const incremental = !dataInicio && !dataFim;
+  const janela = incremental ? await abrirJanela('recebimentos') : null;
+  const condicoes = [];
+  const binds = {};
+  if (dataInicio) {
+    condicoes.push(`B.${cfg.campoDtPag} >= TO_DATE(:dataInicio, 'YYYY-MM-DD')`);
+    binds.dataInicio = dataInicio;
+  }
+  if (dataFim) {
+    condicoes.push(`B.${cfg.campoDtPag} < TO_DATE(:dataFim, 'YYYY-MM-DD')`);
+    binds.dataFim = dataFim;
+  }
+  if (incremental) {
+    condicoes.push(
+      `B.${cfg.campoDataAlter} > :limiteInferior
+       AND B.${cfg.campoDataAlter} <= :limiteSuperior`,
+    );
+    binds.limiteInferior = janela.limiteInferior;
+    binds.limiteSuperior = janela.limiteSuperior;
+  }
+  const where = condicoes.join(' AND ');
+  console.log(
+    `[recebimentos] ${incremental
+      ? `janela ${janela.limiteInferior.toISOString()} a ${janela.limiteSuperior.toISOString()}`
+      : `reconciliação de ${dataInicio || 'início'} a ${dataFim || 'hoje'}`}`,
+  );
 
   // DUMANUT está em CRCBAIXA — controla o incremental pela baixa, não pelo cabeçalho
   const sql = `
@@ -25,6 +50,9 @@ async function sincronizar() {
       B.${cfg.campoJuros}     AS JURO_BAI,
       B.${cfg.campoDesconto}  AS DESC_BAI,
       B.${cfg.campoAcrescimo} AS ACRE_BAI,
+      B.${cfg.campoValorComplementar} AS VVCA_BAI,
+      B.CODI_IND,
+      B.DATA_VLR,
       B.${cfg.campoRecibo}    AS CODI_REC,
       B.${cfg.campoStatus}    AS SITU_BAI,
       B.${cfg.campoDataAlter} AS DUMANUT,
@@ -35,15 +63,17 @@ async function sincronizar() {
       ON R.${cfgDup.campoParcelaId} = B.${cfg.campoParcelaId}
     JOIN ${cfgDup.schema}.${cfgDup.tabelaCab} C
       ON C.${cfgDup.campoCabId} = R.${cfgDup.campoParcelaCabId}
-    WHERE B.${cfg.campoDataAlter} > :ultimoSync
+    WHERE ${where}
+    ORDER BY B.${cfg.campoDataAlter}, B.${cfg.campoId}
   `;
 
-  const result = await oracle.query(sql, { ultimoSync });
+  const result = await oracle.query(sql, binds);
   const rows = result.rows || [];
 
   if (!rows.length) {
     console.log('[recebimentos] sem alterações');
-    return;
+    if (incremental) await concluirJanela('recebimentos', janela);
+    return { registros: 0 };
   }
 
   const registros = rows.map((row) => ({
@@ -58,6 +88,9 @@ async function sincronizar() {
     juros:         row.JURO_BAI ?? 0,
     desconto:      row.DESC_BAI ?? 0,
     acrescimo:     row.ACRE_BAI ?? 0,
+    valor_complementar: row.VVCA_BAI ?? 0,
+    indexador_id: row.CODI_IND != null ? String(row.CODI_IND) : null,
+    data_indexador: row.DATA_VLR || null,
     recibo_id:     row.CODI_REC ? String(row.CODI_REC) : null,
     status:        row.SITU_BAI ? String(row.SITU_BAI).trim() : null,
     data_alteracao: row.DUMANUT || new Date(),
@@ -65,9 +98,10 @@ async function sincronizar() {
     _source:       'siagri',
   }));
 
-  await upsertRaw('raw.recebimentos', registros);
-  await atualizarSync('recebimentos');
+  await upsertRawBatch('raw.recebimentos', registros);
+  if (incremental) await concluirJanela('recebimentos', janela);
   console.log(`[recebimentos] ${registros.length} baixas sincronizadas`);
+  return { registros: registros.length };
 }
 
 module.exports = { sincronizar };

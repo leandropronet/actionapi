@@ -14,8 +14,43 @@
  *   dataInicio, dataFim (obrigatórios, AAAA-MM-DD), filialId
  */
 const svc = require('../services/financeiro');
+const contasPagar = require('../services/contas_pagar');
+const contasReceber = require('../services/contas_receber');
+
+function booleanQuery(value, defaultValue) {
+  if (value === undefined) return defaultValue;
+  return !['false', '0', 'nao', 'não'].includes(String(value).toLowerCase());
+}
 
 module.exports = async function (fastify) {
+  fastify.get('/financeiro/contas-receber', async (req) => {
+    const { page, pageSize, ...filters } = req.query;
+    return contasReceber.listar({ ...filters, page, pageSize });
+  });
+
+  fastify.get('/financeiro/contas-receber/resumo', async (req) => {
+    return contasReceber.resumo(req.query);
+  });
+
+  fastify.get('/financeiro/contas-pagar', async (req) => {
+    const { page, pageSize, somenteEmAberto, incluirPagasDeAbertos, ...filters } = req.query;
+    return contasPagar.listar({
+      ...filters,
+      somenteEmAberto: booleanQuery(somenteEmAberto, true),
+      incluirPagasDeAbertos: booleanQuery(incluirPagasDeAbertos, false),
+      page,
+      pageSize,
+    });
+  });
+
+  fastify.get('/financeiro/contas-pagar/resumo', async (req) => {
+    const { somenteEmAberto, ...filters } = req.query;
+    return contasPagar.resumo({
+      ...filters,
+      somenteEmAberto: booleanQuery(somenteEmAberto, true),
+    });
+  });
+
   fastify.get('/financeiro', async (req) => {
     const { tipo, filialId, status, vencimentoDe, vencimentoAte, page, pageSize } = req.query;
     return svc.listar({ tipo, filialId, status, vencimentoDe, vencimentoAte,

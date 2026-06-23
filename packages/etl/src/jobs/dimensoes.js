@@ -76,6 +76,32 @@ async function sincronizar() {
     }
   }
 
+  // Fornecedores = TRANSAC com FORN_TRA='S' (sem JOIN — o flag já está em TRANSAC)
+  {
+    const ultimoSync = await lerUltimoSync('fornecedores');
+    const sql = `
+      SELECT *
+      FROM ${cfgs.fornecedores.schema}.${cfgs.fornecedores.tabela}
+      WHERE ${cfgs.fornecedores.campoFlagForn} = 'S'
+        AND ${cfgs.fornecedores.campoDataAlter} > :ultimoSync
+    `;
+    const result = await oracle.query(sql, { ultimoSync });
+    const rows = result.rows || [];
+    if (rows.length) {
+      const registros = rows.map((row) => ({
+        id:           String(row[cfgs.fornecedores.campoId]),
+        razao_social: row[cfgs.fornecedores.campoRazao] || null,
+        cgc_cnpj:     row[cfgs.fornecedores.campoCpfCnpj] || null,
+        status:       row.SITU_TRA ? String(row.SITU_TRA).trim() : null,
+        _dados:       JSON.stringify(row),
+        _source:      'siagri',
+      }));
+      await upsertRaw('raw.fornecedores', registros);
+      await atualizarSync('fornecedores');
+      console.log(`[fornecedores] ${registros.length} registros sincronizados`);
+    }
+  }
+
   // Produtos: ativos (SITU_PSV='A') e tipo P=Produto ou K=Kit
   // B=Bem, U=Uso/Consumo, S=Serviço excluídos por ora
   await sincronizarTabela(
@@ -98,6 +124,42 @@ async function sincronizar() {
       _source:'siagri',
     })
   );
+
+  // Recupera vendedores históricos/inativos referenciados por títulos, mas
+  // ausentes no PostgreSQL. A carga incremental de PESSOAL pode não alcançar
+  // cadastros antigos cuja última alteração antecede a primeira sincronização.
+  {
+    const faltantes = await pg.query(`
+      SELECT DISTINCT d._dados->>'COD1_PES' AS id
+      FROM raw.duplicatas d
+      LEFT JOIN raw.vendedores v ON v.id = d._dados->>'COD1_PES'
+      WHERE NULLIF(d._dados->>'COD1_PES', '') IS NOT NULL
+        AND v.id IS NULL
+    `);
+    const ids = faltantes.rows.map((row) => row.id).filter(Boolean);
+    if (ids.length) {
+      const binds = {};
+      const placeholders = ids.map((id, index) => {
+        binds[`id${index}`] = Number(id);
+        return `:id${index}`;
+      });
+      const result = await oracle.query(
+        `SELECT *
+         FROM ${cfgs.vendedores.schema}.${cfgs.vendedores.tabela}
+         WHERE ${cfgs.vendedores.campoId} IN (${placeholders.join(', ')})`,
+        binds,
+      );
+      const registros = (result.rows || []).map((row) => ({
+        id: String(row[cfgs.vendedores.campoId]),
+        _dados: JSON.stringify(row),
+        _source: 'siagri',
+      }));
+      if (registros.length) {
+        await upsertRaw('raw.vendedores', registros);
+        console.log(`[vendedores] ${registros.length} cadastros históricos recuperados`);
+      }
+    }
+  }
 
   // Propriedades rurais (PROPRIED) — apenas ativas
   await sincronizarTabela(

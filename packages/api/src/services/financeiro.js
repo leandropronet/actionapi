@@ -109,27 +109,44 @@ async function listarConsolidado({ filialId, vencimentoDe, vencimentoAte, page, 
 }
 
 async function fluxoCaixa({ dataInicio, dataFim, filialId }) {
-  const conditions = ['data_vencimento BETWEEN $1 AND $2'];
+  // Projeção pelo SALDO EM ABERTO (convertido para R$, com sinal — créditos
+  // negativos), por dia de vencimento, netando CR e CP. Usa o snapshot validado
+  // raw.financeiro_saldos_local (= VALOR_ABERTO_RECEBER/PAGAR_DATA) e busca o
+  // vencimento de cada parcela em financeiro_cp (CP) e duplicatas (CR).
+  const conditions = [
+    'v.data_vencimento BETWEEN $1 AND $2',
+    'ABS(sl.saldo_ajustado) > 0.01',
+  ];
   const params = [dataInicio, dataFim];
-  if (filialId) { params.push(filialId); conditions.push(`filial_id = $${params.length}`); }
-
+  if (filialId) { params.push(filialId); conditions.push(`sl.filial_id = $${params.length}`); }
   const where = `WHERE ${conditions.join(' AND ')}`;
 
-  const [cpRes, crRes] = await Promise.all([
-    db.query(
-      `SELECT DATE_TRUNC('day', data_vencimento) AS dia, SUM((_dados->>'VLOR')::NUMERIC) AS valor
-       FROM raw.financeiro_cp ${where} GROUP BY dia ORDER BY dia`,
-      params,
-    ),
-    db.query(
-      `SELECT DATE_TRUNC('day', data_vencimento) AS dia, SUM((_dados->>'VLOR')::NUMERIC) AS valor
-       FROM raw.financeiro_cr ${where} GROUP BY dia ORDER BY dia`,
-      params,
-    ),
-  ]);
+  const res = await db.query(
+    `WITH venc AS (
+       SELECT 'CP' AS tipo, f.id AS parcela_id, f.data_vencimento
+         FROM raw.financeiro_cp f
+       UNION ALL
+       SELECT 'CR' AS tipo, d.id AS parcela_id, d.data_vencimento
+         FROM raw.duplicatas d
+     )
+     SELECT sl.tipo,
+            DATE_TRUNC('day', v.data_vencimento) AS dia,
+            SUM(sl.saldo_convertido_atual) AS valor
+       FROM raw.financeiro_saldos_local sl
+       JOIN venc v ON v.tipo = sl.tipo AND v.parcela_id = sl.parcela_id
+       ${where}
+       GROUP BY sl.tipo, dia
+       ORDER BY dia`,
+    params,
+  );
 
-  const cp  = Object.fromEntries(cpRes.rows.map((r) => [r.dia.toISOString().slice(0, 10), Number(r.valor)]));
-  const cr  = Object.fromEntries(crRes.rows.map((r) => [r.dia.toISOString().slice(0, 10), Number(r.valor)]));
+  const cp = {};
+  const cr = {};
+  for (const row of res.rows) {
+    const dia = row.dia.toISOString().slice(0, 10);
+    if (row.tipo === 'CP') cp[dia] = Number(row.valor);
+    else cr[dia] = Number(row.valor);
+  }
   const dias = [...new Set([...Object.keys(cp), ...Object.keys(cr)])].sort();
 
   return {

@@ -184,6 +184,7 @@ async function buildApp({ validateConfig = true } = {}) {
   app.register(require('./routes/nfe_entrada'), { prefix: '/api/v1' });
   app.register(require('./routes/duplicatas'), { prefix: '/api/v1' });
   app.register(require('./routes/pedidos'), { prefix: '/api/v1' });
+  app.register(require('./routes/pedidos_compra'), { prefix: '/api/v1' });
   app.register(require('./routes/estoque'), { prefix: '/api/v1' });
   app.register(require('./routes/financeiro'), { prefix: '/api/v1' });
   app.register(require('./routes/contabil'), { prefix: '/api/v1' });
@@ -192,6 +193,7 @@ async function buildApp({ validateConfig = true } = {}) {
   app.register(require('./routes/baixas'), { prefix: '/api/v1' });
   app.register(require('./routes/dre'), { prefix: '/api/v1' });
   app.register(require('./routes/bi'), { prefix: '/api/v1' });
+  app.register(require('./routes/executivo'), { prefix: '/api/v1' });
 
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);

@@ -1,5 +1,7 @@
 node_modules/
+.venv/
 .env
+.env.docker
 .env.homologacao
 .env.producao
 *.log
@@ -13,3 +15,14 @@ Thumbs.db
 packages/api/diag_*.js
 packages/api/carga_nfe_entrada.js
 packages/api/migrate_nfe_entrada.js
+
+# Exports locais de análise — contêm dados financeiros reais do cliente
+*.xlsx
+*.xls
+
+# Relatórios gerados e arquivos do controller (xlsx/pdf com dados financeiros)
+relatorios/
+
+# Python
+__pycache__/
+*.pyc

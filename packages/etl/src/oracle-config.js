@@ -92,6 +92,10 @@ module.exports = {
     campoFlagAssina:     'ACDU_REC',   // 'S'/'N'
     campoVendedor1:      'COD1_PES',
     campoParcelaDataAlter: 'DUMANUT',
+    // HIST_REC: histórico/observação livre digitado no título. Único lugar onde
+    // operações de FIDC ficam referenciadas (texto livre, sem campo estruturado
+    // de contrato — investigado em 2026-06-21, ver project_saldo_aberto_cr_cp).
+    campoHistorico:      'HIST_REC',
   },
 
   // ──────────────────────────────────────────────
@@ -112,14 +116,59 @@ module.exports = {
     campoStatus:       'SITU_PED',
     campoTotal:        'TOTA_PED',    // TODO_VERIFICAR
     campoDataAlter:    'DUMANUT',
-    // Itens do pedido
+    // Itens do pedido — PK real (ALL_CONS_COLUMNS): CODI_EMP+PEDI_PED+SERI_PED+CODI_PSV.
+    // ITEM_IPE existe na tabela mas está 0% preenchido (sempre NULL) — não é
+    // sequencial de item; usar CODI_PSV como desambiguador (validado 2026-06).
     tabelaItens:       'IPEDIDO',
+    campoItemFilial:   'CODI_EMP',
     campoItemPedidoId: 'PEDI_PED',
     campoItemSerie:    'SERI_PED',
-    campoItemSeq:      'ITEM_IPE',
+    campoItemSeq:      'CODI_PSV',
     campoItemProduto:  'CODI_PSV',
     campoItemQtd:      'QTDE_IPE',
     campoItemValor:    'VLOR_IPE',
+  },
+
+  // ──────────────────────────────────────────────
+  // PEDIDOS DE COMPRA — PEDCOM
+  //   Itens: IPEDCOM (FK: CODI_EMP + NUME_PEC + CODI_PSV)
+  //   Parcelas previstas: PARCPEDCOM (FK: CODI_EMP + NUME_PEC)
+  //   STAT_PEC: P=Pendente, A=Aprovado, C=Cancelado (confirmado via amostra Oracle, jun/2026)
+  //   Saldo em aberto do item = QTDP_IPC (pedido) - QTDR_IPC (recebido)
+  // ──────────────────────────────────────────────
+  pedidosCompra: {
+    schema:             SCHEMA,
+    tabela:             'PEDCOM',
+    // PK composta: filial + número do pedido
+    campoFilial:        'CODI_EMP',
+    campoPedidoId:      'NUME_PEC',
+    campoFornecedor:    'CODI_TRA',
+    campoOperacao:      'CODI_TOP',
+    campoDataPedido:    'DATA_PEC',
+    campoDataPrevisao:  'DPRE_PEC',     // previsão de entrega
+    campoDataCancel:    'DCAN_PEC',
+    campoStatus:        'STAT_PEC',
+    campoTotal:         'TOTA_PEC',
+    campoNotaFiscal:    'NPRE_NOT',     // possível vínculo com NF gerada — não confirmado, ver _dados
+    campoDataAlter:     'DUMANUT',
+    // Itens do pedido de compra
+    tabelaItens:        'IPEDCOM',
+    campoItemFilial:    'CODI_EMP',
+    campoItemPedidoId:  'NUME_PEC',
+    campoItemProduto:   'CODI_PSV',
+    campoItemQtdPedida: 'QTDP_IPC',
+    campoItemQtdReceb:  'QTDR_IPC',
+    campoItemValorUnit: 'VLOR_IPC',
+    campoItemValorLiq:  'VLIQ_IPC',
+    campoItemDataAlter: 'DUMANUT',
+    // Parcelas previstas do pedido de compra
+    tabelaParcelas:        'PARCPEDCOM',
+    campoParcelaId:        'CTRL_PPC',
+    campoParcelaFilial:    'CODI_EMP',
+    campoParcelaPedidoId:  'NUME_PEC',
+    campoParcelaVenc:      'VENC_PPC',
+    campoParcelaValor:     'VLOR_PPC',
+    campoParcelaDataAlter: 'DUMANUT',
   },
 
   // ──────────────────────────────────────────────
@@ -149,8 +198,11 @@ module.exports = {
     campoCabId:          'CTRL_CPG',
     campoCabFilial:      'CODI_EMP',
     campoCabFornecedor:  'CODI_TRA',
+    campoCabTipoDocumento: 'CODI_TDO',
     campoCabData:        'DMOV_CPG',
     campoCabTotal:       'TOTA_CPG',
+    campoCabIndexador:   'CODI_IND',
+    campoCabDataIndexador: 'DATA_VLR',
     campoCabDataAlter:   'DUMANUT',
     // PAGAR — parcelas
     tabelaParcela:       'PAGAR',
@@ -162,6 +214,10 @@ module.exports = {
     // Flag Fase 2 — assinatura digital do documento
     campoFlagAssina:     'ACDU_PAG',  // 'S'/'N'
     campoParcelaDataAlter: 'DUMANUT',
+    // HIST_PAG: histórico/observação livre digitado no título. Único lugar onde
+    // operações de FIDC ficam referenciadas (texto livre, sem campo estruturado
+    // de contrato — investigado em 2026-06-21, ver project_saldo_aberto_cr_cp).
+    campoHistorico:      'HIST_PAG',
   },
 
   // ──────────────────────────────────────────────
@@ -236,6 +292,24 @@ module.exports = {
     tabelaCliente:    'CLIENTE',
     campoClienteTra:  'CODI_TRA',   // FK → TRANSAC
     campoClienteEmp:  'CODI_EMP',
+  },
+
+  // ──────────────────────────────────────────────
+  // FORNECEDORES — TRANSAC com flag FORN_TRA='S'
+  //   Diferente de CLIENTE (tabela de extensão), TRANSAC já marca o papel de
+  //   fornecedor direto no próprio cadastro (FORN_TRA: S/N), sem JOIN extra.
+  //   Um parceiro pode ser cliente E fornecedor ao mesmo tempo.
+  // ──────────────────────────────────────────────
+  fornecedores: {
+    schema:         SCHEMA,
+    tabela:         'TRANSAC',
+    campoId:        'CODI_TRA',
+    campoRazao:     'RAZA_TRA',
+    campoFantasia:  'FANT_TRA',
+    campoCpfCnpj:   'CGC_TRA',
+    campoTelefone:  'TEL1_TRA',
+    campoFlagForn:  'FORN_TRA',     // S=Fornecedor
+    campoDataAlter: 'DUMANUT',
   },
 
   // ──────────────────────────────────────────────
@@ -548,6 +622,10 @@ module.exports = {
     campoJuros:     'JURO_BAI',
     campoDesconto:  'DESC_BAI',
     campoAcrescimo: 'ACRE_BAI',
+    // VVCA_BAI: valor complementar da baixa (encontro de contas/ajuste) —
+    // não capturado antes; sem ele, "VLOR_REC - baixas" erra o saldo aberto
+    // em até 100% do valor de algumas parcelas (achado e validado 2026-06-20).
+    campoValorComplementar: 'VVCA_BAI',
     campoRecibo:    'CODI_REC',    // FK → RECIBO
     // SITU_BAI: N=Normal, E=Estornada
     campoStatus:    'SITU_BAI',
@@ -572,6 +650,9 @@ module.exports = {
     campoJuros:     'JURO_CPB',
     campoDesconto:  'DESC_CPB',
     campoAcrescimo: 'ACRE_CPB',
+    campoIndexador: 'CODI_IND',
+    campoDataIndexador: 'DATA_VLR',
+    campoValorComplementar: 'VVCA_CPB',
     // SITU_CPB: N=Normal, E=Estornada
     campoStatus:    'SITU_CPB',
     campoDataAlter: 'DUMANUT',

@@ -13,6 +13,11 @@ services:
     networks:
       - actionapi-net
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "5"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-actionapi} -d ${PG_DATABASE:-actionapi}"]
       interval: 10s
@@ -23,15 +28,26 @@ services:
     build:
       context: ./packages/etl
       dockerfile: Dockerfile
-    env_file: .env
+    env_file: .env.docker
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      TZ: ${TZ:-America/Sao_Paulo}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - actionapi-net
     restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
     volumes:
       - etl_logs:/app/logs
+    logging:
+      driver: local
+      options:
+        max-size: "50m"
+        max-file: "10"
 
   actionapi:
     build:
@@ -39,18 +55,28 @@ services:
       dockerfile: Dockerfile
     ports:
       - "${BIND_HOST:-127.0.0.1}:${PORT:-3000}:3000"
-    env_file: .env
+    env_file: .env.docker
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      TZ: ${TZ:-America/Sao_Paulo}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - actionapi-net
     restart: unless-stopped
+    init: true
     read_only: true
     tmpfs:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "5"
 
 volumes:
   pg_data:

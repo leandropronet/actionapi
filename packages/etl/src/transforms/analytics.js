@@ -2,6 +2,37 @@
 const pg = require('../db/postgres');
 const cfgs = require('../oracle-config');
 
+async function atualizarDimTempo() {
+  await pg.query(`
+    INSERT INTO analytics.dim_tempo (
+      data_id, data, ano, semestre, trimestre, mes, mes_nome,
+      semana_ano, dia_mes, dia_semana, dia_semana_nome,
+      eh_fim_semana, eh_ultimo_dia_mes
+    )
+    SELECT
+      TO_CHAR(d, 'YYYYMMDD')::INT,
+      d,
+      EXTRACT(YEAR FROM d)::SMALLINT,
+      CEIL(EXTRACT(MONTH FROM d) / 6.0)::SMALLINT,
+      EXTRACT(QUARTER FROM d)::SMALLINT,
+      EXTRACT(MONTH FROM d)::SMALLINT,
+      TO_CHAR(d, 'TMMonth'),
+      EXTRACT(WEEK FROM d)::SMALLINT,
+      EXTRACT(DAY FROM d)::SMALLINT,
+      EXTRACT(DOW FROM d)::SMALLINT,
+      TO_CHAR(d, 'TMDay'),
+      EXTRACT(DOW FROM d) IN (0, 6),
+      d = DATE_TRUNC('month', d) + INTERVAL '1 month' - INTERVAL '1 day'
+    FROM (
+      SELECT data_emissao::DATE AS d FROM raw.faturamento
+      UNION
+      SELECT data_posicao::DATE AS d FROM raw.estoque
+    ) datas
+    WHERE d IS NOT NULL
+    ON CONFLICT (data) DO NOTHING
+  `);
+}
+
 // Atualiza dimensões analytics a partir do schema raw
 async function atualizarDimensoes() {
   const cfgF = cfgs.filiais;
@@ -147,6 +178,7 @@ async function atualizarEstoque(desde) {
 }
 
 async function atualizar(desde = new Date(Date.now() - 24 * 60 * 60 * 1000)) {
+  await atualizarDimTempo();
   await atualizarDimensoes();
   await atualizarFaturamento(desde);
   await atualizarEstoque(desde);

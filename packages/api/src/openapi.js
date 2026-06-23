@@ -179,6 +179,35 @@ const paths = {
   '/api/v1/pedidos/{id}/saldo': {
     get: get('Consultar saldo comercial do pedido', 'Pedidos', [idPath('id', 'Identificador do pedido.')]),
   },
+  '/api/v1/pedidos-compra': {
+    get: get('Listar pedidos de compra', 'Pedidos de Compra', [
+      ...dateParams, filial,
+      stringQuery('fornecedorId', 'Código do fornecedor.'),
+      stringQuery('status', 'P=Pendente, A=Aprovado, C=Cancelado.'),
+      ...pagination,
+    ], 'dataInicio/dataFim filtram por data do pedido (DATA_PEC).'),
+  },
+  '/api/v1/pedidos-compra/itens-abertos': {
+    get: get('Listar itens em aberto (pedido - recebido)', 'Pedidos de Compra', [
+      filial,
+      stringQuery('fornecedorId', 'Código do fornecedor.'),
+      stringQuery('produtoId', 'Código do produto.'),
+      stringQuery('incluirCancelados', 'true para incluir pedidos cancelados no saldo. Padrão: false.'),
+      ...pagination,
+    ], 'Saldo = qtd_pedida - qtd_recebida. Exclui status=Cancelado por padrão.'),
+  },
+  '/api/v1/pedidos-compra/resumo': {
+    get: get('Resumo do saldo em aberto por filial/fornecedor', 'Pedidos de Compra', [
+      filial,
+      stringQuery('fornecedorId', 'Código do fornecedor.'),
+      stringQuery('incluirCancelados', 'true para incluir pedidos cancelados no saldo. Padrão: false.'),
+    ]),
+  },
+  '/api/v1/pedidos-compra/{id}': {
+    get: get('Consultar pedido de compra completo', 'Pedidos de Compra', [
+      idPath('id', 'Identificador "{filialId}_{numero}" do pedido de compra.'),
+    ]),
+  },
   '/api/v1/duplicatas': {
     get: get('Listar duplicatas', 'Financeiro', [
       filial,
@@ -188,6 +217,21 @@ const paths = {
       stringQuery('vencimentoAte', 'Vencimento final.'),
       stringQuery('status', 'A=aberto, B=baixado, C=cancelado.'),
       ...pagination,
+    ]),
+  },
+  '/api/v1/duplicatas/saldo': {
+    get: get('Saldo exato de contas a receber por parcela', 'Financeiro', [
+      filial,
+      stringQuery('clienteId', 'Código do cliente.'),
+      stringQuery('vencimentoDe', 'Vencimento inicial.'),
+      stringQuery('vencimentoAte', 'Vencimento final.'),
+      ...pagination,
+    ], 'Saldo oficial e reprodução local equivalente a VALOR_ABERTO_RECEBER_DATA, incluindo indexadores.'),
+  },
+  '/api/v1/duplicatas/saldo/resumo': {
+    get: get('Saldo exato de contas a receber por cliente', 'Financeiro', [
+      filial,
+      stringQuery('clienteId', 'Código do cliente.'),
     ]),
   },
   '/api/v1/financeiro': {
@@ -201,6 +245,85 @@ const paths = {
   },
   '/api/v1/financeiro/fluxo-caixa': {
     get: get('Consultar fluxo de caixa', 'Financeiro', [...dateParams, filial]),
+  },
+  '/api/v1/financeiro/contas-pagar': {
+    get: get(
+      'Dashboard detalhado de contas a pagar',
+      'Financeiro',
+      [
+        filial,
+        stringQuery('fornecedorId', 'Código do fornecedor.'),
+        stringQuery('tipoDocumento', 'Código TIPDOC do título.'),
+        stringQuery('emissaoDe', 'Emissão inicial no formato AAAA-MM-DD.'),
+        stringQuery('emissaoAte', 'Emissão final no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoDe', 'Vencimento inicial no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoAte', 'Vencimento final no formato AAAA-MM-DD.'),
+        stringQuery('pedidoId', 'Pedido no formato filial_numero, por exemplo 1_2118.'),
+        stringQuery('produtoId', 'Código do produto.'),
+        stringQuery('situacao', 'ABERTA, PARCIAL ou BAIXADA.'),
+        stringQuery('faixaVencimento', 'Faixa calculada de atraso ou vencimento.'),
+        stringQuery('statusVinculo', 'COM_PEDIDO, COM_NF_SEM_PEDIDO ou SEM_NF_E_SEM_PEDIDO.'),
+        stringQuery('conferenciaPedido', 'OK ou tipo de divergência entre título e pedido.'),
+        stringQuery('somenteEmAberto', 'true por padrão; false inclui parcelas baixadas.'),
+        ...pagination,
+      ],
+      'Uma linha por parcela. O saldo reproduz VALOR_ABERTO_PAGAR_DATA, respeitando data da baixa e indexadores. Pedidos e produtos são agregados para não duplicar valores.',
+    ),
+  },
+  '/api/v1/financeiro/contas-pagar/resumo': {
+    get: get(
+      'Resumo de contas a pagar por fornecedor e filial',
+      'Financeiro',
+      [
+        filial,
+        stringQuery('fornecedorId', 'Código do fornecedor.'),
+        stringQuery('tipoDocumento', 'Código TIPDOC do título.'),
+        stringQuery('emissaoDe', 'Emissão inicial no formato AAAA-MM-DD.'),
+        stringQuery('emissaoAte', 'Emissão final no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoDe', 'Vencimento inicial no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoAte', 'Vencimento final no formato AAAA-MM-DD.'),
+        stringQuery('pedidoId', 'Pedido no formato filial_numero.'),
+        stringQuery('produtoId', 'Código do produto.'),
+        stringQuery('somenteEmAberto', 'true por padrão; false inclui parcelas baixadas.'),
+      ],
+    ),
+  },
+  '/api/v1/financeiro/contas-receber': {
+    get: get(
+      'Dashboard detalhado de contas a receber',
+      'Financeiro',
+      [
+        filial,
+        stringQuery('clienteId', 'Código do cliente.'),
+        stringQuery('tipoDocumento', 'Código TIPDOC do título.'),
+        stringQuery('emissaoDe', 'Emissão inicial no formato AAAA-MM-DD.'),
+        stringQuery('emissaoAte', 'Emissão final no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoDe', 'Vencimento inicial no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoAte', 'Vencimento final no formato AAAA-MM-DD.'),
+        stringQuery('situacao', 'VENCIDA, VENCE_HOJE, A_VENCER ou CREDITO_EM_ABERTO.'),
+        stringQuery('faixaVencimento', 'Faixa calculada de atraso ou vencimento.'),
+        stringQuery('unidadeSaldo', 'R$, SJ$, US$ ou ER.'),
+        stringQuery('vendedorId', 'Código do vendedor.'),
+        ...pagination,
+      ],
+      'Uma linha por parcela em aberto. O saldo vem do snapshot oficial de VALOR_ABERTO_RECEBER_DATA e preserva a unidade de contratos indexados.',
+    ),
+  },
+  '/api/v1/financeiro/contas-receber/resumo': {
+    get: get(
+      'Resumo de contas a receber por cliente, filial e unidade',
+      'Financeiro',
+      [
+        filial,
+        stringQuery('clienteId', 'Código do cliente.'),
+        stringQuery('tipoDocumento', 'Código TIPDOC do título.'),
+        stringQuery('emissaoDe', 'Emissão inicial no formato AAAA-MM-DD.'),
+        stringQuery('emissaoAte', 'Emissão final no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoDe', 'Vencimento inicial no formato AAAA-MM-DD.'),
+        stringQuery('vencimentoAte', 'Vencimento final no formato AAAA-MM-DD.'),
+        stringQuery('unidadeSaldo', 'R$, SJ$, US$ ou ER.'),
+      ],
+    ),
   },
   '/api/v1/recebimentos': {
     get: get('Listar recebimentos', 'Baixas', [...dateParams, filial, ...pagination]),
@@ -301,6 +424,52 @@ const paths = {
   },
   '/api/v1/dre/estrutura': {
     get: get('Consultar estrutura da DRE', 'Contabilidade'),
+  },
+  '/api/v1/executivo/faturamento': {
+    get: get('Itens de faturamento para análise executiva', 'Executivo', [
+      ...dateParams, filial,
+      stringQuery('clienteId', 'Código do cliente.'),
+      stringQuery('vendedorId', 'Código do vendedor.'),
+      stringQuery('grupoId', 'Código do grupo de produto.'),
+      stringQuery('paramId', 'Parâmetro de operações do SiAGRI.', '102'),
+      ...pagination,
+    ]),
+  },
+  '/api/v1/executivo/faturamento/resumo': {
+    get: get('Resumo executivo do faturamento', 'Executivo', [
+      ...dateParams, filial,
+      stringQuery('paramId', 'Parâmetro de operações do SiAGRI.', '102'),
+    ]),
+  },
+  '/api/v1/executivo/recebimentos': {
+    get: get('Movimentos recebidos enriquecidos', 'Executivo', [
+      ...dateParams, filial,
+      stringQuery('parceiroId', 'Código do cliente.'),
+      stringQuery('status', 'N=normal ou E=estornado.'),
+      stringQuery('pontualidade', 'ANTECIPADO, NO_VENCIMENTO, ATRASADO, SEM_VENCIMENTO ou ESTORNADO.'),
+      ...pagination,
+    ]),
+  },
+  '/api/v1/executivo/recebimentos/resumo': {
+    get: get('Resumo executivo de contas recebidas', 'Executivo', [...dateParams, filial]),
+  },
+  '/api/v1/executivo/pagamentos': {
+    get: get('Movimentos pagos enriquecidos', 'Executivo', [
+      ...dateParams, filial,
+      stringQuery('parceiroId', 'Código do fornecedor.'),
+      stringQuery('status', 'N=normal ou E=estornado.'),
+      stringQuery('pontualidade', 'ANTECIPADO, NO_VENCIMENTO, ATRASADO, SEM_VENCIMENTO ou ESTORNADO.'),
+      ...pagination,
+    ]),
+  },
+  '/api/v1/executivo/pagamentos/resumo': {
+    get: get('Resumo executivo de contas pagas', 'Executivo', [...dateParams, filial]),
+  },
+  '/api/v1/executivo/contabilidade/resumo': {
+    get: get('Resumo executivo da contabilidade', 'Executivo', [...dateParams, filial]),
+  },
+  '/api/v1/executivo/visao-360': {
+    get: get('Visão consolidada 360 graus para CEO e CFO', 'Executivo', [...dateParams, filial]),
   },
   '/api/v1/bi/financeiro': {
     get: get(
@@ -423,6 +592,7 @@ module.exports = {
     { name: 'Estoque' },
     { name: 'Clientes' },
     { name: 'Contabilidade' },
+    { name: 'Executivo' },
     { name: 'BI e Conciliação' },
   ],
   paths,

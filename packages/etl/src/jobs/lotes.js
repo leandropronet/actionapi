@@ -5,10 +5,16 @@ const cfg = require('../oracle-config').lotes;
 
 // LOTE — lotes de produtos com data de validade (VALG_LOT)
 // JOIN com ILOTE para trazer quantidade por filial/depósito em uma única passagem.
-// Um lote pode ter N registros em ILOTE (um por filial que o recebeu).
-async function sincronizar() {
+// Um lote pode ter N registros em ILOTE — PK real: CODI_PSV+LOTE_LOT+CODI_EMP
+// +DINI_ILO+CODI_DPT (mesmo produto pode entrar na filial em depósitos ou
+// datas diferentes). id antigo (sem data/depósito) colidia — achado 2026-06-19.
+async function sincronizar({ dataInicio } = {}) {
   const ultimoSync = await lerUltimoSync('lotes');
-  console.log(`[lotes] buscando alterações desde ${ultimoSync}`);
+  const where = dataInicio
+    ? `${cfg.campoDataAlter} >= TO_DATE(:dataInicio, 'YYYY-MM-DD')`
+    : `${cfg.campoDataAlter} > :ultimoSync`;
+  const binds = dataInicio ? { dataInicio } : { ultimoSync };
+  console.log(`[lotes] ${dataInicio ? `carga desde ${dataInicio}` : `buscando alterações desde ${ultimoSync}`}`);
 
   // LOTE mestre — sincroniza por DUMANUT do LOTE
   const sqlLote = `
@@ -22,10 +28,10 @@ async function sincronizar() {
       ${cfg.campoFornecedor} AS CODI_TRA,
       ${cfg.campoDataAlter}  AS DUMANUT
     FROM ${cfg.schema}.${cfg.tabela}
-    WHERE ${cfg.campoDataAlter} > :ultimoSync
+    WHERE ${where}
   `;
 
-  const resLote = await oracle.query(sqlLote, { ultimoSync });
+  const resLote = await oracle.query(sqlLote, binds);
   const rowsLote = resLote.rows || [];
 
   if (rowsLote.length) {
@@ -51,6 +57,9 @@ async function sincronizar() {
   }
 
   // ILOTE por filial/depósito — sincroniza independente (tem DUMANUT próprio)
+  const whereIlote = dataInicio
+    ? `${cfg.campoIloteAlter} >= TO_DATE(:dataInicio, 'YYYY-MM-DD')`
+    : `${cfg.campoIloteAlter} > :ultimoSync`;
   const sqlIlote = `
     SELECT
       ${cfg.campoIloteProd}  AS CODI_PSV,
@@ -61,15 +70,16 @@ async function sincronizar() {
       ${cfg.campoIloteDt}    AS DINI_ILO,
       ${cfg.campoIloteAlter} AS DUMANUT
     FROM ${cfg.schema}.${cfg.tabelaFilial}
-    WHERE ${cfg.campoIloteAlter} > :ultimoSync
+    WHERE ${whereIlote}
   `;
 
-  const resIlote = await oracle.query(sqlIlote, { ultimoSync });
+  const resIlote = await oracle.query(sqlIlote, binds);
   const rowsIlote = resIlote.rows || [];
 
   if (rowsIlote.length) {
     const registros = rowsIlote.map((row) => ({
-      id:           `${row.CODI_PSV}_${row.LOTE_LOT}_${row.CODI_EMP}`,
+      // PK real inclui data de entrada + depósito — sem isso, colide.
+      id:           `${row.CODI_PSV}_${row.LOTE_LOT}_${row.CODI_EMP}_${row.CODI_DPT}_${row.DINI_ILO ? row.DINI_ILO.toISOString().slice(0, 10) : 's_data'}`,
       produto_id:   String(row.CODI_PSV ?? ''),
       lote:         String(row.LOTE_LOT ?? ''),
       filial_id:    String(row.CODI_EMP ?? ''),

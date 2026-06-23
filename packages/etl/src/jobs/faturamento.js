@@ -15,6 +15,9 @@
  *
  * Para relatórios de vendas: filtrar tran_top = '2' (saídas).
  * O link NF → Pedido fica em: faturamento_itens.pedido_id = pedidos.id
+ * pedido_id = "{CODI_EMP}_{PEDI_PED}_{SERI_PED}" — mesma filial da NF, que é
+ * sempre a mesma do pedido de origem (PEDI_PED+SERI_PED não é único entre
+ * filiais — ver nota em jobs/pedidos.js).
  *
  * Nota: NFs no SiAGRI nunca são excluídas — apenas canceladas (SITU_NOT=9),
  *   desfeitas ou devolvidas. Por isso, não há reconciliação para este módulo.
@@ -74,7 +77,7 @@ async function sincronizar() {
     tran_top:       row.TRAN_TOP ? String(row.TRAN_TOP).trim() : null,
     // TIPO_TOP: S=Saída (venda), E=Entrada (devolução de venda)
     tipo_top:       row.TIPO_TOP ? String(row.TIPO_TOP).trim() : null,
-    pedido_id:      row.PEDI_PED && row.SERI_PED ? `${row.PEDI_PED}_${row.SERI_PED}` : null,
+    pedido_id:      row.PEDI_PED && row.SERI_PED ? `${row.CODI_EMP}_${row.PEDI_PED}_${row.SERI_PED}` : null,
     data_alteracao: row.DUMANUT || null,
     _dados:         JSON.stringify(row),
     _source:        'siagri',
@@ -83,6 +86,8 @@ async function sincronizar() {
   await upsertRaw('raw.faturamento', registros);
 
   // Sincroniza itens das NFs alteradas — Oracle limita IN a 1000, pagina em lotes
+  // INOTA não tem CODI_EMP — usa a filial do cabeçalho (mesma NF) para montar pedido_id.
+  const filialPorNf = new Map(rows.map((r) => [String(r.NPRE_NOT), r.CODI_EMP]));
   const ids = rows.map((r) => r.NPRE_NOT).filter(Boolean);
   for (let i = 0; i < ids.length; i += 1000) {
     const chunk = ids.slice(i, i + 1000);
@@ -94,14 +99,17 @@ async function sincronizar() {
       WHERE ${cfg.campoItemNfId} IN (${placeholders})
     `;
     const resultItens = await oracle.query(sqlItens, bindIds);
-    const itens = (resultItens.rows || []).map((row) => ({
-      id:         `${row[cfg.campoItemNfId]}_${row[cfg.campoItemSeq]}`,
-      nf_id:      String(row[cfg.campoItemNfId]),
-      produto_id: row[cfg.campoItemProduto] ? String(row[cfg.campoItemProduto]) : null,
-      pedido_id:  row.PEDI_PED && row.SERI_PED ? `${row.PEDI_PED}_${row.SERI_PED}` : null,
-      _dados:     JSON.stringify(row),
-      _source:    'siagri',
-    }));
+    const itens = (resultItens.rows || []).map((row) => {
+      const filial = filialPorNf.get(String(row[cfg.campoItemNfId]));
+      return {
+        id:         `${row[cfg.campoItemNfId]}_${row[cfg.campoItemSeq]}`,
+        nf_id:      String(row[cfg.campoItemNfId]),
+        produto_id: row[cfg.campoItemProduto] ? String(row[cfg.campoItemProduto]) : null,
+        pedido_id:  row.PEDI_PED && row.SERI_PED ? `${filial}_${row.PEDI_PED}_${row.SERI_PED}` : null,
+        _dados:     JSON.stringify(row),
+        _source:    'siagri',
+      };
+    });
     if (itens.length) await upsertRaw('raw.faturamento_itens', itens);
   }
 

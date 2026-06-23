@@ -20,14 +20,14 @@ const svc = require('../services/dre');
 
 module.exports = async function (fastify) {
   fastify.get('/dre', async (req, reply) => {
-    const { dataInicio, dataFim, filialId } = req.query;
+    const { dataInicio, dataFim, filialId, dreId } = req.query;
     if (!dataInicio || !dataFim) {
       return reply.code(400).send({ error: 'dataInicio e dataFim são obrigatórios', code: 'MISSING_PARAMS' });
     }
-    return svc.calcular({ dataInicio, dataFim, filialId });
+    return svc.calcular({ dataInicio, dataFim, filialId, dreId });
   });
 
-  fastify.get('/dre/estrutura', async () => {
-    return svc.estrutura();
+  fastify.get('/dre/estrutura', async (req) => {
+    return svc.estrutura({ dreId: req.query.dreId });
   });
 };

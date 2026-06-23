@@ -37,7 +37,8 @@ async function sincronizar() {
       CAB.${cfg.campoCabValor}  AS VCON_CLC,
       CAB.${cfg.campoCabDoc}    AS CTRL_CLC,
       CAB.${cfg.campoCabTipo}   AS TIPO_CLC,
-      LCT.${cfg.campoLancId}    AS SEQU_LCT,
+      LCT.${cfg.campoLancId}     AS SEQU_LCT,
+      LCT.${cfg.campoLancFilial} AS CODI_EMP_LCT,
       LCT.${cfg.campoLancConta} AS CODI_CPC,
       LCT.${cfg.campoLancPlano} AS CODI_PLC,
       LCT.${cfg.campoLancValor} AS VLOR_LCT,
@@ -70,7 +71,10 @@ async function sincronizar() {
     return {
       // PK = cabeçalho + partida (um lançamento pode ter várias partidas)
       id:              `${row.SEQU_CLC}_${row.SEQU_LCT}`,
-      filial_id:       String(row.CODI_EMP ?? ''),
+      // CABLANCTB.CODI_EMP fica vazio em ~98% dos lançamentos; LANCONTAB.CODI_EMP
+      // é preenchido em 100% das partidas desde 2020 e nunca diverge do cabeçalho
+      // quando este também está preenchido (validado em 2026-06) — por isso prevalece.
+      filial_id:       String(row.CODI_EMP_LCT ?? row.CODI_EMP ?? ''),
       data_lancamento: row.DATA_CLC || null,
       competencia,
       data_alteracao:  row.DUMANUT || null,

@@ -18,6 +18,13 @@ Integrações / Painel / Swagger
 
 O ERP SiAGRI roda on-premise com banco Oracle. O ActionAPI lê os dados do Oracle via ETL incremental, armazena no PostgreSQL local e expõe via API REST somente leitura. A Fase 2 (write-back: baixa de duplicatas, protocolo NF) está planejada mas não implementada.
 
+Documentação:
+
+- [Metodologia das APIs](docs/METODOLOGIA_APIS.md) — fontes Oracle,
+  relacionamentos, cálculos, validações e limitações de cada endpoint;
+- [Guia de uso](docs/API.md) — autenticação, exemplos e Power BI/Excel;
+- [Segurança](docs/SECURITY.md) — controles e implantação recomendada.
+
 ---
 
 ## Stack de tecnologias
@@ -251,10 +258,11 @@ Dimensões (`dim_produto`, `dim_cliente`, etc.) e fatos (`fact_faturamento`, etc
 
 | Job | Tabela Oracle | Tabela PostgreSQL | Frequência padrão |
 |---|---|---|---|
-| `dimensoes` | CADEMP, TRANSAC, PRODSERV, GRUPO, PESSOAL, PROPRIED, PRINATIVOS, PRINCIPIOATIVO_REC, etc. | `raw.filiais`, `raw.clientes`, `raw.produtos`, `raw.grupos`, `raw.vendedores`, `raw.propriedades`, `raw.principios_ativos`, `raw.principios_ativos_rec`, `raw.produto_principio_ativo_rec` | Diário 06:00 |
+| `dimensoes` | CADEMP, TRANSAC, PRODSERV, GRUPO, PESSOAL, PROPRIED, PRINATIVOS, PRINCIPIOATIVO_REC, etc. | `raw.filiais`, `raw.clientes`, `raw.fornecedores`, `raw.produtos`, `raw.grupos`, `raw.vendedores`, `raw.propriedades`, `raw.principios_ativos`, `raw.principios_ativos_rec`, `raw.produto_principio_ativo_rec` | Diário 06:00 |
 | `faturamento` | NOTA + INOTA + TIPOOPER | `raw.faturamento` + `raw.faturamento_itens` | A cada hora |
 | `nfe_entrada` | NFENTRA + INFENTRA | `raw.nfe_entrada` + `raw.nfe_entrada_itens` | A cada hora |
 | `pedidos` | PEDIDO + IPEDIDO | `raw.pedidos` + `raw.pedidos_itens` | A cada 30 min |
+| `pedidos_compra` | PEDCOM + IPEDCOM + PARCPEDCOM | `raw.pedidos_compra` + `raw.pedidos_compra_itens` + `raw.pedidos_compra_parcelas` | A cada hora |
 | `duplicatas` | CABREC + RECEBER | `raw.duplicatas` + `raw.duplicatas_parcelas` | A cada hora |
 | `financeiro` | CABPAGAR+PAGAR, CABREC+RECEBER | `raw.financeiro_cp`, `raw.financeiro_cr` | A cada hora |
 | `recebimentos` | CRCBAIXA | `raw.recebimentos` | A cada hora |
@@ -278,6 +286,7 @@ Consulte também:
 
 - [Guia completo de uso](docs/API.md)
 - [Segurança e implantação](docs/SECURITY.md)
+- [Operação permanente do ETL e alertas Telegram](docs/OPERACAO_ETL.md)
 - Swagger interativo em `/docs`
 
 Resposta padrão de lista:
@@ -348,6 +357,43 @@ pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
 **Origem (`origem`):**  
 `S` = CRM SiAGRI | `M` = Mobile | `null` = inserido diretamente no ERP
 
+#### Pedidos de Compra
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/v1/pedidos-compra` | Lista pedidos de compra com filtros |
+| GET | `/api/v1/pedidos-compra/itens-abertos` | Itens com saldo pendente de recebimento |
+| GET | `/api/v1/pedidos-compra/resumo` | Valor em aberto agregado por filial/fornecedor |
+| GET | `/api/v1/pedidos-compra/:id` | Pedido completo com itens e parcelas |
+
+**Filtros disponíveis:** `dataInicio`/`dataFim` (sobre a data do pedido), `filialId`, `fornecedorId`, `status`, `produtoId` (em `/itens-abertos`), `incluirCancelados` (`true`/`false`, padrão `false`), `page`, `pageSize`
+
+**Saldo em aberto:** `qtd_pedida - qtd_recebida` por item. Pedidos com
+`status=C` (cancelado) são excluídos do saldo por padrão — ficam com
+`qtd_recebida=0` no ERP mesmo sem expectativa real de recebimento.
+
+**Status (`status` / `STAT_PEC`):** `P` = Pendente | `A` = Aprovado | `C` = Cancelado
+— significado inferido por amostragem do Oracle (jun/2026), **não confirmado**
+em documentação do SiAGRI. Compare com o relatório de pedidos de compra do
+ERP antes de usar os números para tomada de decisão.
+
+**Vínculo com Contas a Pagar:** implementado em `GET /pedidos-compra/:id`
+(campo `notas_entrada`). A cadeia é `PEDCOM → INFENTRA (EMPR_PEC+NUME_PEC)
+→ NFENTRA → CABPAGAR`, com o último salto via FK real do Oracle:
+`NOTACPG.CTRL_NCP → NFENTRA.CTRL_NFE` (98,4% de integridade validada em
+2026-06 — muito mais confiável que comparar `DOCU_CPG` com o número da NF,
+que tem erros de digitação reais já encontrados). Cobre títulos originados
+de NF de compra; **não cobre Adiantamento a Fornecedor** (paga antes da NF
+existir) — o "número de pedido" citado no histórico desses títulos não
+corresponde a nenhum `PEDCOM`/`SOLICOMPRA` real nesta base, sem link
+estruturado encontrado ainda. Pedidos sem NF de entrada sincronizada
+retornam `notas_entrada: []` (a sincronização de itens de `nfe_entrada`
+ainda não cobre 100% do histórico do Oracle).
+
+**Nomes de fornecedor:** resolvidos via `raw.fornecedores` (`TRANSAC` com
+`FORN_TRA='S'`, sem depender da extensão `CLIENTE`), com fallback para
+`raw.clientes` para parceiros que são cliente e fornecedor ao mesmo tempo.
+
 #### Duplicatas / Contas a Receber
 
 | Método | Rota | Descrição |
@@ -381,10 +427,118 @@ pelas funções A/S, incluindo devoluções registradas em `NFENTRA`. Exemplo:
 | GET | `/api/v1/financeiro?tipo=CP` | Contas a pagar |
 | GET | `/api/v1/financeiro?tipo=CR` | Contas a receber |
 | GET | `/api/v1/financeiro/fluxo-caixa` | Saldo diário receber−pagar por período |
+| GET | `/api/v1/financeiro/contas-pagar` | Parcelas a pagar com fornecedor, vencimento, pedidos e produtos |
+| GET | `/api/v1/financeiro/contas-pagar/resumo` | Totais a pagar por fornecedor e filial |
 
 **Filtros:** `tipo` (CP/CR), `filialId`, `vencimentoDe`, `vencimentoAte`, `page`, `pageSize`
 
-> Campos extraídos: `cab_id`, `parcela_nr`, `valor` (VLOR), `flag_assina`. Status de quitação não capturado; consulte `raw.recebimentos`/`raw.pagamentos` (baixas) para verificar se quitado.
+O endpoint especializado `/financeiro/contas-pagar` retorna uma linha por
+parcela e calcula `ABERTA`, `PARCIAL` ou `BAIXADA` pelas baixas normais de
+`CPGBAIXA` ocorridas até a data do cálculo. Os pedidos e produtos são agregados
+por título antes do `JOIN`, portanto uma nota com vários itens não multiplica
+o valor financeiro.
+
+O saldo reproduz localmente `VALOR_ABERTO_PAGAR_DATA`, incluindo indexadores,
+cotação da data original e de cada baixa, agrupamentos e tolerância por filial.
+Em 20/06/2026, as 183.656 parcelas foram comparadas com a função Oracle sem
+nenhuma divergência. Para títulos indexados, `unidade_saldo` identifica se o
+valor está em `SJ$`, `US$`, `ER` ou `R$`; `saldo_convertido_atual` apresenta
+separadamente uma conversão pela cotação mais recente.
+
+**Filtros do contas a pagar:** `filialId`, `fornecedorId`, `tipoDocumento`,
+`emissaoDe`, `emissaoAte`, `vencimentoDe`, `vencimentoAte`, `pedidoId`
+(`filial_numero`), `produtoId`, `situacao`, `faixaVencimento`,
+`statusVinculo`, `conferenciaPedido`, `somenteEmAberto` (padrão `true`),
+`page` e `pageSize` (máx. 10.000).
+
+**Vínculo de pedido:** `CABPAGAR ← NOTACPG → INFENTRA → PEDCOM`. É uma
+relação estrutural do Oracle, sem comparação por texto ou número digitado.
+`status_vinculo_pedido` informa se o título tem pedido, somente NF ou nenhum
+dos dois. `conferencia_pedido` sinaliza divergência de fornecedor e/ou
+filial entre o título e o pedido. Adiantamentos e empréstimos normalmente
+não têm pedido e permanecem disponíveis no dashboard.
+
+Para Excel ou Power BI, acrescente `format=csv`. Exemplo:
+
+```text
+/api/v1/financeiro/contas-pagar?vencimentoDe=2026-01-01&vencimentoAte=2026-12-31&pageSize=10000&format=csv
+```
+
+Validação técnica dos saldos contra as funções Oracle:
+
+```powershell
+cd packages/etl
+npm run financeiro:recalcular-saldos
+npm run financeiro:validar-saldos
+```
+
+Gerador Python do relatório avançado:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r scripts\requirements-relatorio-contas-pagar.txt
+
+.\.venv\Scripts\python.exe scripts\gerar_relatorio_contas_pagar.py `
+  --vencimento-de 2026-07-01 `
+  --vencimento-ate 2026-12-31 `
+  --arquivo relatorios\contas-pagar-segundo-semestre.xlsx
+```
+
+Relatório avançado de Contas a Receber:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\gerar_relatorio_contas_receber.py `
+  --vencimento-de 2026-07-01 `
+  --vencimento-ate 2026-12-31 `
+  --arquivo relatorios\contas-receber-segundo-semestre.xlsx
+```
+
+O relatório preserva o saldo oficial na unidade do título (`R$`, `SJ$`,
+`US$` ou `ER`) e apresenta separadamente a conversão atual estimada em reais.
+
+### Relatórios executivos CEO/CFO
+
+Gera faturamento, contas a receber, contas a pagar, contas recebidas, contas
+pagas, contabilidade e uma visão consolidada 360°:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\gerar_relatorios_executivos.py `
+  --data-inicio 2026-01-01 `
+  --data-fim 2026-06-20
+```
+
+Os arquivos são gravados em `relatorios/executivo`. Consulte
+`docs/RELATORIOS_EXECUTIVOS.md` para indicadores, critérios e endpoints.
+
+Scripts individuais:
+
+```text
+scripts/gerar_relatorio_faturamento.py
+scripts/gerar_relatorio_contas_recebidas.py
+scripts/gerar_relatorio_contas_pagas.py
+scripts/gerar_relatorio_contabilidade.py
+scripts/gerar_relatorio_visao_360.py
+```
+
+Os scripts aceitam períodos automáticos:
+
+```powershell
+--safra 2025/2026       # 01/07/2025 a 30/06/2026
+--bayer 2025/2026       # 01/04/2025 a 30/03/2026
+--ano-contabil 2025     # 01/01/2025 a 31/12/2025
+--data-inicio 15082025 --data-fim 30112025
+```
+
+Use somente um desses tipos de intervalo por execução.
+Datas personalizadas também aceitam `15/08/2025` e `2025-08-15`. Nas
+planilhas, a exibição permanece em `DD/MM/AAAA`.
+
+Se nenhum período for informado, os scripts abrem um menu simples no terminal
+para escolher Safra, Bayer, ano contábil, intervalo livre ou ano atual.
+
+O script consome somente a ActionAPI. Ele separa pedido interno do SiAGRI,
+pedido informado pelo fornecedor e controle interno da NF, além de distinguir
+divergência real de fornecedor de estabelecimentos com a mesma raiz de CNPJ.
 
 #### Clientes
 

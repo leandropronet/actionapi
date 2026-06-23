@@ -74,10 +74,14 @@ async function upsertRawBatch(table, rows, { chunkSize = 500 } = {}) {
 }
 
 // Atualiza o timestamp de último sync incremental
-async function atualizarSync(dominio) {
+async function atualizarSync(dominio, cursor = new Date()) {
   await pg.query(
-    `UPDATE etl_sync SET ultimo_sync = NOW(), atualizado_em = NOW() WHERE dominio = $1`,
-    [dominio]
+    `INSERT INTO etl_sync (dominio, ultimo_sync, atualizado_em)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (dominio) DO UPDATE SET
+       ultimo_sync = EXCLUDED.ultimo_sync,
+       atualizado_em = NOW()`,
+    [dominio, cursor]
   );
 }
 

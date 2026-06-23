@@ -26,49 +26,56 @@ const FINANCEIRO_BASE = `
   WITH baixas_cp AS (
     SELECT
       parcela_id,
-      COUNT(*) FILTER (WHERE status = 'N')::INT AS qtd_baixas,
-      MIN(data_pagamento) FILTER (WHERE status = 'N') AS primeira_baixa,
-      MAX(data_pagamento) FILTER (WHERE status = 'N') AS ultima_baixa,
-      SUM(CASE WHEN status = 'E' THEN -valor ELSE valor END) AS valor_baixado,
-      SUM(CASE WHEN status = 'E' THEN -multa ELSE multa END) AS multa,
-      SUM(CASE WHEN status = 'E' THEN -juros ELSE juros END) AS juros,
-      SUM(CASE WHEN status = 'E' THEN -desconto ELSE desconto END) AS desconto,
-      SUM(CASE WHEN status = 'E' THEN -acrescimo ELSE acrescimo END) AS acrescimo
+      COUNT(*)::INT AS qtd_baixas,
+      MIN(data_pagamento) AS primeira_baixa,
+      MAX(data_pagamento) AS ultima_baixa,
+      SUM(valor) AS valor_baixado,
+      SUM(multa) AS multa,
+      SUM(juros) AS juros,
+      SUM(desconto) AS desconto,
+      SUM(acrescimo) AS acrescimo
     FROM raw.pagamentos
+    WHERE status = 'N' AND data_pagamento <= CURRENT_DATE
     GROUP BY parcela_id
   ),
   baixas_cr AS (
     SELECT
       parcela_id,
-      COUNT(*) FILTER (WHERE status = 'N')::INT AS qtd_baixas,
-      MIN(data_pagamento) FILTER (WHERE status = 'N') AS primeira_baixa,
-      MAX(data_pagamento) FILTER (WHERE status = 'N') AS ultima_baixa,
-      SUM(CASE WHEN status = 'E' THEN -valor ELSE valor END) AS valor_baixado,
-      SUM(CASE WHEN status = 'E' THEN -multa ELSE multa END) AS multa,
-      SUM(CASE WHEN status = 'E' THEN -juros ELSE juros END) AS juros,
-      SUM(CASE WHEN status = 'E' THEN -desconto ELSE desconto END) AS desconto,
-      SUM(CASE WHEN status = 'E' THEN -acrescimo ELSE acrescimo END) AS acrescimo
+      COUNT(*)::INT AS qtd_baixas,
+      MIN(data_pagamento) AS primeira_baixa,
+      MAX(data_pagamento) AS ultima_baixa,
+      SUM(valor) AS valor_baixado,
+      SUM(multa) AS multa,
+      SUM(juros) AS juros,
+      SUM(desconto) AS desconto,
+      SUM(acrescimo) AS acrescimo
     FROM raw.recebimentos
+    WHERE status = 'N' AND data_pagamento <= CURRENT_DATE
     GROUP BY parcela_id
   ),
   fatos AS (
     SELECT
       'CP'::TEXT AS tipo,
-      t.titulo_id,
+      COALESCE(t.titulo_id, f._dados->>'CAB_ID') AS titulo_id,
       f.id AS parcela_id,
       f._dados->>'NPAR' AS parcela_nr,
-      t.filial_id,
-      t.parceiro_id,
+      f.filial_id,
+      COALESCE(t.parceiro_id, f.parceiro_id) AS parceiro_id,
       p.razao_social AS parceiro_nome,
-      t.tipo_documento,
+      COALESCE(t.tipo_documento, f.tipo_documento) AS tipo_documento,
       t.numero_documento,
       t.serie_documento,
-      t.data_emissao,
+      COALESCE(t.data_emissao, f.data_emissao) AS data_emissao,
       f.data_vencimento,
-      t.valor_total AS valor_titulo,
+      COALESCE(t.valor_total, (f._dados->>'TOTA_DOC')::NUMERIC) AS valor_titulo,
       (f._dados->>'VLOR')::NUMERIC AS valor_parcela,
       t.status AS status_titulo,
       NULL::TEXT AS status_parcela,
+      sl.indexador_id,
+      sl.indexador_abreviatura AS unidade_saldo,
+      sl.valor_indexador_origem,
+      sl.valor_indexador_atual,
+      sl.saldo_convertido_atual,
       COALESCE(b.valor_baixado, 0) AS valor_baixado,
       COALESCE(b.multa, 0) AS multa,
       COALESCE(b.juros, 0) AS juros,
@@ -77,9 +84,9 @@ const FINANCEIRO_BASE = `
       COALESCE(b.valor_baixado, 0) + COALESCE(b.multa, 0)
         + COALESCE(b.juros, 0) + COALESCE(b.acrescimo, 0)
         - COALESCE(b.desconto, 0) AS valor_liquido_baixa,
-      (f._dados->>'VLOR')::NUMERIC - COALESCE(b.valor_baixado, 0) AS saldo_parcela,
+      sl.saldo_ajustado AS saldo_parcela,
       CASE
-        WHEN ABS((f._dados->>'VLOR')::NUMERIC - COALESCE(b.valor_baixado, 0)) <= 0.01
+        WHEN ABS(sl.saldo_ajustado) <= 0.01
           THEN 'BAIXADA'
         WHEN COALESCE(b.valor_baixado, 0) > 0 THEN 'PARCIAL'
         ELSE 'ABERTA'
@@ -89,30 +96,37 @@ const FINANCEIRO_BASE = `
       b.ultima_baixa,
       f._sync_at
     FROM raw.financeiro_cp f
-    JOIN raw.financeiro_titulos t
+    LEFT JOIN raw.financeiro_titulos t
       ON t.tipo = 'CP' AND t.titulo_id = f._dados->>'CAB_ID'
     LEFT JOIN baixas_cp b ON b.parcela_id = f.id
-    LEFT JOIN raw.clientes p ON p.id = t.parceiro_id
+    INNER JOIN raw.financeiro_saldos_local sl
+      ON sl.tipo = 'CP' AND sl.parcela_id = f.id
+    LEFT JOIN raw.clientes p ON p.id = COALESCE(t.parceiro_id, f.parceiro_id)
 
     UNION ALL
 
     SELECT
       'CR'::TEXT AS tipo,
-      t.titulo_id,
+      COALESCE(t.titulo_id, d.nf_id) AS titulo_id,
       d.id AS parcela_id,
       d._dados->>'NPAR_REC' AS parcela_nr,
-      t.filial_id,
-      t.parceiro_id,
+      d.filial_id,
+      COALESCE(t.parceiro_id, d._dados->>'CODI_TRA') AS parceiro_id,
       p.razao_social AS parceiro_nome,
-      t.tipo_documento,
+      COALESCE(t.tipo_documento, d.tipo_documento) AS tipo_documento,
       t.numero_documento,
       t.serie_documento,
-      t.data_emissao,
+      COALESCE(t.data_emissao, d.data_emissao) AS data_emissao,
       d.data_vencimento,
-      t.valor_total AS valor_titulo,
+      COALESCE(t.valor_total, (d._dados->>'TOTA_CBR')::NUMERIC) AS valor_titulo,
       (d._dados->>'VLOR_REC')::NUMERIC AS valor_parcela,
       t.status AS status_titulo,
       d._dados->>'SITU_REC' AS status_parcela,
+      sl.indexador_id,
+      sl.indexador_abreviatura AS unidade_saldo,
+      sl.valor_indexador_origem,
+      sl.valor_indexador_atual,
+      sl.saldo_convertido_atual,
       COALESCE(b.valor_baixado, 0) AS valor_baixado,
       COALESCE(b.multa, 0) AS multa,
       COALESCE(b.juros, 0) AS juros,
@@ -121,10 +135,10 @@ const FINANCEIRO_BASE = `
       COALESCE(b.valor_baixado, 0) + COALESCE(b.multa, 0)
         + COALESCE(b.juros, 0) + COALESCE(b.acrescimo, 0)
         - COALESCE(b.desconto, 0) AS valor_liquido_baixa,
-      (d._dados->>'VLOR_REC')::NUMERIC - COALESCE(b.valor_baixado, 0) AS saldo_parcela,
+      sl.saldo_ajustado AS saldo_parcela,
       CASE
         WHEN d._dados->>'SITU_REC' = 'C' THEN 'CANCELADA'
-        WHEN ABS((d._dados->>'VLOR_REC')::NUMERIC - COALESCE(b.valor_baixado, 0)) <= 0.01
+        WHEN ABS(sl.saldo_ajustado) <= 0.01
           THEN 'BAIXADA'
         WHEN COALESCE(b.valor_baixado, 0) > 0 THEN 'PARCIAL'
         ELSE 'ABERTA'
@@ -134,10 +148,12 @@ const FINANCEIRO_BASE = `
       b.ultima_baixa,
       d._sync_at
     FROM raw.duplicatas d
-    JOIN raw.financeiro_titulos t
+    LEFT JOIN raw.financeiro_titulos t
       ON t.tipo = 'CR' AND t.titulo_id = d.nf_id
     LEFT JOIN baixas_cr b ON b.parcela_id = d.id
-    LEFT JOIN raw.clientes p ON p.id = t.parceiro_id
+    INNER JOIN raw.financeiro_saldos_local sl
+      ON sl.tipo = 'CR' AND sl.parcela_id = d.id
+    LEFT JOIN raw.clientes p ON p.id = COALESCE(t.parceiro_id, d._dados->>'CODI_TRA')
   )
 `;
 

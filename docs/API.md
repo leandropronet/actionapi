@@ -1,5 +1,8 @@
 # Guia de uso da ActionAPI
 
+Para entender as fontes Oracle, os relacionamentos e os cálculos aplicados em
+cada endpoint, consulte [Metodologia das APIs](METODOLOGIA_APIS.md).
+
 ## Acessos disponíveis
 
 | Endereço | Finalidade | Autenticação |
@@ -202,3 +205,30 @@ Regras confirmadas no ERP:
   `NAO_APLICAVEL_REGRA_AUTOMATICA`, pois podem ser contabilizados agrupados.
 
 A tolerância padrão é R$ 0,01 e pode ser alterada pelo parâmetro `tolerancia`.
+
+## Saldos financeiros exatos
+
+```http
+GET /api/v1/duplicatas/saldo
+GET /api/v1/duplicatas/saldo/resumo
+
+GET /api/v1/executivo/faturamento
+GET /api/v1/executivo/faturamento/resumo
+GET /api/v1/executivo/recebimentos
+GET /api/v1/executivo/recebimentos/resumo
+GET /api/v1/executivo/pagamentos
+GET /api/v1/executivo/pagamentos/resumo
+GET /api/v1/executivo/contabilidade/resumo
+GET /api/v1/executivo/visao-360
+GET /api/v1/financeiro/contas-pagar
+GET /api/v1/financeiro/contas-pagar/resumo
+```
+
+Os saldos reproduzem localmente as funções
+`VALOR_ABERTO_RECEBER_DATA` e `VALOR_ABERTO_PAGAR_DATA`. São consideradas
+somente baixas normais ocorridas até a data do cálculo, além de indexadores,
+agrupamentos e tolerâncias do ERP.
+
+Em títulos indexados, consulte `unidade_saldo`: o resultado pode estar em
+`SJ$`, `US$` ou `ER`, e não em reais. `saldo_convertido_atual` mostra uma
+conversão separada pela cotação mais recente.
