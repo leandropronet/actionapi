@@ -615,7 +615,17 @@ async function contabilidadeResumo({ dataInicio, dataFim, filialId }) {
   };
 }
 
-async function contabilidadeSintetico({ dataInicio, dataFim, filialId }) {
+function truthy(value) {
+  return ['1', 'true', 't', 'yes', 'y', 'sim', 's'].includes(String(value || '').toLowerCase());
+}
+
+async function contabilidadeSintetico({
+  dataInicio,
+  dataFim,
+  filialId,
+  excluirEncerramento,
+  historicoEncerramento = '1000191',
+}) {
   const conditions = [];
   const params = [];
   const add = (value, expression) => {
@@ -626,6 +636,10 @@ async function contabilidadeSintetico({ dataInicio, dataFim, filialId }) {
   add(dataInicio, 'c.data_lancamento >= ?');
   add(dataFim, 'c.data_lancamento <= ?');
   add(filialId, 'c.filial_id = ?');
+  if (truthy(excluirEncerramento)) {
+    params.push(String(historicoEncerramento));
+    conditions.push(`COALESCE(c._dados->>'HIST_HIS', '') <> $${params.length}`);
+  }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const result = await db.query(
     `WITH analitico AS (

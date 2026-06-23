@@ -22,6 +22,7 @@ Também existe um script independente para cada arquivo:
 | Contas pagas | `scripts/gerar_relatorio_contas_pagas.py` |
 | Contabilidade | `scripts/gerar_relatorio_contabilidade.py` |
 | Visão 360° | `scripts/gerar_relatorio_visao_360.py` |
+| DRE e Balanço Patrimonial anual | `scripts/relatorio_dre.py` |
 
 ## Execução
 
