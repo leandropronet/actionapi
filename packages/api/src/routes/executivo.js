@@ -48,6 +48,11 @@ module.exports = async function (fastify) {
     return svc.contabilidadeResumo(req.query);
   });
 
+  fastify.get('/executivo/contabilidade/sintetico', async (req, reply) => {
+    if (!requirePeriod(req, reply)) return;
+    return svc.contabilidadeSintetico(req.query);
+  });
+
   fastify.get('/executivo/visao-360', async (req, reply) => {
     if (!requirePeriod(req, reply)) return;
     return svc.visao360(req.query);

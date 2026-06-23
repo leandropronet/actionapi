@@ -445,6 +445,54 @@ def style_sheet(ws, kinds: dict[str, str] | None = None) -> None:
         ws.column_dimensions[cells[0].column_letter].width = width
 
 
+def add_synthetic_accounts_sheet(wb: Workbook, name: str, contas: list[dict]) -> Any:
+    """Plano de contas sintético + analítico, indentado por nível, com totais.
+
+    Cada conta sintética (1, 11, 111...) soma todas as analíticas descendentes
+    via prefixo do código (a hierarquia do plano é por prefixo decimal — ver
+    contabilidadeSintetico em services/executivo.js). Permite conferir o
+    balancete por nível, igual ao relatório nativo do SiAGRI.
+    """
+    print(f"[executivo] aba {name}: {len(contas)} linhas", flush=True)
+    ws = wb.create_sheet(name[:31])
+    headers = ["Código da Conta", "Descrição da Conta", "Débitos", "Créditos", "Saldo"]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.fill = PatternFill("solid", fgColor=NAVY)
+        cell.font = Font(color=WHITE, bold=True)
+
+    levels = sorted({int(row.get("tamanho_codigo") or 0) for row in contas})
+    rank = {tamanho: idx for idx, tamanho in enumerate(levels)}
+    band_colors = [NAVY, BLUE, GREEN, ORANGE]
+
+    for row in contas:
+        tamanho = int(row.get("tamanho_codigo") or 0)
+        nivel = rank.get(tamanho, 0)
+        analitica = bool(row.get("analitica"))
+        codigo = str(row.get("conta_id") or "")
+        descricao = ("  " * nivel) + str(row.get("descricao") or "")
+        ws.append([
+            codigo, descricao,
+            number(row.get("debitos")), number(row.get("creditos")), number(row.get("saldo")),
+        ])
+        excel_row = ws.max_row
+        for col in (3, 4, 5):
+            ws.cell(excel_row, col).number_format = MONEY
+        if not analitica:
+            color = band_colors[min(nivel, len(band_colors) - 1)]
+            for col in range(1, 6):
+                cell = ws.cell(excel_row, col)
+                cell.fill = PatternFill("solid", fgColor=color)
+                cell.font = Font(color=WHITE, bold=True)
+
+    ws.freeze_panes = "A2"
+    ws.column_dimensions["A"].width = 16
+    ws.column_dimensions["B"].width = 52
+    for letter in ("C", "D", "E"):
+        ws.column_dimensions[letter].width = 20
+    return ws
+
+
 def add_sheet(
     wb: Workbook,
     name: str,
@@ -899,6 +947,7 @@ def generate_contabilidade(
     output: Path,
 ) -> tuple[Path, dict]:
     summary = api_get(base_url, api_key, "/api/v1/executivo/contabilidade/resumo", filters)
+    sintetico = api_get(base_url, api_key, "/api/v1/executivo/contabilidade/sintetico", filters)
     analysis = fetch_all(base_url, api_key, "/api/v1/bi/analise-contabil", filters)
     divergences = fetch_all(
         base_url,
@@ -912,7 +961,7 @@ def generate_contabilidade(
         "/api/v1/conciliacao/financeiro-contabil/resumo",
         {**filters, "tolerancia": 0.01},
     )
-    dre = api_get(base_url, api_key, "/api/v1/dre", filters)
+    dre = api_get(base_url, api_key, "/api/v1/dre", {})
     totals = summary.get("totalizadores", {})
     monthly = summary.get("evolucao_mensal", [])
 
@@ -921,6 +970,8 @@ def generate_contabilidade(
     ws.title = "Painel"
     title_block(ws, "CONTABILIDADE EXECUTIVA", period_subtitle(filters))
     store_issues = sum(1 for row in analysis if row.get("status_loja") != "OK")
+    unmapped = [row for row in analysis if row.get("mapeamento_pendente")]
+    unmapped_value = sum(abs(number(row.get("valor"))) for row in unmapped)
     kpis = [
         ("Débitos", totals.get("debitos"), "money"),
         ("Créditos", totals.get("creditos"), "money"),
@@ -930,6 +981,8 @@ def generate_contabilidade(
         ("Divergências financeiro × contábil", len(divergences), "number"),
         ("Linhas com alerta loja/CC", store_issues, "number"),
         ("Contas analisadas", len(summary.get("por_conta", [])), "number"),
+        ("Contas sem mapeamento gerencial", len({row.get("conta_id") for row in unmapped}), "number"),
+        ("Valor sem mapeamento gerencial (abs)", unmapped_value, "money"),
     ]
     add_kpis(ws, kpis)
     ws["A16"], ws["B16"], ws["C16"] = "Período", "Débitos", "Créditos"
@@ -971,6 +1024,8 @@ def generate_contabilidade(
         headers, data, kinds = rows_from_dicts(summary.get(key, []), columns)
         add_sheet(wb, name, headers, data, kinds)
 
+    add_synthetic_accounts_sheet(wb, "Plano de Contas", sintetico.get("contas", []))
+
     analysis_columns = [
         ("codigo_loja", "Código loja", None),
         ("codigo_loja_referencia_cc", "Loja referência CC", None),
@@ -986,12 +1041,15 @@ def generate_contabilidade(
         ("competencia", "Competência", "date"), ("safra", "Safra", None),
         ("valor", "Valor", "money"), ("ebitda", "Classificação EBITDA", None),
         ("qtd_partidas", "Partidas", "number"),
+        ("mapeamento_pendente", "Sem mapeamento gerencial?", None),
     ]
     headers, data, kinds = rows_from_dicts(analysis, analysis_columns)
     add_sheet(wb, "Analise Gerencial", headers, data, kinds)
     quality = [row for row in analysis if row.get("status_loja") != "OK"]
     headers, data, kinds = rows_from_dicts(quality, analysis_columns)
     add_sheet(wb, "Alertas Loja CC", headers, data, kinds)
+    headers, data, kinds = rows_from_dicts(unmapped, analysis_columns)
+    add_sheet(wb, "Sem Mapeamento Gerencial", headers, data, kinds)
 
     divergence_columns = [
         ("tipo", "Tipo", None), ("titulo_id", "Título", None),
@@ -1023,13 +1081,15 @@ def generate_contabilidade(
     headers, data, kinds = rows_from_dicts(dre.get("linhas", []), dre_columns)
     add_sheet(wb, "DRE", headers, data, kinds)
     add_methodology(wb, [
-        ("Fonte", "ActionAPI: /executivo/contabilidade/resumo, /bi/analise-contabil, /dre e /conciliacao."),
+        ("Fonte", "ActionAPI: /executivo/contabilidade/resumo, /executivo/contabilidade/sintetico, /bi/analise-contabil, /dre e /conciliacao."),
         ("Débito × crédito", "Diferença global é apresentada como indicador de qualidade e deve ser investigada quando material."),
         ("Análise gerencial", "Plano 1000002, contabilidade fiscal, excluindo origem ZR, com safra de 01/07 a 30/06."),
+        ("Sem mapeamento gerencial", "Contas com lançamento mas sem classificação em analytics.conta_gerencial aparecem com Natureza/Grupo nível 1 = 'NAO CLASSIFICADO' (antes eram descartadas do relatório). Aba dedicada lista essas contas para priorizar o mapeamento."),
+        ("Plano de Contas (sintético)", "Uma linha por conta do plano (sintética em destaque ou analítica), com débitos/créditos/saldo somando todas as analíticas descendentes pelo prefixo do código — mesma hierarquia do cadastro do SiAGRI (CONTASPL), permitindo conferir o balancete por nível como no relatório nativo."),
         ("Loja", "Código oficial vem do lançamento. Centro de custo serve somente como referência para detectar inconsistências."),
         ("Conciliação", "CP pela origem DP/controle; CR pela origem NE, documento, série, filial e parceiro."),
     ])
-    return save(wb, output, ["Painel", "Analise Gerencial", "DRE", "Metodologia"]), {
+    return save(wb, output, ["Painel", "Analise Gerencial", "Plano de Contas", "DRE", "Metodologia"]), {
         **summary,
         "divergencias": divergences,
         "conciliacao": reconciliation,

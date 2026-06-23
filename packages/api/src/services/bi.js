@@ -275,7 +275,7 @@ async function analiseContabil({
   }
   if (conta) {
     params.push(String(conta).replace(/\D/g, ''));
-    conditions.push(`cg.conta_id = $${params.length}`);
+    conditions.push(`COALESCE(cg.conta_id, c._dados->>'CODI_CPC') = $${params.length}`);
   }
   if (ccustoId) {
     params.push(ccustoId);
@@ -303,17 +303,28 @@ async function analiseContabil({
           WHEN UPPER(cc.descricao) ~ '^(LJ9|PJUBA)' THEN '9'
           ELSE NULL
         END AS codigo_loja_referencia_cc,
-        cg.conta_id,
-        cg.conta_formatada AS cod_conta_contabil,
+        COALESCE(cg.conta_id, c._dados->>'CODI_CPC') AS conta_id,
+        COALESCE(
+          cg.conta_formatada,
+          CASE WHEN LENGTH(c._dados->>'CODI_CPC') = 10 THEN
+            SUBSTRING(c._dados->>'CODI_CPC', 1, 1) || '.'
+              || SUBSTRING(c._dados->>'CODI_CPC', 2, 1) || '.'
+              || SUBSTRING(c._dados->>'CODI_CPC', 3, 1) || '.'
+              || SUBSTRING(c._dados->>'CODI_CPC', 4, 1) || '.'
+              || SUBSTRING(c._dados->>'CODI_CPC', 5, 2) || '.'
+              || SUBSTRING(c._dados->>'CODI_CPC', 7, 4)
+          ELSE c._dados->>'CODI_CPC' END
+        ) AS cod_conta_contabil,
         INITCAP(LOWER(cp.descricao)) AS desc_conta_contabil,
         cl.ccusto_id,
         INITCAP(LOWER(cc.descricao)) AS desc_centro_custo,
         INITCAP(LOWER(cc.descricao)) AS grupo,
-        cg.natureza_contabil,
-        cg.grupo_nivel_1,
+        COALESCE(cg.natureza_contabil, 'NAO CLASSIFICADO') AS natureza_contabil,
+        COALESCE(cg.grupo_nivel_1, 'NAO CLASSIFICADO') AS grupo_nivel_1,
         cg.grupo_nivel_2,
         cg.grupo_nivel_3,
         cg.classificacao_ebitda,
+        (cg.conta_id IS NULL) AS mapeamento_pendente,
         DATE_TRUNC('month', h.data_lancamento) AS mes,
         c._dados->>'TIPO_LCT' AS tipo_partida,
         cl.valor,
@@ -326,7 +337,7 @@ async function analiseContabil({
       JOIN raw.ccusto cc
         ON cc.plano_id = cl.plano_id
        AND cc.ccusto_id = cl.ccusto_id
-      JOIN analytics.conta_gerencial cg
+      LEFT JOIN analytics.conta_gerencial cg
         ON cg.conta_id = c._dados->>'CODI_CPC'
       LEFT JOIN raw.contaspl cp
         ON cp.plano_id = c._dados->>'CODI_PLC'
@@ -355,6 +366,7 @@ async function analiseContabil({
         grupo_nivel_1,
         grupo_nivel_2,
         grupo_nivel_3,
+        mapeamento_pendente,
         (mes + INTERVAL '1 month - 1 day')::DATE AS competencia,
         EXTRACT(YEAR FROM mes)::INT AS exercicio,
         -- Período agrícola: 01/07 do ano inicial até 30/06 do ano seguinte.
@@ -377,7 +389,7 @@ async function analiseContabil({
         codigo_loja, codigo_loja_referencia_cc, conta_id,
         cod_conta_contabil, desc_conta_contabil, ccusto_id,
         desc_centro_custo, grupo, natureza_contabil, grupo_nivel_1,
-        grupo_nivel_2, grupo_nivel_3, classificacao_ebitda, mes
+        grupo_nivel_2, grupo_nivel_3, classificacao_ebitda, mapeamento_pendente, mes
     )
   `;
   const finalParams = [...params];

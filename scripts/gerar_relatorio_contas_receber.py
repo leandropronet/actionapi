@@ -35,7 +35,6 @@ try:
         has_period_argument,
         parse_user_date,
         prompt_data_base_if_needed,
-        prompt_period_if_needed,
         resolve_data_base,
         resolve_period,
     )
@@ -46,7 +45,6 @@ except ModuleNotFoundError:
         has_period_argument,
         parse_user_date,
         prompt_data_base_if_needed,
-        prompt_period_if_needed,
         resolve_data_base,
         resolve_period,
     )
@@ -229,12 +227,17 @@ def parse_args() -> argparse.Namespace:
 
 
 def apply_period_selection(args: argparse.Namespace) -> None:
+    """Aplica filtro de vencimento/emissão somente se informado explicitamente.
+
+    Saldo em aberto é uma posição "no momento" (mesma regra do saldo
+    histórico): por padrão trazemos o snapshot completo, sem perguntar
+    período. O filtro só existe para quem passa --safra/--bayer/--ano-contabil/
+    --data-inicio/--data-fim ou --vencimento-de/--ate/--emissao-de/--ate
+    explicitamente na linha de comando.
+    """
     explicit_dates = any(
         (args.vencimento_de, args.vencimento_ate, args.emissao_de, args.emissao_ate)
     )
-    if not has_period_argument(args) and not explicit_dates and sys.stdin.isatty():
-        print("O período escolhido será aplicado à data de vencimento.")
-    prompt_period_if_needed(args, additional_period_supplied=explicit_dates)
     if has_period_argument(args):
         if explicit_dates:
             raise SystemExit(

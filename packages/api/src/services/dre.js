@@ -4,89 +4,93 @@
  *
  * DRE (Demonstrativo de Resultado do Exercício).
  *
+ * Histórico do bug: a implementação original recalculava o valor de cada
+ * linha a partir de raw.contabil + raw.contasdre, usando contasdre.idre_id
+ * como "pai_id" (errado — POSI_IDR é só a posição/sequência da própria
+ * linha, igual ao id) e contasdre.conta_id como conta contábil. Investigado
+ * em 2026-06-23: para o CODI_DRE='1' (default antigo), contasdre.conta_id
+ * não referencia contas reais nas linhas de detalhe — a maioria das linhas
+ * não tem nenhum vínculo em contasdre. Para os CODI_DRE mais recentes
+ * (ex.: 308–314, um por período/fechamento), os vínculos existem e referenciam
+ * uma mistura de códigos sintéticos e analíticos do plano de contas, mas
+ * somar raw.contabil por esses códigos (testado com prefixo e com igualdade
+ * exata, em várias janelas de data) não reconciliou com o TOTA_IDR já
+ * calculado pelo SiAGRI — a regra exata de composição usada pelo motor do
+ * SiAGRI (provavelmente envolve rateios/ajustes que não estão só em
+ * LANCONTAB) não pôde ser confirmada sem um DRE impresso de referência.
+ *
+ * Solução adotada: em vez de recalcular, expor o valor que o próprio SiAGRI
+ * já calculou e gravou em IDRE.TOTA_IDR para aquele fechamento. É um
+ * snapshot (não aceita dataInicio/dataFim arbitrários como o resto da API),
+ * mas é o número oficial do ERP — mais confiável do que uma reconstrução
+ * não validada. Cada fechamento de período gera um novo CODI_DRE; use
+ * listarPeriodos() para descobrir qual usar.
+ *
  * Fontes de dados:
- *   raw.idre       — estrutura hierárquica das linhas da DRE (IDRE)
- *   raw.contasdre  — mapeamento conta contábil → linha da DRE (CONTASDRE)
- *   raw.contabil   — lançamentos contábeis (CABLANCTB + LANCONTAB)
- *
- * Campos relevantes de raw.idre:
- *   id, descricao, nivel, posicao_pai, tipo (V=Valor C=Cálculo), grupo
- *
- * Campos relevantes de raw.contasdre:
- *   idre_id, conta_id (CODI_CPC), soma_subtrai (A=Adicionar S=Subtrair)
- *
- * Lógica de cálculo por linha:
- *   - Linhas tipo 'V': somam os lançamentos contábeis das contas mapeadas em contasdre
- *     soma_subtrai='A' → valor += D - C
- *     soma_subtrai='S' → valor += C - D
- *   - Linhas tipo 'C': calculadas pelo frontend a partir das linhas filhas
- *     (a API retorna hierarquia completa para o frontend montar o cálculo)
- *
- * Funções exportadas:
- *   calcular()   — DRE consolidada por período (sem desdobramento por conta)
- *   estrutura()  — hierarquia das linhas sem valores (útil para montagem de tela)
+ *   raw.idre — uma linha por linha do DRE, já com o total calculado em
+ *              _dados->>'TOTA_IDR' (gravado pelo SiAGRI no fechamento)
  */
 const db = require('../db/postgres');
 
-async function calcular({ dataInicio, dataFim, filialId, dreId = '1' }) {
-  const conds = [`c.data_lancamento BETWEEN $1 AND $2`];
-  const params = [dataInicio, dataFim];
-
-  if (filialId) { params.push(filialId); conds.push(`c.filial_id = $${params.length}`); }
-  params.push(dreId);
-  const dreParam = `$${params.length}`;
-
-  const contabilWhere = conds.join(' AND ');
-
+async function listarPeriodos() {
   const res = await db.query(
     `SELECT
-       i.id                AS idre_id,
-       i.descricao,
-       i.nivel,
-       i.pai_id AS posicao_pai,
-       i.tipo,
-       i.grupo,
-       COALESCE(
-         SUM(
-           CASE WHEN cd.soma_subtrai = '-'
-             THEN CASE WHEN c._dados->>'TIPO_LCT' = 'C'
-               THEN (c._dados->>'VLOR_LCT')::NUMERIC
-               ELSE -(c._dados->>'VLOR_LCT')::NUMERIC
-             END
-             ELSE CASE WHEN c._dados->>'TIPO_LCT' = 'D'
-               THEN (c._dados->>'VLOR_LCT')::NUMERIC
-               ELSE -(c._dados->>'VLOR_LCT')::NUMERIC
-             END
-           END
-         ), 0
-       ) AS valor
-     FROM raw.idre i
-     LEFT JOIN raw.contasdre cd ON cd.idre_id = i.id
-     LEFT JOIN raw.contabil  c
-      ON c._dados->>'CODI_CPC' = cd.conta_id
-      AND ${contabilWhere}
-     WHERE i._dados->>'CODI_DRE' = ${dreParam}
-     GROUP BY i.id, i.descricao, i.nivel, i.pai_id, i.tipo, i.grupo
-     ORDER BY i.nivel NULLS FIRST, i.pai_id NULLS FIRST, i.id`,
-    params,
+       _dados->>'CODI_DRE' AS dre_id,
+       COUNT(*)::INT AS linhas,
+       MAX(data_alteracao) AS fechado_em
+     FROM raw.idre
+     GROUP BY _dados->>'CODI_DRE'
+     HAVING MAX(data_alteracao) IS NOT NULL
+     ORDER BY fechado_em DESC`,
   );
+  return { periodos: res.rows };
+}
 
+async function dreIdMaisRecente() {
+  const res = await db.query(
+    `SELECT _dados->>'CODI_DRE' AS dre_id
+     FROM raw.idre
+     WHERE data_alteracao IS NOT NULL
+     GROUP BY _dados->>'CODI_DRE'
+     ORDER BY MAX(data_alteracao) DESC
+     LIMIT 1`,
+  );
+  return res.rows[0]?.dre_id || '1';
+}
+
+async function calcular({ dreId } = {}) {
+  const idUsado = dreId || await dreIdMaisRecente();
+  const res = await db.query(
+    `SELECT
+       id AS idre_id,
+       descricao,
+       nivel,
+       _dados->>'TIPO_IDR' AS tipo,
+       grupo,
+       (_dados->>'TOTA_IDR')::NUMERIC AS valor,
+       data_alteracao AS fechado_em
+     FROM raw.idre
+     WHERE _dados->>'CODI_DRE' = $1
+     ORDER BY id::INT`,
+    [idUsado],
+  );
   return {
-    dataInicio,
-    dataFim,
+    dreId: idUsado,
+    fechadoEm: res.rows[0]?.fechado_em || null,
     linhas: res.rows,
   };
 }
 
-async function estrutura({ dreId = '1' } = {}) {
+async function estrutura({ dreId } = {}) {
+  const idUsado = dreId || await dreIdMaisRecente();
   const res = await db.query(
-    `SELECT id, descricao, nivel, pai_id AS posicao_pai, tipo, grupo
+    `SELECT id, descricao, nivel, _dados->>'TIPO_IDR' AS tipo, grupo
      FROM raw.idre
      WHERE _dados->>'CODI_DRE' = $1
-     ORDER BY nivel NULLS FIRST, posicao_pai NULLS FIRST, id`,
-    [dreId],
+     ORDER BY id::INT`,
+    [idUsado],
   );
-  return { linhas: res.rows };
+  return { dreId: idUsado, linhas: res.rows };
 }
 
-module.exports = { calcular, estrutura };
+module.exports = { calcular, estrutura, listarPeriodos };

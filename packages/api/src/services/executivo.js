@@ -615,6 +615,50 @@ async function contabilidadeResumo({ dataInicio, dataFim, filialId }) {
   };
 }
 
+async function contabilidadeSintetico({ dataInicio, dataFim, filialId }) {
+  const conditions = [];
+  const params = [];
+  const add = (value, expression) => {
+    if (!value) return;
+    params.push(value);
+    conditions.push(expression.replace('?', `$${params.length}`));
+  };
+  add(dataInicio, 'c.data_lancamento >= ?');
+  add(dataFim, 'c.data_lancamento <= ?');
+  add(filialId, 'c.filial_id = ?');
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const result = await db.query(
+    `WITH analitico AS (
+       SELECT
+         c._dados->>'CODI_PLC' AS plano_id,
+         c._dados->>'CODI_CPC' AS conta_id,
+         SUM((c._dados->>'VLOR_LCT')::NUMERIC)
+           FILTER (WHERE c._dados->>'TIPO_LCT' = 'D') AS debitos,
+         SUM((c._dados->>'VLOR_LCT')::NUMERIC)
+           FILTER (WHERE c._dados->>'TIPO_LCT' = 'C') AS creditos
+       FROM raw.contabil c
+       ${where}
+       GROUP BY 1, 2
+     )
+     SELECT
+       cp.conta_id,
+       cp.descricao,
+       LENGTH(cp.conta_id) AS tamanho_codigo,
+       COALESCE(SUM(a.debitos), 0) AS debitos,
+       COALESCE(SUM(a.creditos), 0) AS creditos,
+       COALESCE(SUM(a.debitos), 0) - COALESCE(SUM(a.creditos), 0) AS saldo,
+       (LENGTH(cp.conta_id) = 10) AS analitica
+     FROM raw.contaspl cp
+     LEFT JOIN analitico a
+       ON a.plano_id = cp.plano_id AND a.conta_id LIKE cp.conta_id || '%'
+     WHERE cp.plano_id = '1000002'
+     GROUP BY cp.conta_id, cp.descricao
+     ORDER BY cp.conta_id`,
+    params,
+  );
+  return { periodo: { dataInicio, dataFim }, contas: result.rows };
+}
+
 async function visao360({ dataInicio, dataFim, filialId }) {
   const [fat, rec, pag, cont] = await Promise.all([
     faturamentoResumo({ dataInicio, dataFim, filialId }),
@@ -695,5 +739,6 @@ module.exports = {
   movimentosDetalhes,
   movimentosResumo,
   contabilidadeResumo,
+  contabilidadeSintetico,
   visao360,
 };

@@ -420,10 +420,25 @@ const paths = {
     get: get('Consultar balancete', 'Contabilidade', [...dateParams, filial]),
   },
   '/api/v1/dre': {
-    get: get('Consultar DRE', 'Contabilidade', [...dateParams, filial]),
+    get: get(
+      'Consultar DRE de um fechamento',
+      'Contabilidade',
+      [stringQuery('dreId', 'Identificador do fechamento (ver /dre/periodos). Sem informar, usa o mais recente.', '314')],
+      'Valor de cada linha já calculado pelo SiAGRI (snapshot do fechamento) — não aceita dataInicio/dataFim, pois não é recalculado a partir dos lançamentos.',
+    ),
   },
   '/api/v1/dre/estrutura': {
-    get: get('Consultar estrutura da DRE', 'Contabilidade'),
+    get: get('Consultar estrutura da DRE de um fechamento', 'Contabilidade', [
+      stringQuery('dreId', 'Identificador do fechamento (ver /dre/periodos).', '314'),
+    ]),
+  },
+  '/api/v1/dre/periodos': {
+    get: get(
+      'Listar fechamentos de DRE disponíveis',
+      'Contabilidade',
+      [],
+      'Cada fechamento de período gera um novo identificador (dreId) com a data em que foi gravado pelo SiAGRI.',
+    ),
   },
   '/api/v1/executivo/faturamento': {
     get: get('Itens de faturamento para análise executiva', 'Executivo', [
@@ -467,6 +482,14 @@ const paths = {
   },
   '/api/v1/executivo/contabilidade/resumo': {
     get: get('Resumo executivo da contabilidade', 'Executivo', [...dateParams, filial]),
+  },
+  '/api/v1/executivo/contabilidade/sintetico': {
+    get: get(
+      'Plano de contas sintético e analítico com totais por nível (estilo balancete)',
+      'Executivo',
+      [...dateParams, filial],
+      'Uma linha por conta do plano (sintética ou analítica), com débitos, créditos e saldo somando todas as contas analíticas descendentes.',
+    ),
   },
   '/api/v1/executivo/visao-360': {
     get: get('Visão consolidada 360 graus para CEO e CFO', 'Executivo', [...dateParams, filial]),
