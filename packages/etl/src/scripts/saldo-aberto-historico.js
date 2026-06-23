@@ -107,13 +107,28 @@ async function consultarCR(dataBase, incluirBaixadas = false) {
         d.id AS parcela_id, d.nf_id AS titulo_id, d.filial_id,
         d._dados->>'CODI_TRA' AS cliente_id,
         d.tipo_documento, td.tipo AS natureza_tipo_documento, td.descricao AS tipo_documento_descricao,
-        d._dados->>'NUME_CBR' AS numero_documento, d._dados->>'SERI_CBR' AS serie_documento,
+        COALESCE(NULLIF(d._dados->>'NUME_CBR', ''), ft.numero_documento,
+          nf._dados->>'NOTA_NOT') AS numero_documento,
+        COALESCE(NULLIF(d._dados->>'SERI_CBR', ''), ft.serie_documento,
+          nf._dados->>'SERI_NOT') AS serie_documento,
+        COALESCE(NULLIF(d._dados->>'COD1_PES', ''),
+          NULLIF(nf._dados->>'COD1_PES', '')) AS vendedor_id,
+        vend._dados->>'NOME_PES' AS vendedor_nome,
+        CASE
+          WHEN COALESCE(NULLIF(d._dados->>'COD1_PES', ''),
+            NULLIF(nf._dados->>'COD1_PES', '')) IS NULL THEN 'NAO_INFORMADO'
+          WHEN vend.id IS NULL THEN 'CADASTRO_NAO_SINCRONIZADO'
+          WHEN vend._dados->>'SITU_PES' = 'A' THEN 'ATIVO'
+          WHEN vend._dados->>'SITU_PES' = 'I' THEN 'INATIVO'
+          ELSE COALESCE(vend._dados->>'SITU_PES', 'SEM_SITUACAO')
+        END AS vendedor_status,
         d._dados->>'NPAR_REC' AS parcela_nr,
         d._dados->>'SITU_REC' AS situ_rec, d._dados->>'SITU_CBR' AS situ_cbr,
         d._dados->>'HISTORICO' AS historico,
         (d._dados->>'VLOR_REC')::NUMERIC AS valor_face,
         d.data_emissao, d.data_vencimento,
         d.indexador_id, d.indexador_filial_id, i.abreviatura,
+        i.descricao AS indexador_descricao,
         iv0.valor AS valor_indice_origem,
         bt.ultima_baixa, p.data_base_baixa, p.valor_diferenca,
         CASE WHEN d.indexador_id IS NOT NULL THEN (d._dados->>'VLOR_REC')::NUMERIC / iv0.valor
@@ -121,7 +136,15 @@ async function consultarCR(dataBase, incluirBaixadas = false) {
         b.valor_baixado, b.valor_baixado_face, b.qtd_baixas, b.primeira_baixa, b.multa, b.juros, b.desconto, b.acrescimo, b.valor_complementar,
         CASE WHEN d.indexador_id IS NOT NULL THEN COALESCE(a.valor_agrupado, 0) / iv0.valor
              ELSE COALESCE(a.valor_agrupado, 0) END AS valor_agrupado_unidade
+        ,COALESCE(a.valor_agrupado, 0) AS valor_agrupado_face
       FROM raw.duplicatas d
+      LEFT JOIN raw.faturamento nf ON nf.id = d.nf_id
+      LEFT JOIN raw.financeiro_titulos ft
+        ON ft.tipo = 'CR' AND ft.titulo_id = d.nf_id
+      LEFT JOIN raw.vendedores vend ON vend.id = COALESCE(
+        NULLIF(d._dados->>'COD1_PES', ''),
+        NULLIF(nf._dados->>'COD1_PES', '')
+      )
       LEFT JOIN raw.tipos_documento td ON td.id = d.tipo_documento
       LEFT JOIN raw.indexadores i ON i.id = d.indexador_id
       LEFT JOIN raw.indexador_valores iv0
@@ -175,6 +198,7 @@ async function consultarCR(dataBase, incluirBaixadas = false) {
       a.parcela_id, a.titulo_id, a.filial_id,
       fil._dados->>'IDEN_EMP' AS filial_identificacao,
       a.cliente_id, cli.razao_social AS cliente_nome, cli.cgc_cnpj AS cliente_cnpj_cpf,
+      a.vendedor_id, a.vendedor_nome, a.vendedor_status,
       a.tipo_documento, a.tipo_documento_descricao, a.natureza_tipo_documento,
       a.historico,
       COALESCE(a.historico ILIKE '%FIDC%' OR a.historico ILIKE '%FIDIC%', FALSE) AS fidc,
@@ -183,6 +207,20 @@ async function consultarCR(dataBase, incluirBaixadas = false) {
       a.valor_face AS valor_parcela,
       a.saldo_ajustado AS saldo_parcela,
       COALESCE(a.abreviatura, 'R$') AS unidade_saldo,
+      a.indexador_id,
+      a.indexador_descricao,
+      a.valor_indice_origem AS valor_indexador_origem,
+      a.cotacao_aplicada AS valor_indexador_atual,
+      ROUND(
+        CASE WHEN a.natureza_tipo_documento = 'C' THEN -1 ELSE 1 END
+        * CASE
+            WHEN a.indexador_id IS NULL THEN ABS(a.saldo_ajustado)
+            ELSE a.valor_face
+              - COALESCE(a.valor_baixado_face, 0)
+              - COALESCE(a.valor_agrupado_face, 0)
+          END,
+        2
+      ) AS valor_em_aberto_controller,
       ROUND(a.saldo_ajustado * a.cotacao_aplicada, 2) AS saldo_convertido_atual,
       a.qtd_baixas, a.valor_baixado_face AS valor_baixado, a.primeira_baixa, a.ultima_baixa,
       a.juros, a.multa, a.desconto, a.acrescimo, a.valor_complementar,
@@ -195,15 +233,21 @@ async function consultarCR(dataBase, incluirBaixadas = false) {
       GREATEST($1::date - a.data_vencimento, 0) AS dias_atraso,
       CASE
         WHEN a.saldo_ajustado < -0.01 THEN 'CREDITO_EM_ABERTO'
-        WHEN a.data_vencimento < $1::date - 90 THEN 'VENCIDO_ACIMA_90_DIAS'
-        WHEN a.data_vencimento < $1::date - 30 THEN 'VENCIDO_31_A_90_DIAS'
+        WHEN a.data_vencimento < $1::date - 360 THEN 'VENCIDO_ACIMA_360_DIAS'
+        WHEN a.data_vencimento < $1::date - 180 THEN 'VENCIDO_181_A_360_DIAS'
+        WHEN a.data_vencimento < $1::date - 120 THEN 'VENCIDO_121_A_180_DIAS'
+        WHEN a.data_vencimento < $1::date - 90 THEN 'VENCIDO_91_A_120_DIAS'
+        WHEN a.data_vencimento < $1::date - 60 THEN 'VENCIDO_61_A_90_DIAS'
+        WHEN a.data_vencimento < $1::date - 30 THEN 'VENCIDO_31_A_60_DIAS'
         WHEN a.data_vencimento < $1::date THEN 'VENCIDO_1_A_30_DIAS'
         WHEN a.data_vencimento = $1::date THEN 'VENCE_HOJE'
-        WHEN a.data_vencimento <= $1::date + 7 THEN 'VENCE_EM_1_A_7_DIAS'
-        WHEN a.data_vencimento <= $1::date + 30 THEN 'VENCE_EM_8_A_30_DIAS'
+        WHEN a.data_vencimento <= $1::date + 30 THEN 'VENCE_EM_1_A_30_DIAS'
         WHEN a.data_vencimento <= $1::date + 60 THEN 'VENCE_EM_31_A_60_DIAS'
         WHEN a.data_vencimento <= $1::date + 90 THEN 'VENCE_EM_61_A_90_DIAS'
-        ELSE 'VENCE_ACIMA_90_DIAS'
+        WHEN a.data_vencimento <= $1::date + 120 THEN 'VENCE_EM_91_A_120_DIAS'
+        WHEN a.data_vencimento <= $1::date + 180 THEN 'VENCE_EM_121_A_180_DIAS'
+        WHEN a.data_vencimento <= $1::date + 360 THEN 'VENCE_EM_181_A_360_DIAS'
+        ELSE 'VENCE_ACIMA_360_DIAS'
       END AS faixa_vencimento
     FROM ajustado a
     LEFT JOIN raw.clientes cli ON cli.id = a.cliente_id
@@ -438,18 +482,19 @@ function resumoCR(rows, dataBase) {
     if (venc && venc >= new Date(dataBase) && venc <= limite30) totais.saldo_proximos_30_dias_convertido += saldoConv;
     if (row.unidade_saldo !== 'R$') totais.qtd_parcelas_indexadas += 1;
 
-    const chaveCliente = `${row.filial_id}|${row.cliente_id}`;
+    const chaveCliente = `${row.filial_id}|${row.cliente_id}|${row.unidade_saldo}`;
     const cli = porCliente.get(chaveCliente) || {
       filial_id: row.filial_id, filial_identificacao: row.filial_identificacao,
       cliente_id: row.cliente_id, cliente_nome: row.cliente_nome, cliente_cnpj_cpf: row.cliente_cnpj_cpf,
       unidade_saldo: row.unidade_saldo, qtd_parcelas: 0, titulos: new Set(),
-      valor_parcelas: 0, saldo_aberto: 0, saldo_convertido_atual: 0,
+      valor_parcelas: 0, valor_baixado: 0, saldo_aberto: 0, saldo_convertido_atual: 0,
       saldo_vencido: 0, saldo_vencido_convertido: 0, saldo_a_vencer: 0,
       primeiro_vencimento: null, ultimo_vencimento: null, maior_atraso_dias: 0,
     };
     cli.qtd_parcelas += 1;
     cli.titulos.add(row.titulo_id);
     cli.valor_parcelas += numero(row.valor_parcela);
+    cli.valor_baixado += numero(row.valor_baixado);
     cli.saldo_aberto += numero(row.saldo_parcela);
     cli.saldo_convertido_atual += saldoConv;
     if (row.situacao === 'VENCIDA') { cli.saldo_vencido += numero(row.saldo_parcela); cli.saldo_vencido_convertido += saldoConv; }

@@ -26,6 +26,12 @@ const CONTAS_RECEBER_BASE = `
     WHERE status = 'N' AND data_pagamento <= CURRENT_DATE
     GROUP BY parcela_id
   ),
+  agrupamentos AS (
+    SELECT parcela_id, SUM(COALESCE(valor, 0)) AS valor_agrupado
+    FROM raw.receber_agrupamentos
+    WHERE data_titulo_agrupador <= CURRENT_DATE
+    GROUP BY parcela_id
+  ),
   fatos AS (
     SELECT
       s.id AS parcela_id,
@@ -38,22 +44,34 @@ const CONTAS_RECEBER_BASE = `
       s.cliente_id,
       cli.razao_social AS cliente_nome,
       cli.cgc_cnpj AS cliente_cnpj_cpf,
-      d._dados->>'COD1_PES' AS vendedor_id,
+      COALESCE(
+        NULLIF(d._dados->>'COD1_PES', ''),
+        NULLIF(nf._dados->>'COD1_PES', '')
+      ) AS vendedor_id,
       vend._dados->>'NOME_PES' AS vendedor_nome,
       CASE
-        WHEN NULLIF(d._dados->>'COD1_PES', '') IS NULL
-          THEN 'NAO_INFORMADO_NO_TITULO'
+        WHEN COALESCE(
+          NULLIF(d._dados->>'COD1_PES', ''),
+          NULLIF(nf._dados->>'COD1_PES', '')
+        ) IS NULL
+          THEN 'NAO_INFORMADO'
         WHEN vend.id IS NULL
           THEN 'CADASTRO_NAO_SINCRONIZADO'
-        ELSE 'INFORMADO'
+        WHEN vend._dados->>'SITU_PES' = 'A'
+          THEN 'ATIVO'
+        WHEN vend._dados->>'SITU_PES' = 'I'
+          THEN 'INATIVO'
+        ELSE COALESCE(vend._dados->>'SITU_PES', 'SEM_SITUACAO')
       END AS vendedor_status,
       s.tipo_documento,
       td.descricao AS tipo_documento_descricao,
       s.natureza_tipo_documento,
       d._dados->>'HISTORICO' AS historico,
       COALESCE(d._dados->>'HISTORICO' ILIKE '%FIDC%' OR d._dados->>'HISTORICO' ILIKE '%FIDIC%', FALSE) AS fidc,
-      s.numero_documento,
-      s.serie_documento,
+      COALESCE(NULLIF(s.numero_documento, ''), ft.numero_documento,
+        nf._dados->>'NOTA_NOT') AS numero_documento,
+      COALESCE(NULLIF(s.serie_documento, ''), ft.serie_documento,
+        nf._dados->>'SERI_NOT') AS serie_documento,
       s.parcela_nr,
       s.data_emissao,
       s.data_vencimento,
@@ -61,6 +79,16 @@ const CONTAS_RECEBER_BASE = `
       s.valor_parcela,
       s.saldo_funcao,
       s.saldo_ajustado AS saldo_parcela,
+      ROUND(
+        CASE WHEN s.natureza_tipo_documento = 'C' THEN -1 ELSE 1 END
+        * CASE
+            WHEN l.indexador_id IS NULL THEN ABS(s.saldo_ajustado)
+            ELSE s.valor_parcela
+              - COALESCE(r.valor_baixado, 0)
+              - COALESCE(a.valor_agrupado, 0)
+          END,
+        2
+      ) AS valor_em_aberto_controller,
       COALESCE(l.indexador_abreviatura, 'R$') AS unidade_saldo,
       l.indexador_id,
       idx.descricao AS indexador_descricao,
@@ -92,15 +120,21 @@ const CONTAS_RECEBER_BASE = `
       GREATEST(s.data_calculo - s.data_vencimento, 0) AS dias_atraso,
       CASE
         WHEN s.saldo_ajustado < -0.01 THEN 'CREDITO_EM_ABERTO'
-        WHEN s.data_vencimento < s.data_calculo - 90 THEN 'VENCIDO_ACIMA_90_DIAS'
-        WHEN s.data_vencimento < s.data_calculo - 30 THEN 'VENCIDO_31_A_90_DIAS'
+        WHEN s.data_vencimento < s.data_calculo - 360 THEN 'VENCIDO_ACIMA_360_DIAS'
+        WHEN s.data_vencimento < s.data_calculo - 180 THEN 'VENCIDO_181_A_360_DIAS'
+        WHEN s.data_vencimento < s.data_calculo - 120 THEN 'VENCIDO_121_A_180_DIAS'
+        WHEN s.data_vencimento < s.data_calculo - 90 THEN 'VENCIDO_91_A_120_DIAS'
+        WHEN s.data_vencimento < s.data_calculo - 60 THEN 'VENCIDO_61_A_90_DIAS'
+        WHEN s.data_vencimento < s.data_calculo - 30 THEN 'VENCIDO_31_A_60_DIAS'
         WHEN s.data_vencimento < s.data_calculo THEN 'VENCIDO_1_A_30_DIAS'
         WHEN s.data_vencimento = s.data_calculo THEN 'VENCE_HOJE'
-        WHEN s.data_vencimento <= s.data_calculo + 7 THEN 'VENCE_EM_1_A_7_DIAS'
-        WHEN s.data_vencimento <= s.data_calculo + 30 THEN 'VENCE_EM_8_A_30_DIAS'
+        WHEN s.data_vencimento <= s.data_calculo + 30 THEN 'VENCE_EM_1_A_30_DIAS'
         WHEN s.data_vencimento <= s.data_calculo + 60 THEN 'VENCE_EM_31_A_60_DIAS'
         WHEN s.data_vencimento <= s.data_calculo + 90 THEN 'VENCE_EM_61_A_90_DIAS'
-        ELSE 'VENCE_ACIMA_90_DIAS'
+        WHEN s.data_vencimento <= s.data_calculo + 120 THEN 'VENCE_EM_91_A_120_DIAS'
+        WHEN s.data_vencimento <= s.data_calculo + 180 THEN 'VENCE_EM_121_A_180_DIAS'
+        WHEN s.data_vencimento <= s.data_calculo + 360 THEN 'VENCE_EM_181_A_360_DIAS'
+        ELSE 'VENCE_ACIMA_360_DIAS'
       END AS faixa_vencimento,
       d._dados->>'SITU_REC' AS status_parcela,
       d._dados->>'SITU_CBR' AS status_titulo,
@@ -112,10 +146,17 @@ const CONTAS_RECEBER_BASE = `
     LEFT JOIN raw.financeiro_saldos_local l
       ON l.tipo = 'CR' AND l.parcela_id = s.id
     LEFT JOIN recebimentos r ON r.parcela_id = s.id
+    LEFT JOIN agrupamentos a ON a.parcela_id = s.id
     LEFT JOIN raw.clientes cli ON cli.id = s.cliente_id
     LEFT JOIN raw.tipos_documento td ON td.id = s.tipo_documento
     LEFT JOIN raw.indexadores idx ON idx.id = l.indexador_id
-    LEFT JOIN raw.vendedores vend ON vend.id = d._dados->>'COD1_PES'
+    LEFT JOIN raw.faturamento nf ON nf.id = d.nf_id
+    LEFT JOIN raw.financeiro_titulos ft
+      ON ft.tipo = 'CR' AND ft.titulo_id = d.nf_id
+    LEFT JOIN raw.vendedores vend ON vend.id = COALESCE(
+      NULLIF(d._dados->>'COD1_PES', ''),
+      NULLIF(nf._dados->>'COD1_PES', '')
+    )
     LEFT JOIN raw.filiais fil ON fil.id = s.filial_id
     LEFT JOIN raw.clientes fil_cli ON fil_cli.id = fil._dados->>'COD1_TRA'
     LEFT JOIN raw.fornecedores fil_forn ON fil_forn.id = fil._dados->>'COD1_TRA'
@@ -204,6 +245,7 @@ async function resumo(filters) {
          COUNT(*)::INT AS qtd_parcelas,
          COUNT(DISTINCT titulo_id)::INT AS qtd_titulos,
          SUM(valor_parcela) AS valor_parcelas,
+         SUM(valor_baixado) AS valor_baixado,
          SUM(saldo_parcela) AS saldo_aberto,
          SUM(saldo_convertido_atual) AS saldo_convertido_atual,
          SUM(saldo_parcela) FILTER (WHERE situacao = 'VENCIDA') AS saldo_vencido,

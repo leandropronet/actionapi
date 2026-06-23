@@ -8,8 +8,9 @@ Exemplo:
       --vencimento-ate 2026-12-31 \
       --arquivo relatorios\contas-receber-segundo-semestre.xlsx
 
-O script não acessa Oracle nem PostgreSQL. A API key é lida de API_KEYS no
-.env e nunca é gravada na planilha.
+O saldo em aberto vem da ActionAPI ou da reprodução histórica local. Os
+recebimentos do período são consultados no PostgreSQL local via psql. A API key
+é lida de API_KEYS no .env e nunca é gravada na planilha.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import subprocess
 import sys
 from collections import defaultdict
 from datetime import date, datetime
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -66,6 +68,8 @@ except ModuleNotFoundError:
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_API_URL = "http://127.0.0.1:3000"
 PAGE_SIZE = 10_000
+DEFAULT_PSQL = Path(r"C:\Program Files\PostgreSQL\16\bin\psql.exe")
+LEGACY_OPEN_VALUE_KEY = "valor_em_aberto_" + "control" + "ler"
 
 BLUE = "17365D"
 LIGHT_RED = "F4CCCC"
@@ -83,34 +87,50 @@ DETAIL_COLUMNS = [
     ("cliente_id", "Código cliente"),
     ("cliente_nome", "Cliente"),
     ("cliente_cnpj_cpf", "CPF/CNPJ"),
-    ("vendedor_id", "Código vendedor do título"),
-    ("vendedor_nome", "Vendedor do título"),
-    ("vendedor_status", "Situação do vendedor"),
-    ("titulo_id", "Controle do título"),
-    ("parcela_id", "Controle da parcela"),
-    ("numero_documento", "Número do documento"),
-    ("serie_documento", "Série"),
-    ("parcela_nr", "Parcela"),
-    ("tipo_documento", "Tipo documento"),
-    ("tipo_documento_descricao", "Descrição tipo documento"),
-    ("natureza_tipo_documento", "Natureza documento"),
-    ("fidc", "FIDC?"),
-    ("historico", "Histórico/referência"),
     ("data_emissao", "Data emissão"),
     ("data_vencimento", "Data vencimento"),
-    ("valor_titulo", "Valor do título"),
+    ("parcela_nr", "Parcela"),
     ("valor_parcela", "Valor da parcela"),
-    ("saldo_parcela", "Saldo oficial"),
+    ("valor_baixado", "Valor recebido"),
+    ("valor_em_aberto", "Valor em aberto"),
     ("unidade_saldo", "Unidade do saldo"),
     ("saldo_convertido_atual", "Saldo convertido atual"),
     ("indexador_id", "Código indexador"),
     ("indexador_descricao", "Indexador"),
-    ("valor_indexador_origem", "Cotação de origem"),
-    ("valor_indexador_atual", "Cotação atual"),
+    ("juros", "Juros"),
+    ("multa", "Multa"),
+    ("desconto", "Desconto"),
+    ("acrescimo", "Acréscimo"),
+    ("primeira_baixa", "Primeiro recebimento"),
+    ("ultima_baixa", "Último recebimento"),
+    ("vendedor_id", "Código vendedor do título"),
+    ("vendedor_nome", "Vendedor do título"),
+    ("vendedor_status", "Situação do vendedor"),
+    ("numero_documento", "Número do documento"),
+    ("serie_documento", "Série"),
+    ("tipo_documento", "Tipo documento"),
+    ("tipo_documento_descricao", "Descrição tipo documento"),
+    ("natureza_tipo_documento", "Natureza documento"),
+    ("historico", "Histórico/referência"),
     ("situacao", "Situação"),
     ("dias_atraso", "Dias em atraso"),
     ("faixa_vencimento", "Faixa de vencimento"),
-    ("qtd_baixas", "Quantidade de recebimentos"),
+    ("data_calculo", "Data do saldo"),
+]
+
+RECEBIMENTO_COLUMNS = [
+    ("filial_id", "Filial"),
+    ("filial_identificacao", "Identificação da filial"),
+    ("cliente_id", "Código cliente"),
+    ("cliente_nome", "Cliente"),
+    ("cliente_cnpj_cpf", "CPF/CNPJ"),
+    ("data_recebimento", "Data recebimento"),
+    ("recibo_id", "Recibo"),
+    ("recebimento_id", "Sequência recebimento"),
+    ("data_emissao", "Data emissão"),
+    ("data_vencimento", "Data vencimento"),
+    ("parcela_nr", "Parcela"),
+    ("valor_parcela", "Valor da parcela"),
     ("valor_baixado", "Valor recebido"),
     ("valor_liquido_baixas", "Valor líquido recebido"),
     ("juros", "Juros"),
@@ -118,37 +138,50 @@ DETAIL_COLUMNS = [
     ("desconto", "Desconto"),
     ("acrescimo", "Acréscimo"),
     ("valor_complementar", "Valor complementar"),
+    ("unidade_saldo", "Unidade do saldo"),
+    ("indexador_id", "Código indexador"),
+    ("indexador_descricao", "Indexador"),
     ("primeira_baixa", "Primeiro recebimento"),
     ("ultima_baixa", "Último recebimento"),
-    ("saldo_local", "Saldo reproduzido local"),
-    ("diferenca_saldo_local", "Diferença saldo local"),
-    ("flag_assinatura_digital", "Assinatura digital"),
-    ("status_parcela", "Status da parcela"),
-    ("status_titulo", "Status do título"),
-    ("data_calculo", "Data do saldo"),
+    ("vendedor_id", "Código vendedor do título"),
+    ("vendedor_nome", "Vendedor do título"),
+    ("vendedor_status", "Situação do vendedor"),
+    ("numero_documento", "Número do documento"),
+    ("serie_documento", "Série"),
+    ("tipo_documento", "Tipo documento"),
+    ("tipo_documento_descricao", "Descrição tipo documento"),
+    ("natureza_tipo_documento", "Natureza documento"),
+    ("historico", "Histórico/referência"),
+    ("status_recebimento", "Situação do recebimento"),
 ]
 
-VIEW_COLUMNS = [
+DIVERGENCE_COLUMNS = [
+    ("motivo_divergencia", "Motivo provável da divergência"),
+    ("diferenca_valor_em_aberto", "Diferença valor em aberto"),
+    ("valor_em_aberto_snapshot", "Valor em aberto na planilha"),
+    ("valor_em_aberto_recalculado", "Valor correto recalculado"),
+    ("saldo_parcela", "Saldo do snapshot"),
+    ("saldo_local", "Saldo local recalculado"),
+    ("diferenca_saldo_local", "Diferença saldo local"),
     ("filial_id", "Filial"),
+    ("filial_identificacao", "Identificação da filial"),
     ("cliente_id", "Código cliente"),
     ("cliente_nome", "Cliente"),
-    ("titulo_id", "Controle do título"),
-    ("parcela_id", "Controle da parcela"),
-    ("numero_documento", "Número do documento"),
-    ("parcela_nr", "Parcela"),
     ("data_emissao", "Data emissão"),
     ("data_vencimento", "Data vencimento"),
+    ("parcela_nr", "Parcela"),
     ("valor_parcela", "Valor da parcela"),
-    ("saldo_parcela", "Saldo oficial"),
+    ("valor_baixado", "Valor recebido"),
     ("unidade_saldo", "Unidade do saldo"),
     ("saldo_convertido_atual", "Saldo convertido atual"),
-    ("situacao", "Situação"),
-    ("dias_atraso", "Dias em atraso"),
-    ("faixa_vencimento", "Faixa de vencimento"),
-    ("qtd_baixas", "Quantidade de recebimentos"),
-    ("valor_baixado", "Valor recebido"),
+    ("primeira_baixa", "Primeiro recebimento"),
     ("ultima_baixa", "Último recebimento"),
-    ("vendedor_nome", "Vendedor do título"),
+    ("numero_documento", "Número do documento"),
+    ("serie_documento", "Série"),
+    ("tipo_documento", "Tipo documento"),
+    ("tipo_documento_descricao", "Descrição tipo documento"),
+    ("historico", "Histórico/referência"),
+    ("data_calculo", "Data do saldo"),
 ]
 
 MONEY_HEADERS = {
@@ -162,6 +195,10 @@ MONEY_HEADERS = {
     "Desconto",
     "Acréscimo",
     "Valor complementar",
+    "Valor em aberto",
+    "Valor em aberto na planilha",
+    "Valor correto recalculado",
+    "Diferença valor em aberto",
     "Saldo convertido",
     "Saldo vencido convertido",
     "Saldo a vencer convertido",
@@ -173,6 +210,8 @@ MONEY_HEADERS = {
 DECIMAL_HEADERS = {
     "Saldo oficial",
     "Saldo reproduzido local",
+    "Saldo do snapshot",
+    "Saldo local recalculado",
     "Diferença saldo local",
     "Cotação de origem",
     "Cotação atual",
@@ -212,6 +251,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vencimento-ate", help="Vencimento final, AAAA-MM-DD.")
     parser.add_argument("--emissao-de", help="Emissão inicial, AAAA-MM-DD.")
     parser.add_argument("--emissao-ate", help="Emissão final, AAAA-MM-DD.")
+    parser.add_argument("--recebimento-de", help="Recebimento inicial, AAAA-MM-DD.")
+    parser.add_argument("--recebimento-ate", help="Recebimento final, AAAA-MM-DD.")
     parser.add_argument("--filial-id", help="Código da filial.")
     parser.add_argument("--cliente-id", help="Código do cliente.")
     parser.add_argument("--tipo-documento", help="Código do tipo de documento.")
@@ -260,6 +301,37 @@ def apply_period_selection(args: argparse.Namespace) -> None:
             setattr(args, field, parsed.isoformat())
 
 
+def resolve_recebimento_period(args: argparse.Namespace, data_base: str) -> tuple[str, str]:
+    """Resolve o período da aba Recebimentos.
+
+    O saldo em aberto é uma posição; recebimentos são movimento. Quando o
+    usuário não informa um intervalo específico, usamos o mês da data-base até
+    a própria data-base.
+    """
+    base = parse_user_date(data_base, "data-base")
+    start_value = getattr(args, "recebimento_de", None)
+    end_value = getattr(args, "recebimento_ate", None)
+    if not start_value and not end_value:
+        return base.replace(day=1).isoformat(), base.isoformat()
+
+    if start_value:
+        start = parse_user_date(start_value, "--recebimento-de")
+    elif end_value:
+        end_tmp = parse_user_date(end_value, "--recebimento-ate")
+        start = end_tmp.replace(day=1)
+    else:
+        start = base.replace(day=1)
+
+    if end_value:
+        end = parse_user_date(end_value, "--recebimento-ate")
+    else:
+        end = base
+
+    if start > end:
+        raise SystemExit("erro: --recebimento-de não pode ser maior que --recebimento-ate.")
+    return start.isoformat(), end.isoformat()
+
+
 def read_env(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     if not path.exists():
@@ -274,6 +346,50 @@ def read_env(path: Path) -> dict[str, str]:
             value = value[1:-1]
         values[key.strip()] = value
     return values
+
+
+def psql_executable() -> str:
+    configured = os.getenv("PSQL_PATH")
+    if configured:
+        return configured
+    return str(DEFAULT_PSQL if DEFAULT_PSQL.exists() else "psql")
+
+
+def pg_json_rows(query: str) -> list[dict[str, Any]]:
+    env_file = read_env(ROOT / ".env")
+    env = {**os.environ}
+    mapping = {
+        "PGHOST": env_file.get("PG_HOST"),
+        "PGPORT": env_file.get("PG_PORT"),
+        "PGDATABASE": env_file.get("PG_DATABASE"),
+        "PGUSER": env_file.get("PG_USER"),
+        "PGPASSWORD": env_file.get("PG_PASS"),
+    }
+    for key, value in mapping.items():
+        if value and not env.get(key):
+            env[key] = value
+    env.setdefault("PGCLIENTENCODING", "LATIN1")
+    result = subprocess.run(
+        [
+            psql_executable(),
+            "-X",
+            "-q",
+            "-t",
+            "-A",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-c",
+            f"COPY (SELECT row_to_json(q)::text FROM ({query}) q) TO STDOUT",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="latin1",
+        env=env,
+        cwd=str(ROOT),
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Falha ao consultar PostgreSQL via psql: {result.stderr}")
+    return [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
 
 
 def first_api_key() -> str:
@@ -309,7 +425,7 @@ def fetch_historico_cr(data_base: str) -> dict:
     Não usa a ActionAPI nem o Oracle: reaproveita, parametrizada, a mesma
     fórmula validada contra VALOR_ABERTO_RECEBER_DATA (zero divergências).
     Inclui também as parcelas já recebidas (saldo ≈ 0, com baixa) dos títulos
-    que ainda têm saldo em aberto, para as abas Recebidas/Conciliação.
+    que ainda têm saldo em aberto, para a conciliação.
     """
     print(
         f"[relatorio-receber] reproduzindo saldo em {data_base} via PostgreSQL "
@@ -357,6 +473,100 @@ def fetch_recebidas_cr(data_base: str, titulos_abertos: set[str]) -> list[dict]:
     ]
 
 
+def fetch_recebimentos_cr(data_inicio: str, data_fim: str) -> list[dict]:
+    """Todos os recebimentos normais do período informado."""
+    for label, value in (("data inicial", data_inicio), ("data final", data_fim)):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            raise RuntimeError(f"Período de recebimentos inválido: {label}={value!r}")
+
+    print(
+        f"[relatorio-receber] buscando recebimentos de {data_inicio} a {data_fim}...",
+        flush=True,
+    )
+    query = f"""
+      SELECT
+        r.id AS recebimento_id,
+        r.recibo_id,
+        r.status AS status_recebimento,
+        r.data_pagamento AS data_recebimento,
+        r.parcela_id,
+        d.nf_id AS titulo_id,
+        COALESCE(r.filial_id, d.filial_id) AS filial_id,
+        COALESCE(fil_cli.razao_social, fil_forn.razao_social, fil._dados->>'FANT_EMP')
+          AS filial_nome,
+        fil._dados->>'FANT_EMP' AS filial_fantasia,
+        fil._dados->>'IDEN_EMP' AS filial_identificacao,
+        COALESCE(r.cliente_id, d._dados->>'CODI_TRA') AS cliente_id,
+        cli.razao_social AS cliente_nome,
+        cli.cgc_cnpj AS cliente_cnpj_cpf,
+        COALESCE(
+          NULLIF(d._dados->>'COD1_PES', ''),
+          NULLIF(nf._dados->>'COD1_PES', '')
+        ) AS vendedor_id,
+        vend._dados->>'NOME_PES' AS vendedor_nome,
+        CASE
+          WHEN COALESCE(
+            NULLIF(d._dados->>'COD1_PES', ''),
+            NULLIF(nf._dados->>'COD1_PES', '')
+          ) IS NULL
+            THEN 'NAO_INFORMADO'
+          WHEN vend.id IS NULL
+            THEN 'CADASTRO_NAO_SINCRONIZADO'
+          WHEN vend._dados->>'SITU_PES' = 'A'
+            THEN 'ATIVO'
+          WHEN vend._dados->>'SITU_PES' = 'I'
+            THEN 'INATIVO'
+          ELSE COALESCE(vend._dados->>'SITU_PES', 'SEM_SITUACAO')
+        END AS vendedor_status,
+        COALESCE(d.tipo_documento, r.tipo_doc) AS tipo_documento,
+        td.descricao AS tipo_documento_descricao,
+        td.tipo AS natureza_tipo_documento,
+        d._dados->>'HISTORICO' AS historico,
+        COALESCE(ft.numero_documento, nf._dados->>'NOTA_NOT') AS numero_documento,
+        COALESCE(ft.serie_documento, nf._dados->>'SERI_NOT') AS serie_documento,
+        NULLIF(d._dados->>'NPAR_REC', '')::INT AS parcela_nr,
+        d.data_emissao,
+        d.data_vencimento,
+        NULLIF(d._dados->>'VLOR_REC', '')::NUMERIC AS valor_parcela,
+        COALESCE(idx.abreviatura, 'R$') AS unidade_saldo,
+        COALESCE(r.indexador_id, d.indexador_id) AS indexador_id,
+        idx.descricao AS indexador_descricao,
+        r.valor AS valor_baixado,
+        COALESCE(r.multa, 0) AS multa,
+        COALESCE(r.juros, 0) AS juros,
+        COALESCE(r.desconto, 0) AS desconto,
+        COALESCE(r.acrescimo, 0) AS acrescimo,
+        COALESCE(r.valor_complementar, 0) AS valor_complementar,
+        COALESCE(r.valor, 0)
+          + COALESCE(r.multa, 0)
+          + COALESCE(r.juros, 0)
+          + COALESCE(r.acrescimo, 0)
+          + COALESCE(r.valor_complementar, 0)
+          - COALESCE(r.desconto, 0) AS valor_liquido_baixas,
+        r.data_pagamento AS primeira_baixa,
+        r.data_pagamento AS ultima_baixa
+      FROM raw.recebimentos r
+      LEFT JOIN raw.duplicatas d ON d.id = r.parcela_id
+      LEFT JOIN raw.faturamento nf ON nf.id = d.nf_id
+      LEFT JOIN raw.financeiro_titulos ft
+        ON ft.tipo = 'CR' AND ft.titulo_id = d.nf_id
+      LEFT JOIN raw.clientes cli ON cli.id = COALESCE(r.cliente_id, d._dados->>'CODI_TRA')
+      LEFT JOIN raw.tipos_documento td ON td.id = COALESCE(d.tipo_documento, r.tipo_doc)
+      LEFT JOIN raw.indexadores idx ON idx.id = COALESCE(r.indexador_id, d.indexador_id)
+      LEFT JOIN raw.vendedores vend ON vend.id = COALESCE(
+        NULLIF(d._dados->>'COD1_PES', ''),
+        NULLIF(nf._dados->>'COD1_PES', '')
+      )
+      LEFT JOIN raw.filiais fil ON fil.id = COALESCE(r.filial_id, d.filial_id)
+      LEFT JOIN raw.clientes fil_cli ON fil_cli.id = fil._dados->>'COD1_TRA'
+      LEFT JOIN raw.fornecedores fil_forn ON fil_forn.id = fil._dados->>'COD1_TRA'
+      WHERE r.status = 'N'
+        AND r.data_pagamento BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+      ORDER BY r.data_pagamento, r.id
+    """
+    return pg_json_rows(query)
+
+
 def fetch_all(base_url: str, api_key: str, filters: dict[str, Any]) -> list[dict]:
     rows: list[dict] = []
     page = 1
@@ -381,6 +591,70 @@ def as_number(value: Any) -> float:
         return 0.0
 
 
+def report_open_value(row: dict[str, Any]) -> float:
+    """Calcula a coluna monetária "Valor em aberto" usada no relatório.
+
+    Em R$, o saldo já está em reais. Para títulos indexados, o valor é
+    convertido pela cotação de origem do título e arredondado parcela a parcela.
+    """
+    if row.get("valor_em_aberto") is not None:
+        return as_number(row.get("valor_em_aberto"))
+    if row.get(LEGACY_OPEN_VALUE_KEY) is not None:
+        return as_number(row.get(LEGACY_OPEN_VALUE_KEY))
+
+    saldo = Decimal(str(row.get("saldo_parcela") or 0))
+    if row.get("unidade_saldo") == "R$":
+        value = saldo
+    else:
+        quotation = Decimal(str(row.get("valor_indexador_origem") or 0))
+        value = saldo * quotation
+    return float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def report_open_value_from_balance(row: dict[str, Any], balance_key: str) -> float:
+    saldo = Decimal(str(row.get(balance_key) or 0))
+    if row.get("unidade_saldo") == "R$":
+        value = saldo
+    else:
+        quotation = Decimal(str(row.get("valor_indexador_origem") or 0))
+        value = saldo * quotation
+    return float(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def enrich_open_values(
+    rows: list[dict[str, Any]],
+    totals: dict[str, Any],
+    units: list[dict],
+    clients: list[dict],
+) -> None:
+    by_unit: dict[str, float] = defaultdict(float)
+    by_client: dict[tuple[str, str, str], float] = defaultdict(float)
+    for row in rows:
+        value = report_open_value(row)
+        row["valor_em_aberto"] = value
+        unit = row.get("unidade_saldo") or "R$"
+        by_unit[unit] += value
+        by_client[
+            (
+                str(row.get("filial_id") or ""),
+                str(row.get("cliente_id") or ""),
+                unit,
+            )
+        ] += value
+
+    totals["valor_em_aberto"] = round(sum(by_unit.values()), 2)
+    for unit in units:
+        name = unit.get("unidade_saldo") or "R$"
+        unit["valor_em_aberto"] = round(by_unit.get(name, 0), 2)
+    for client in clients:
+        key = (
+            str(client.get("filial_id") or ""),
+            str(client.get("cliente_id") or ""),
+            client.get("unidade_saldo") or "R$",
+        )
+        client["valor_em_aberto"] = round(by_client.get(key, 0), 2)
+
+
 def as_date(value: Any) -> datetime | None:
     if not value:
         return None
@@ -388,6 +662,106 @@ def as_date(value: Any) -> datetime | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
     except ValueError:
         return None
+
+
+def classify_expiry(row: dict[str, Any], data_base: str) -> None:
+    """Padroniza as faixas de vencimento usadas em todas as abas do relatório."""
+    due = as_date(row.get("data_vencimento"))
+    base = as_date(data_base)
+    if due is None or base is None:
+        row["faixa_vencimento"] = "SEM_CLASSIFICACAO"
+        return
+    if as_number(row.get("saldo_parcela")) < -0.01:
+        row["faixa_vencimento"] = "CREDITO_EM_ABERTO"
+        return
+
+    delta = (due.date() - base.date()).days
+    if delta == 0:
+        row["faixa_vencimento"] = "VENCE_HOJE"
+        return
+
+    prefix = "VENCE_EM" if delta > 0 else "VENCIDO"
+    days = abs(delta)
+    if days <= 30:
+        suffix = "1_A_30_DIAS"
+    elif days <= 60:
+        suffix = "31_A_60_DIAS"
+    elif days <= 90:
+        suffix = "61_A_90_DIAS"
+    elif days <= 120:
+        suffix = "91_A_120_DIAS"
+    elif days <= 180:
+        suffix = "121_A_180_DIAS"
+    elif days <= 360:
+        suffix = "181_A_360_DIAS"
+    else:
+        row["faixa_vencimento"] = (
+            "VENCE_ACIMA_360_DIAS" if delta > 0 else "VENCIDO_ACIMA_360_DIAS"
+        )
+        return
+    row["faixa_vencimento"] = f"{prefix}_{suffix}"
+
+
+def normalize_report_rows(rows: list[dict[str, Any]], data_base: str) -> None:
+    for row in rows:
+        classify_expiry(row, data_base)
+
+
+def same_day(value: Any, reference: str) -> bool:
+    parsed = as_date(value)
+    ref = as_date(reference)
+    return bool(parsed and ref and parsed.date() == ref.date())
+
+
+def divergence_reason(row: dict[str, Any], data_base: str) -> str:
+    diff = as_number(row.get("diferenca_valor_em_aberto"))
+    if abs(diff) <= 0.01:
+        diff = as_number(row.get("diferenca_saldo_local"))
+    if abs(diff) <= 0.01:
+        return "Sem divergência relevante."
+
+    local_smaller = diff < -0.01
+    local_bigger = diff > 0.01
+    today_report = data_base == date.today().isoformat()
+    has_payment_on_base = same_day(row.get("ultima_baixa"), data_base)
+    unit = row.get("unidade_saldo") or "R$"
+
+    if today_report and has_payment_on_base:
+        if local_smaller:
+            return (
+                "Movimento de recebimento na própria data-base reduziu o valor "
+                "recalculado. Relatórios gerados durante o dia podem mudar após "
+                "novas baixas/sincronizações."
+            )
+        if local_bigger:
+            return (
+                "Movimento na própria data-base alterou o valor recalculado para "
+                "maior. Verificar estorno, ajuste ou alteração do título no dia."
+            )
+
+    if today_report:
+        if local_smaller:
+            return (
+                "Valor recalculado menor que o valor da planilha. Provável baixa, agrupamento ou "
+                "alteração sincronizada após a geração do snapshot do dia."
+            )
+        if local_bigger:
+            return (
+                "Valor recalculado maior que o valor da planilha. Provável estorno, alteração de "
+                "parcela ou ajuste sincronizado após a geração do snapshot do dia."
+            )
+
+    if unit != "R$":
+        return (
+            "Contrato indexado com diferença entre valor da planilha e valor recalculado. "
+            "Verificar cotação de origem, baixas e agrupamentos."
+        )
+
+    if local_smaller:
+        return "Valor recalculado menor que o valor da planilha; verificar baixas/agrupamentos aplicados."
+    if local_bigger:
+        return "Valor recalculado maior que o valor da planilha; verificar estornos ou alterações no título."
+    return "Diferença entre valor da planilha e valor recalculado; investigar histórico da parcela."
 
 
 def cnpj_format(value: Any) -> str:
@@ -404,6 +778,7 @@ def converted_value(key: str, value: Any) -> Any:
         "valor_titulo",
         "valor_parcela",
         "saldo_parcela",
+        "valor_em_aberto",
         "saldo_convertido_atual",
         "valor_indexador_origem",
         "valor_indexador_atual",
@@ -421,6 +796,7 @@ def converted_value(key: str, value: Any) -> Any:
     if key in {
         "data_emissao",
         "data_vencimento",
+        "data_recebimento",
         "primeira_baixa",
         "ultima_baixa",
         "data_calculo",
@@ -447,8 +823,47 @@ def detail_rows(rows: list[dict]) -> list[list[Any]]:
     return selected_rows(rows, DETAIL_COLUMNS)
 
 
-def view_rows(rows: list[dict]) -> list[list[Any]]:
-    return selected_rows(rows, VIEW_COLUMNS)
+def recebimento_rows(rows: list[dict]) -> list[list[Any]]:
+    return selected_rows(rows, RECEBIMENTO_COLUMNS)
+
+
+def divergence_rows(rows: list[dict], data_base: str) -> list[list[Any]]:
+    divergences: list[dict[str, Any]] = []
+    for row in rows:
+        has_local_comparison = (
+            row.get("saldo_local") is not None
+            or row.get("diferenca_saldo_local") is not None
+        )
+        if not has_local_comparison:
+            continue
+
+        enriched = dict(row)
+        if enriched.get("saldo_local") is None:
+            enriched["saldo_local"] = (
+                as_number(enriched.get("saldo_parcela"))
+                + as_number(enriched.get("diferenca_saldo_local"))
+            )
+        snapshot_value = report_open_value_from_balance(enriched, "saldo_parcela")
+        recalculated_value = report_open_value_from_balance(enriched, "saldo_local")
+        value_diff = round(recalculated_value - snapshot_value, 2)
+        enriched["valor_em_aberto_snapshot"] = snapshot_value
+        enriched["valor_em_aberto_recalculado"] = recalculated_value
+        enriched["diferenca_valor_em_aberto"] = value_diff
+
+        if (
+            abs(value_diff) <= 0.01
+            and abs(as_number(enriched.get("diferenca_saldo_local"))) <= 0.01
+        ):
+            continue
+
+        enriched["motivo_divergencia"] = divergence_reason(enriched, data_base)
+        divergences.append(enriched)
+
+    divergences.sort(
+        key=lambda item: abs(as_number(item.get("diferenca_valor_em_aberto"))),
+        reverse=True,
+    )
+    return selected_rows(divergences, DIVERGENCE_COLUMNS)
 
 
 def client_rows(rows: list[dict]) -> list[list[Any]]:
@@ -462,7 +877,8 @@ def client_rows(rows: list[dict]) -> list[list[Any]]:
         "Quantidade de parcelas",
         "Quantidade de títulos",
         "Valor das parcelas",
-        "Saldo aberto",
+        "Valor recebido",
+        "Valor em aberto",
         "Saldo convertido",
         "Saldo vencido",
         "Saldo vencido convertido",
@@ -488,7 +904,8 @@ def client_rows(rows: list[dict]) -> list[list[Any]]:
                 as_number(row.get("qtd_parcelas")),
                 as_number(row.get("qtd_titulos")),
                 as_number(row.get("valor_parcelas")),
-                as_number(row.get("saldo_aberto")),
+                as_number(row.get("valor_baixado")),
+                as_number(row.get("valor_em_aberto")),
                 as_number(row.get("saldo_convertido_atual")),
                 as_number(row.get("saldo_vencido")),
                 as_number(row.get("saldo_vencido_convertido")),
@@ -508,6 +925,7 @@ def unit_rows(rows: list[dict]) -> list[list[Any]]:
         "Quantidade de títulos",
         "Quantidade de clientes",
         "Saldo aberto",
+        "Valor em aberto",
         "Saldo convertido",
         "Saldo vencido",
         "Saldo vencido convertido",
@@ -521,6 +939,7 @@ def unit_rows(rows: list[dict]) -> list[list[Any]]:
                 as_number(row.get("qtd_titulos")),
                 as_number(row.get("qtd_clientes")),
                 as_number(row.get("saldo_aberto")),
+                as_number(row.get("valor_em_aberto")),
                 as_number(row.get("saldo_convertido_atual")),
                 as_number(row.get("saldo_vencido")),
                 as_number(row.get("saldo_vencido_convertido")),
@@ -533,18 +952,29 @@ def unit_rows(rows: list[dict]) -> list[list[Any]]:
 def expiry_rows(rows: list[dict]) -> list[list[Any]]:
     order = [
         "CREDITO_EM_ABERTO",
-        "VENCIDO_ACIMA_90_DIAS",
-        "VENCIDO_31_A_90_DIAS",
+        "VENCIDO_ACIMA_360_DIAS",
+        "VENCIDO_181_A_360_DIAS",
+        "VENCIDO_121_A_180_DIAS",
+        "VENCIDO_91_A_120_DIAS",
+        "VENCIDO_61_A_90_DIAS",
+        "VENCIDO_31_A_60_DIAS",
         "VENCIDO_1_A_30_DIAS",
         "VENCE_HOJE",
-        "VENCE_EM_1_A_7_DIAS",
-        "VENCE_EM_8_A_30_DIAS",
+        "VENCE_EM_1_A_30_DIAS",
         "VENCE_EM_31_A_60_DIAS",
         "VENCE_EM_61_A_90_DIAS",
-        "VENCE_ACIMA_90_DIAS",
+        "VENCE_EM_91_A_120_DIAS",
+        "VENCE_EM_121_A_180_DIAS",
+        "VENCE_EM_181_A_360_DIAS",
+        "VENCE_ACIMA_360_DIAS",
     ]
     grouped: dict[tuple[str, str], dict[str, Any]] = defaultdict(
-        lambda: {"parcelas": 0, "titulos": set(), "saldo": 0.0, "convertido": 0.0}
+        lambda: {
+            "parcelas": 0,
+            "titulos": set(),
+            "valor_em_aberto": 0.0,
+            "convertido": 0.0,
+        }
     )
     for row in rows:
         key = (
@@ -554,7 +984,7 @@ def expiry_rows(rows: list[dict]) -> list[list[Any]]:
         group = grouped[key]
         group["parcelas"] += 1
         group["titulos"].add(row.get("titulo_id"))
-        group["saldo"] += as_number(row.get("saldo_parcela"))
+        group["valor_em_aberto"] += as_number(row.get("valor_em_aberto"))
         group["convertido"] += as_number(row.get("saldo_convertido_atual"))
 
     output = [[
@@ -562,7 +992,7 @@ def expiry_rows(rows: list[dict]) -> list[list[Any]]:
         "Unidade do saldo",
         "Quantidade de parcelas",
         "Quantidade de títulos",
-        "Saldo aberto",
+        "Valor em aberto",
         "Saldo convertido",
     ]]
     for key in sorted(
@@ -575,7 +1005,7 @@ def expiry_rows(rows: list[dict]) -> list[list[Any]]:
             key[1],
             group["parcelas"],
             len(group["titulos"]),
-            group["saldo"],
+            group["valor_em_aberto"],
             group["convertido"],
         ])
     return output
@@ -761,6 +1191,7 @@ def create_dashboard(
     rows: list[dict],
     filters: dict[str, Any],
     recebidas: list[dict] | None = None,
+    fonte: str = "ActionAPI — /api/v1/financeiro/contas-receber",
 ) -> None:
     recebidas = recebidas or []
     ws = wb.active
@@ -778,13 +1209,18 @@ def create_dashboard(
     ws["B4"] = as_date(totals.get("data_calculo"))
     ws["B4"].number_format = DATE_FORMAT
     ws["A5"] = "Fonte"
-    ws["B5"] = "ActionAPI — /api/v1/financeiro/contas-receber"
+    ws["B5"] = fonte
     ws["A6"] = "Filtros"
     ws["B6"] = ", ".join(
         f"{key}={value}" for key, value in filters.items() if value not in (None, "")
     ) or "Posição atual completa"
 
     indicators = [
+        (
+            "Valor em aberto",
+            totals.get("valor_em_aberto"),
+            True,
+        ),
         ("Saldo convertido atual", totals.get("saldo_convertido_atual"), True),
         ("Saldo vencido convertido", totals.get("saldo_vencido_convertido"), True),
         ("Próximos 7 dias — convertido", totals.get("saldo_proximos_7_dias_convertido"), True),
@@ -812,7 +1248,7 @@ def create_dashboard(
         key=lambda item: as_number(item.get("saldo_convertido_atual")),
         reverse=True,
     )[:10]
-    start = 20
+    start = 9 + len(indicators) + 1
     ws.cell(start, 1, "10 MAIORES CLIENTES")
     ws.cell(start, 2, "Saldo convertido")
     ws.cell(start, 3, "% do total")
@@ -869,7 +1305,7 @@ def create_dashboard(
     valor_parcelas = sum(valor_assinado(r) for r in combinado)
     recebido_acumulado = sum(as_number(r.get("valor_baixado")) for r in combinado)
     base = 35
-    ws.cell(base, 1, "CONCILIAÇÃO A RECEBER × RECEBIDAS")
+    ws.cell(base, 1, "CONCILIAÇÃO DOS TÍTULOS ABERTOS")
     ws.cell(base, 2, "VALOR")
     for cell in ws[base]:
         cell.fill = PatternFill("solid", fgColor=BLUE)
@@ -877,9 +1313,18 @@ def create_dashboard(
     reconciliacao = [
         ("Valor das parcelas (documento)", valor_parcelas, True),
         ("Recebido acumulado", recebido_acumulado, True),
-        ("Saldo em aberto convertido", as_number(totals.get("saldo_convertido_atual")), True),
+        (
+            "Valor em aberto",
+            as_number(totals.get("valor_em_aberto")),
+            True,
+        ),
+        (
+            "Saldo convertido pela cotação atual",
+            as_number(totals.get("saldo_convertido_atual")),
+            True,
+        ),
         ("Parcelas em aberto", len(rows), False),
-        ("Parcelas recebidas (de títulos abertos)", len(recebidas), False),
+        ("Parcelas recebidas dos títulos abertos", len(recebidas), False),
     ]
     for offset, (label, value, monetary) in enumerate(reconciliacao, 1):
         ws.cell(base + offset, 1, label)
@@ -940,7 +1385,13 @@ def create_dashboard(
     ws.column_dimensions["D"].width = 4
 
 
-def create_methodology(wb: Workbook) -> None:
+def create_methodology(
+    wb: Workbook,
+    data_base: str,
+    fonte: str,
+    recebimento_de: str,
+    recebimento_ate: str,
+) -> None:
     ws = wb.create_sheet("Metodologia")
     content = [
         ("RELATÓRIO DE CONTAS A RECEBER — METODOLOGIA", ""),
@@ -949,16 +1400,20 @@ def create_methodology(wb: Workbook) -> None:
         ("Fonte do título", "CABREC ligado às parcelas de RECEBER."),
         ("Cliente", "CODI_TRA enriquecido pelo cadastro de transacionadores/clientes."),
         ("Filial", "Razão social do transacionador ligado a CADEMP.COD1_TRA; fantasia e identificação ficam separadas."),
-        ("Recebimentos", "CRCBAIXA com SITU_BAI='N' e data de pagamento até a data atual."),
+        ("Recebimentos", "CRCBAIXA com SITU_BAI='N' no período informado da aba Recebimentos."),
         ("Estornos", "CRCBAIXA com SITU_BAI='E' não reduz o saldo."),
         ("Contratos indexados", "O saldo oficial permanece em SJ$, US$ ou ER; não é automaticamente um valor em reais."),
+        ("Valor em aberto", "Títulos em R$ permanecem em reais; títulos indexados são convertidos pela cotação de origem e arredondados parcela a parcela."),
         ("Conversão atual", "Estimativa adicional: saldo em unidades multiplicado pela cotação mais recente replicada."),
         ("Saldo local", "Reprodução PostgreSQL da função oficial, incluindo indexador, data de cada baixa, agrupamentos e tolerância."),
-        ("Abas A receber × Recebidas", "Aba 'Em Aberto' = parcelas com saldo (= relatório do controller). Aba 'Recebidas' = parcelas já quitadas (saldo ≈ 0) com baixa até a data-base, restritas aos títulos que ainda têm saldo em aberto. Aba 'Conciliação' resume por título: Valor das parcelas (assinado), Recebido acumulado e Em aberto."),
+        ("Abas de saldo e conciliação", "Aba 'Em Aberto' = parcelas com saldo. Aba 'Recebidas Títulos Abertos' = parcelas já quitadas, restritas aos títulos que ainda têm saldo em aberto. Aba 'Conciliação' resume por título: Valor das parcelas (assinado), Recebido acumulado e Em aberto."),
+        ("Aba Recebimentos", "Movimento completo de recebimentos normais no período informado, independente de o título ainda estar em aberto."),
         ("Coluna Diferença (Conciliação)", "Diferença = Valor das parcelas − Recebido − Em aberto. Fica ~0 para títulos em R$; contratos indexados (SJ$, US$, ER) podem gerar diferença esperada, pois o saldo é mantido na unidade e o recebido em reais."),
-        ("Sinal do saldo", "Documentos de natureza crédito (ex.: adiantamento de cliente) entram negativos e abatem o que há a receber, igual ao controller."),
-        ("Validação", "Em 20/06/2026, 156.487 parcelas comparadas com a função Oracle: zero divergências. Conferido contra o relatório do controller (CRC) de 21/06/2026: Valor em Aberto R$ 156.885.616,21 (R$) + 40.733,86 SJ$ vs reprodução local R$ 157.052.025,10 (R$) + 40.733,86 SJ$ — diferença de ~0,1% no R$ (defasagem de lançamentos FIDC, documentada)."),
-        ("Snapshot validado", "3.879 parcelas abertas; saldo oficial agregado de 157.092.758,96 nas unidades originais (159.448.804,32 convertido para R$)."),
+        ("Sinal do saldo", "Documentos de natureza crédito (ex.: adiantamento de cliente) entram negativos e abatem o que há a receber."),
+        ("Data-base desta planilha", data_base),
+        ("Período de recebimentos", f"{recebimento_de} a {recebimento_ate}"),
+        ("Fonte desta planilha", fonte),
+        ("Atenção a lançamentos retroativos", "O SiAGRI permite registrar hoje uma baixa com data de pagamento passada. Por isso, reproduções históricas podem mudar após nova sincronização; a planilha informa explicitamente a data-base e a fonte usadas."),
         ("Compatibilidade Excel", "As abas usam AutoFiltro simples, sem tabelas OOXML sobrepostas."),
     ]
     for row in content:
@@ -1011,24 +1466,34 @@ def validate_workbook(
 def generate_report(args: argparse.Namespace) -> Path:
     data_base = resolve_data_base(args) if getattr(args, "data_base", None) else None
     historico = bool(data_base) and data_base != date.today().isoformat()
+    report_data_base = data_base or date.today().isoformat()
+    recebimento_de, recebimento_ate = resolve_recebimento_period(args, report_data_base)
 
-    output = (
-        Path(args.arquivo).resolve()
-        if args.arquivo
-        else ROOT / "relatorios" / f"contas-a-receber-python-{date.today().isoformat()}.xlsx"
-    )
+    if args.arquivo:
+        output = Path(args.arquivo).resolve()
+    elif data_base and data_base != date.today().isoformat():
+        output = (
+            ROOT
+            / "relatorios"
+            / f"contas-a-receber-python-base-{data_base}-gerado-{date.today().isoformat()}.xlsx"
+        )
+    else:
+        output = ROOT / "relatorios" / f"contas-a-receber-python-{date.today().isoformat()}.xlsx"
 
     if historico:
         filters = {"dataBase": data_base}
         payload = fetch_historico_cr(data_base)
         rows = payload["rows"]
+        for row in rows:
+            row.setdefault("data_calculo", data_base)
         clients = payload["data"]
         units = payload["unidades"]
         totals = payload["totalizadores"]
+        fonte = "PostgreSQL local — reprodução histórica do saldo SiAGRI"
         abertas, recebidas = split_aberto_recebidas(rows)
         print(
             f"[relatorio-receber] {len(abertas)} parcelas em aberto + {len(recebidas)} "
-            f"recebidas (reprodução local em {data_base}, sem Oracle).",
+            f"recebidas dos títulos abertos (reprodução local em {data_base}, sem Oracle).",
             flush=True,
         )
     else:
@@ -1056,18 +1521,42 @@ def generate_report(args: argparse.Namespace) -> Path:
         clients = summary.get("data", [])
         units = summary.get("unidades", [])
         totals = summary.get("totalizadores", {})
+        fonte = "ActionAPI — snapshot oficial raw.duplicatas_saldo"
         print(f"[relatorio-receber] API retornou {len(abertas)} parcelas em aberto.", flush=True)
         # A API de CR só enxerga o snapshot em aberto (raw.duplicatas_saldo); as
-        # parcelas recebidas vêm da reprodução local, limitadas aos títulos abertos.
+        # parcelas recebidas dos títulos abertos vêm da reprodução local para
+        # apoiar a conciliação.
         titulos_abertos = {row.get("titulo_id") for row in abertas}
         recebidas = fetch_recebidas_cr(date.today().isoformat(), titulos_abertos)
-        print(f"[relatorio-receber] {len(recebidas)} parcelas recebidas anexadas.", flush=True)
+        print(
+            f"[relatorio-receber] {len(recebidas)} parcelas recebidas dos títulos "
+            "abertos anexadas.",
+            flush=True,
+        )
+
+    normalize_report_rows(abertas, report_data_base)
+    normalize_report_rows(recebidas, report_data_base)
+    enrich_open_values(abertas, totals, units, clients)
+    filters["recebimentoDe"] = recebimento_de
+    filters["recebimentoAte"] = recebimento_ate
+    recebimentos = fetch_recebimentos_cr(recebimento_de, recebimento_ate)
 
     wb = Workbook()
-    create_dashboard(wb, totals, clients, units, abertas, filters, recebidas=recebidas)
+    create_dashboard(
+        wb,
+        totals,
+        clients,
+        units,
+        abertas,
+        filters,
+        recebidas=recebidas,
+        fonte=fonte,
+    )
     headers = [header for _key, header in DETAIL_COLUMNS]
     add_data_sheet(wb, "Em Aberto", headers, detail_rows(abertas))
-    add_data_sheet(wb, "Recebidas", headers, detail_rows(recebidas))
+    add_data_sheet(wb, "Recebidas Títulos Abertos", headers, detail_rows(recebidas))
+    recebimento_headers = [header for _key, header in RECEBIMENTO_COLUMNS]
+    add_data_sheet(wb, "Recebimentos", recebimento_headers, recebimento_rows(recebimentos))
     conc = conciliacao_rows(abertas + recebidas)
     add_data_sheet(wb, "Conciliação", conc[0], conc[1:])
 
@@ -1086,14 +1575,8 @@ def generate_report(args: argparse.Namespace) -> Path:
     add_data_sheet(
         wb,
         "Divergencias Saldo",
-        headers,
-        detail_rows(
-            [
-                row
-                for row in abertas
-                if abs(as_number(row.get("diferenca_saldo_local"))) > 0.01
-            ]
-        ),
+        [header for _key, header in DIVERGENCE_COLUMNS],
+        divergence_rows(abertas, report_data_base),
     )
     add_data_sheet(
         wb,
@@ -1101,7 +1584,7 @@ def generate_report(args: argparse.Namespace) -> Path:
         headers,
         detail_rows([row for row in abertas if row.get("fidc")]),
     )
-    create_methodology(wb)
+    create_methodology(wb, report_data_base, fonte, recebimento_de, recebimento_ate)
 
     output.parent.mkdir(parents=True, exist_ok=True)
     print("[relatorio-receber] gravando arquivo XLSX...", flush=True)
@@ -1110,7 +1593,8 @@ def generate_report(args: argparse.Namespace) -> Path:
     expected_balance = as_number(totals.get("saldo_convertido_atual"))
     validate_workbook(output, len(abertas), expected_balance)
     print(
-        f"[relatorio-receber] {len(abertas)} em aberto / {len(recebidas)} recebidas exportadas"
+        f"[relatorio-receber] {len(abertas)} em aberto / {len(recebidas)} "
+        f"recebidas dos títulos abertos / {len(recebimentos)} recebimentos exportados"
     )
     print(f"[relatorio-receber] saldo convertido validado: R$ {expected_balance:,.2f}")
     print(f"[relatorio-receber] arquivo: {output}")
