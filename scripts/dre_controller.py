@@ -20,7 +20,6 @@ Exemplo:
 from __future__ import annotations
 
 import argparse
-import calendar
 import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -34,7 +33,6 @@ try:
     from openpyxl import load_workbook
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import column_index_from_string, get_column_letter
-    from openpyxl.worksheet.table import Table, TableStyleInfo
 except ModuleNotFoundError:
     print(
         "Dependência ausente. Execute:\n"
@@ -119,6 +117,18 @@ DRE_EXERCICIO_AV_COLS = [6, 9, 12, 15, 17]     # F, I, L, O, Q
 
 BP_YEAR_COLS = [4, 5, 6, 7, 8]  # D:H
 
+BALANCETE_BRANCH_NAMES = {
+    "1": "Goiatuba",
+    "2": "Campo Alegre",
+    "3": "Gurupi",
+    "4": "Lagoa",
+    "5": "Porto",
+    "6": "Araguari",
+    "7": "Monte Carmelo",
+    "8": "Alvorada",
+    "9": "Piracanjuba",
+}
+
 TRIM_LIMITS = {
     "SGA_Planejamento": (80, 160),
     "SGA_BP": (8, 120),
@@ -137,19 +147,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--modelo", default=str(DEFAULT_MODEL), help="Arquivo .xlsx usado como template visual.")
     parser.add_argument("--arquivo", help="Arquivo .xlsx de saída.")
     parser.add_argument("--historico-encerramento", default=ENCERRAMENTO_HISTORICO)
-    parser.add_argument(
-        "--com-balancete-mensal",
-        dest="balancete_mensal",
-        action="store_true",
-        help="Inclui linhas mensais no SGA_Balancete Geral.",
-    )
-    parser.add_argument(
-        "--sem-balancete-mensal",
-        dest="balancete_mensal",
-        action="store_false",
-        help="Gera apenas o balancete anual, mais rapido.",
-    )
-    parser.set_defaults(balancete_mensal=None)
     parser.add_argument(
         "--nao-interativo",
         action="store_true",
@@ -172,8 +169,6 @@ def complete_interactive_args(args: argparse.Namespace) -> argparse.Namespace:
     """Pergunta no uso manual, mas preserva execução por serviço/Docker."""
     if args.nao_interativo or not sys.stdin.isatty():
         args.anos = args.anos or "2021-2025"
-        if args.balancete_mensal is None:
-            args.balancete_mensal = True
         return args
 
     if not args.anos:
@@ -181,13 +176,6 @@ def complete_interactive_args(args: argparse.Namespace) -> argparse.Namespace:
             "Quais exercícios deseja gerar? Use intervalo/lista, ex.: 2021-2025 ou 2023,2024,2025",
             "2021-2025",
         )
-
-    if args.balancete_mensal is None:
-        print("\nComo deseja gerar o balancete?")
-        print("  1 - Completo, com visão anual e mensal (mais demorado)")
-        print("  2 - Rápido, somente visão anual")
-        choice = ask_with_default("Escolha 1 ou 2", "1")
-        args.balancete_mensal = choice.strip() != "2"
 
     years = parse_years(args.anos)
     if args.ano_comparativa is None:
@@ -407,6 +395,7 @@ def list_cell_formulas(workbook, limit: int = 20) -> list[str]:
 
 
 def save_controller_workbook(workbook, output: Path, required_sheets: list[str]) -> None:
+    reset_all_tables(workbook)
     formulas = count_cell_formulas(workbook)
     if formulas:
         examples = "; ".join(list_cell_formulas(workbook, 10))
@@ -423,11 +412,6 @@ def save_controller_workbook(workbook, output: Path, required_sheets: list[str])
     check.close()
     if missing or formula_count:
         raise RuntimeError(f"Validação falhou: abas ausentes={missing}, fórmulas={formula_count}.")
-
-def month_bounds(year: int, month: int) -> tuple[str, str]:
-    last_day = calendar.monthrange(year, month)[1]
-    return f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day:02d}"
-
 
 def fetch_branch_registry(api_url: str, api_key: str) -> tuple[list[BranchInfo], str]:
     """Busca filiais na ActionAPI; usa lista operacional antiga como fallback."""
@@ -464,12 +448,52 @@ def active_branches(branches: list[BranchInfo]) -> list[BranchInfo]:
     return active or branches
 
 
+def controller_visible_branches(branches: list[BranchInfo]) -> list[BranchInfo]:
+    by_id = {branch.id: branch for branch in branches}
+    visible: list[BranchInfo] = []
+    for branch_id, branch_name in BRANCHES:
+        current = by_id.get(branch_id)
+        visible.append(
+            BranchInfo(
+                id=branch_id,
+                nome=branch_name,
+                situacao=current.situacao if current else "A",
+                ativa=current.ativa if current else True,
+                origem=current.origem if current else "controller-layout",
+            )
+        )
+    return visible
+
+
+def branch_display_name(branch: BranchInfo) -> str:
+    return BALANCETE_BRANCH_NAMES.get(branch.id) or branch.nome or branch.id
+
+
 def inactive_branches_text(branches: list[BranchInfo], source: str) -> str:
     inactive = [branch for branch in branches if (not branch.ativa) or branch.situacao.upper() == "I"]
     if not inactive:
         return f"Filiais INATIVAS: nenhuma conforme {source}."
     names = ", ".join(f"{branch.nome} ({branch.id})" for branch in inactive)
     return f"Filiais INATIVAS: {names} conforme {source}."
+
+
+def account_description(accounts_by_id: dict[str, dict[str, Any]], account_id: str) -> str | None:
+    row = accounts_by_id.get(account_id)
+    return str(row.get("descricao")) if row and row.get("descricao") is not None else None
+
+
+def account_grau3(accounts_by_id: dict[str, dict[str, Any]], account_id: str) -> str | None:
+    if len(account_id) < 3:
+        return None
+    return account_description(accounts_by_id, account_id[:3])
+
+
+def account_natureza(accounts_by_id: dict[str, dict[str, Any]], account_id: str) -> str | None:
+    if len(account_id) < 4:
+        return None
+    if len(account_id) >= 6 and account_description(accounts_by_id, account_id[:6]):
+        return account_description(accounts_by_id, account_id[:6])
+    return account_description(accounts_by_id, account_id[:4]) or account_description(accounts_by_id, account_id)
 
 
 def set_number_format(cell, kind: str = "money") -> None:
@@ -534,17 +558,9 @@ def reset_tables(ws) -> None:
         del ws.tables[name]
 
 
-def add_table(ws, display_name: str, ref: str) -> None:
-    reset_tables(ws)
-    table = Table(displayName=display_name, ref=ref)
-    table.tableStyleInfo = TableStyleInfo(
-        name="TableStyleMedium4",
-        showFirstColumn=False,
-        showLastColumn=False,
-        showRowStripes=True,
-        showColumnStripes=False,
-    )
-    ws.add_table(table)
+def reset_all_tables(workbook) -> None:
+    for ws in workbook.worksheets:
+        reset_tables(ws)
 
 
 def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[BranchInfo]) -> tuple[
@@ -553,7 +569,9 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
     dict[int, dict[str, dict[str, Any]]],
     dict[int, dict[str, float]],
     dict[int, dict[str, dict[str, float]]],
-    dict[tuple[int, int], dict[str, dict[str, Any]]],
+    dict[int, dict[str, dict[str, dict[str, Any]]]],
+    dict[int, dict[str, dict[str, dict[str, Any]]]],
+    dict[str, dict[str, dict[str, Any]]],
 ]:
     api_key = first_api_key()
     dre_accounts_by_year: dict[int, dict[str, dict[str, Any]]] = {}
@@ -561,7 +579,9 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
     bp_accounts_by_year: dict[int, dict[str, dict[str, Any]]] = {}
     indicators_by_year: dict[int, dict[str, float]] = {}
     branch_dre_by_year: dict[int, dict[str, dict[str, float]]] = {}
-    monthly_accounts: dict[tuple[int, int], dict[str, dict[str, Any]]] = {}
+    branch_accounts_by_year: dict[int, dict[str, dict[str, dict[str, Any]]]] = {}
+    branch_accum_by_year: dict[int, dict[str, dict[str, dict[str, Any]]]] = {}
+    branch_prior_before_first: dict[str, dict[str, dict[str, Any]]] = {}
 
     for year in years:
         dre_accounts = fetch_synthetic(
@@ -586,7 +606,7 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
         indicators_by_year[year] = calculate_indicators(year, dre_by_year[year], bp_accounts)
         print(f"[dre-controller] {year}: DRE e BP carregados", flush=True)
 
-    def fetch_branch_year(year: int, branch: BranchInfo) -> tuple[int, BranchInfo, dict[str, float]]:
+    def fetch_branch_year(year: int, branch: BranchInfo) -> tuple[int, BranchInfo, dict[str, dict[str, Any]], dict[str, float]]:
         accounts = fetch_synthetic(
             args.api_url,
             api_key,
@@ -596,44 +616,58 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
             excluir_encerramento=True,
             historico_encerramento=args.historico_encerramento,
         )
-        return year, branch, with_extra_dre_values(calculate_dre(accounts))
+        return year, branch, accounts, with_extra_dre_values(calculate_dre(accounts))
 
     branch_tasks = [(year, branch) for year in years for branch in branches]
     max_workers = min(8, max(1, len(branch_tasks)))
     for year in years:
         branch_dre_by_year[year] = {}
+        branch_accounts_by_year[year] = {}
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(fetch_branch_year, year, branch) for year, branch in branch_tasks]
         for future in as_completed(futures):
-            year, branch, values = future.result()
+            year, branch, accounts, values = future.result()
+            branch_accounts_by_year[year][branch.id] = accounts
             branch_dre_by_year[year][branch.id] = values
             print(f"[dre-controller] {year} filial {branch.id} {branch.nome}: DRE carregada", flush=True)
 
-    if args.balancete_mensal:
-        def fetch_month(year: int, month: int) -> tuple[int, int, dict[str, dict[str, Any]]]:
-            data_inicio, data_fim = month_bounds(year, month)
-            accounts = fetch_synthetic(
-                args.api_url,
-                api_key,
-                data_inicio=data_inicio,
-                data_fim=data_fim,
-                excluir_encerramento=True,
-                historico_encerramento=args.historico_encerramento,
-            )
-            return year, month, accounts
+    def fetch_branch_accum(year: int, branch: BranchInfo) -> tuple[int, BranchInfo, dict[str, dict[str, Any]]]:
+        accounts = fetch_synthetic(
+            args.api_url,
+            api_key,
+            data_inicio=DATA_INICIO_PLANO_ATUAL,
+            data_fim=f"{year}-12-31",
+            filial_id=branch.id,
+        )
+        return year, branch, accounts
 
-        month_tasks = [(year, month) for year in years for month in range(1, 13)]
-        with ThreadPoolExecutor(max_workers=min(8, len(month_tasks))) as executor:
-            futures = [executor.submit(fetch_month, year, month) for year, month in month_tasks]
-            loaded_by_year: dict[int, int] = {year: 0 for year in years}
-            for future in as_completed(futures):
-                year, month, accounts = future.result()
-                monthly_accounts[(year, month)] = accounts
-                loaded_by_year[year] += 1
-                if loaded_by_year[year] == 12:
-                    print(f"[dre-controller] {year}: balancete mensal carregado", flush=True)
+    for year in years:
+        branch_accum_by_year[year] = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(fetch_branch_accum, year, branch) for year, branch in branch_tasks]
+        for future in as_completed(futures):
+            year, branch, accounts = future.result()
+            branch_accum_by_year[year][branch.id] = accounts
+        print("[dre-controller] saldos acumulados por filial carregados", flush=True)
 
-    return dre_accounts_by_year, dre_by_year, bp_accounts_by_year, indicators_by_year, branch_dre_by_year, monthly_accounts
+    first_year = min(years)
+    prior_year = first_year - 1
+    with ThreadPoolExecutor(max_workers=min(8, len(branches))) as executor:
+        futures = [executor.submit(fetch_branch_accum, prior_year, branch) for branch in branches]
+        for future in as_completed(futures):
+            _year, branch, accounts = future.result()
+            branch_prior_before_first[branch.id] = accounts
+
+    return (
+        dre_accounts_by_year,
+        dre_by_year,
+        bp_accounts_by_year,
+        indicators_by_year,
+        branch_dre_by_year,
+        branch_accounts_by_year,
+        branch_accum_by_year,
+        branch_prior_before_first,
+    )
 
 
 def av_for_dre_key(key: str, values: dict[str, float]) -> float | None:
@@ -649,6 +683,7 @@ def fill_dre_exercicio(
     dre_by_year: dict[int, dict[str, float]],
     audit_rows: list[list[Any]],
 ) -> None:
+    clear_range(ws, 8, 72, 4, 17)
     display_years = sorted(years, reverse=True)[: len(DRE_EXERCICIO_VALUE_COLS)]
     for idx, year in enumerate(display_years):
         ws.cell(8, DRE_EXERCICIO_VALUE_COLS[idx], year)
@@ -820,41 +855,59 @@ def average(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def formula_cells(template: Path, sheet_name: str, max_row: int, max_col: int) -> set[str]:
+    wb = load_workbook(template, data_only=False, read_only=True, keep_links=False)
+    ws = wb[sheet_name]
+    cells: set[str] = set()
+    for row in ws.iter_rows(min_row=1, max_row=max_row, min_col=1, max_col=max_col):
+        for cell in row:
+            if isinstance(cell.value, str) and cell.value.startswith("="):
+                cells.add(cell.coordinate)
+    wb.close()
+    return cells
+
+
 def fill_planejamento(
     ws,
     years: list[int],
     dre_by_year: dict[int, dict[str, float]],
     branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
     branches: list[BranchInfo],
+    formula_mask: set[str],
     audit_rows: list[list[Any]],
 ) -> None:
     last_year = max(years)
     plan_year = last_year + 1
     period_label = f"{min(years)}/{str(last_year)[-2:]}"
-    max_col = min(80, 7 + len(branches) * 4)
+    max_col = 25  # A:Y, igual ao modelo do controller
 
-    unmerge_intersecting(ws, 5, 6, 4, 80)
-    clear_range(ws, 5, 120, 4, 80)
+    unmerge_intersecting(ws, 5, 6, 4, max_col)
+    clear_range(ws, 5, 120, 4, max_col)
     ws.cell(1, 3, f"Planejamento {plan_year}")
     ws.cell(5, 4, "CONSOLIDADO")
     ws.merge_cells(start_row=5, start_column=4, end_row=5, end_column=7)
 
-    headers = [
-        f"Media {period_label}",
+    consolidated_headers = [
+        f"Média {period_label}",
         last_year,
         f"{plan_year} (Planejado)",
         f"(%) A.V. - {last_year}",
     ]
-    for offset, header in enumerate(headers):
+    for offset, header in enumerate(consolidated_headers):
         cell = ws.cell(6, 4 + offset, header)
         cell.fill = HEADER_FILL
         cell.font = WHITE_FONT
 
     for idx, branch in enumerate(branches):
-        start_col = 8 + idx * 4
+        start_col = 8 + idx * 3
         ws.cell(5, start_col, branch.nome)
-        ws.merge_cells(start_row=5, start_column=start_col, end_row=5, end_column=start_col + 3)
-        for offset, header in enumerate(headers):
+        ws.merge_cells(start_row=5, start_column=start_col, end_row=5, end_column=start_col + 2)
+        branch_headers = [
+            f"Média {period_label}",
+            last_year,
+            "(%) no Consolidado",
+        ]
+        for offset, header in enumerate(branch_headers):
             cell = ws.cell(6, start_col + offset, header)
             cell.fill = HEADER_FILL
             cell.font = WHITE_FONT
@@ -873,14 +926,17 @@ def fill_planejamento(
         consolidated_av = av_for_dre_key(key, dre_by_year[last_year])
         line = next((item for item in DRE_LINES if item.key == key), None)
 
-        values = [
+        consolidated_values = [
             ("Media historica", consolidated_media, "money"),
             ("Ultimo exercicio fechado", consolidated_last, "money"),
             ("Planejado", None, "money"),
             ("Analise vertical", consolidated_av, "percent"),
         ]
-        for offset, (tipo, value, kind) in enumerate(values):
+        for offset, (tipo, value, kind) in enumerate(consolidated_values):
             cell = ws.cell(row, 4 + offset, value)
+            if cell.coordinate not in formula_mask and tipo != "Planejado":
+                cell.value = None
+                continue
             set_number_format(cell, kind)
             write_audit(
                 audit_rows,
@@ -899,22 +955,23 @@ def fill_planejamento(
             )
 
         for idx, branch in enumerate(branches):
-            start_col = 8 + idx * 4
+            start_col = 8 + idx * 3
             branch_values_last = branch_dre_by_year[last_year].get(branch.id, {})
             branch_media = average([
                 branch_dre_by_year.get(year, {}).get(branch.id, {}).get(key, 0.0)
                 for year in years
             ])
             branch_last = branch_values_last.get(key, 0.0)
-            branch_av = av_for_dre_key(key, branch_values_last)
             branch_values = [
                 ("Media historica por filial", branch_media, "money"),
                 ("Ultimo exercicio fechado por filial", branch_last, "money"),
-                ("Planejado por filial", None, "money"),
-                ("Analise vertical por filial", branch_av, "percent"),
+                ("% no consolidado", safe_ratio(branch_last, consolidated_last), "percent"),
             ]
             for offset, (tipo, value, kind) in enumerate(branch_values):
                 cell = ws.cell(row, start_col + offset, value)
+                if cell.coordinate not in formula_mask:
+                    cell.value = None
+                    continue
                 set_number_format(cell, kind)
                 write_audit(
                     audit_rows,
@@ -927,9 +984,9 @@ def fill_planejamento(
                     branch.label,
                     label,
                     value,
-                    "Media = media simples dos exercicios fechados da filial; ultimo ano = DRE da filial; planejado fica em branco; AV = valor / Receita Operacional Liquida da filial.",
+                    "Media = media simples dos exercicios fechados da filial; ultimo ano = DRE da filial; % no consolidado = valor da filial / consolidado da linha.",
                     f"/api/v1/executivo/contabilidade/sintetico?filialId={branch.id}",
-                    dre_line_formula_text(line) if line and "Analise vertical" not in tipo else "",
+                    dre_line_formula_text(line) if line and "% no" not in tipo else "",
                 )
 
     for col in range(4, max_col + 1):
@@ -947,6 +1004,7 @@ def fill_bp(
     audit_rows: list[list[Any]],
 ) -> None:
     ws.cell(4, 2, inactive_text)
+    clear_range(ws, 5, 95, min(BP_YEAR_COLS), max(BP_YEAR_COLS))
     display_years = sorted(years)[: len(BP_YEAR_COLS)]
     for idx, year in enumerate(display_years):
         ws.cell(5, BP_YEAR_COLS[idx], year)
@@ -1027,7 +1085,8 @@ def fill_fonte(ws, years: list[int], generated_at: str, branch_source: str, inac
         ("Cálculo", "Python; planilha gerada sem fórmulas em células."),
         ("DRE", f"excluirEncerramento=true; HIST_HIS <> {ENCERRAMENTO_HISTORICO}"),
         ("Filiais", f"{branch_source}. {inactive_text}"),
-        ("Balancete", "Aba com filtro por exercício, mês e tipo de período. Linhas anuais usam saldos anuais/acumulados; linhas mensais usam movimento do mês."),
+        ("Balancete", "Aba anual por loja, no layout original A:M do controller. A visão mensal deve ser gerada em aba própria para não quebrar filtros/estrutura."),
+        ("DRE Comparativa por Ano", "Aba filtrável: uma linha por exercício x conta da DRE. Use o filtro da coluna 'Ano' para escolher o exercício e ver o comparativo por filial (consolidado, A.V. e % no consolidado), já que a planilha não usa fórmulas vivas para trocar o ano."),
         ("Planejamento", "Cada bloco possui Média dos exercícios fechados, último exercício fechado, planejado em branco e A.V. do último exercício."),
         ("Mapa de Cálculo", "Aba criada pelo Python para documentar células calculadas, fonte e critério, já que o arquivo final não contém fórmulas."),
         ("Correções", "PCLD sem dupla contagem da perda; ROA/ROE pelo resultado da DRE; Liquidez Geral e Endividamento técnicos; impostos/devoluções abertos sem dupla contagem visual."),
@@ -1045,7 +1104,7 @@ def account_group_description(account_id: str) -> str:
     if account_id.startswith("3"):
         return "Receitas"
     if account_id.startswith("4"):
-        return "Custos e Despesas"
+        return "Custo/Despesas"
     return "Outros"
 
 
@@ -1070,24 +1129,29 @@ def clear_rows_from(ws, start_row: int) -> None:
 def fill_balancete_geral(
     ws,
     years: list[int],
-    dre_accounts_by_year: dict[int, dict[str, dict[str, Any]]],
-    bp_accounts_by_year: dict[int, dict[str, dict[str, Any]]],
-    monthly_accounts: dict[tuple[int, int], dict[str, dict[str, Any]]],
+    branches: list[BranchInfo],
+    branch_accounts_by_year: dict[int, dict[str, dict[str, dict[str, Any]]]],
+    branch_accum_by_year: dict[int, dict[str, dict[str, dict[str, Any]]]],
+    branch_prior_before_first: dict[str, dict[str, dict[str, Any]]],
     generated_at: str,
     audit_rows: list[list[Any]],
 ) -> None:
+    reset_tables(ws)
     clear_rows_from(ws, 10)
-    clear_range(ws, 9, 9, 1, 20)
-    ws.cell(1, 15, generated_at)
+    clear_range(ws, 8, 9, 1, 20)
+    ws.cell(1, 13, generated_at)
     ws.cell(3, 1, "SULGOIANO AGRONEGÓCIOS LTDA")
-    ws.cell(4, 1, "Balancete API - consolidado")
-    ws.cell(5, 1, "Dados gerados pela ActionAPI; DRE sem encerramento HIST_HIS=1000191; BP acumulado. Inclui filtros por exercicio e mes.")
+    ws.cell(4, 1, "Balancete - todas as empresas")
+    ws.cell(5, 1, "Dados gerados pela ActionAPI; uma linha por Loja/Exercício/Conta, seguindo a estrutura do controller.")
+
+    signal_headers = {9: "(=)", 10: "(+)", 11: "(-)", 13: "(=)"}
+    for col, value in signal_headers.items():
+        ws.cell(8, col, value)
+        ws.cell(8, col).font = Font(bold=True)
 
     headers = [
         "Loja",
         "Exercício",
-        "Mês",
-        "Tipo período",
         "Grau 1",
         "Grau 3",
         "Natureza da Conta",
@@ -1105,95 +1169,198 @@ def fill_balancete_geral(
         cell.fill = HEADER_FILL
         cell.font = WHITE_FONT
 
+    all_accounts: dict[str, dict[str, Any]] = {}
     for year in years:
-        rows_by_account: dict[str, dict[str, Any]] = {}
-        for account_id, row in bp_accounts_by_year[year].items():
-            if account_id.startswith(("1", "2")):
-                rows_by_account[account_id] = row
-        for account_id, row in dre_accounts_by_year[year].items():
-            if account_id.startswith(("3", "4")):
-                rows_by_account[account_id] = row
+        for branch_id in branch_accounts_by_year.get(year, {}):
+            all_accounts.update(branch_accounts_by_year[year][branch_id])
+        for branch_id in branch_accum_by_year.get(year, {}):
+            all_accounts.update(branch_accum_by_year[year][branch_id])
 
-        for account_id in sorted(rows_by_account):
-            row = rows_by_account[account_id]
-            value = account_display_value(account_id, row)
-            ws.append([
-                "Consolidado",
-                year,
-                "Anual",
-                "Anual",
-                account_group_description(account_id),
-                None,
-                None if len(account_id) not in (4, 6, 10) else row.get("descricao"),
-                len(account_id),
-                account_id,
-                row.get("descricao"),
-                0.0,
-                number(row.get("debitos")),
-                number(row.get("creditos")),
-                value,
-                value,
-            ])
-            excel_row = ws.max_row
-            for col in range(11, 16):
-                set_number_format(ws.cell(excel_row, col), "money")
-            if len(account_id) <= 4 and abs(value) > 0.004:
-                write_audit(
-                    audit_rows,
-                    ws.title,
-                    f"N{excel_row}:O{excel_row}",
-                    "Balancete",
-                    "Anual",
+    sorted_branches = sorted(branches, key=lambda b: branch_display_name(b))
+    min_year = min(years)
+
+    for branch in sorted_branches:
+        for year in years:
+            movement = branch_accounts_by_year.get(year, {}).get(branch.id, {})
+            accumulated = branch_accum_by_year.get(year, {}).get(branch.id, {})
+            if year - 1 in years:
+                previous = branch_accum_by_year.get(year - 1, {}).get(branch.id, {})
+            elif year == min_year:
+                previous = branch_prior_before_first.get(branch.id, {})
+            else:
+                previous = {}
+
+            account_ids = set(movement) | set(accumulated) | set(previous)
+            for account_id in sorted(account_ids):
+                if not account_id or not account_id[0].isdigit():
+                    continue
+                row_mov = movement.get(account_id, {})
+                row_acc = accumulated.get(account_id, {})
+                row_prev = previous.get(account_id, {})
+
+                debit = number(row_mov.get("debitos"))
+                credit = number(row_mov.get("creditos"))
+                saldo_mes = account_display_value(account_id, row_mov)
+                if account_id.startswith(("1", "2")):
+                    saldo_anterior = account_display_value(account_id, row_prev)
+                    saldo_atual = account_display_value(account_id, row_acc)
+                else:
+                    saldo_anterior = 0.0
+                    saldo_atual = saldo_mes
+
+                if (
+                    abs(saldo_anterior) < 0.005
+                    and abs(debit) < 0.005
+                    and abs(credit) < 0.005
+                    and abs(saldo_mes) < 0.005
+                    and abs(saldo_atual) < 0.005
+                ):
+                    continue
+
+                description = row_acc.get("descricao") or row_mov.get("descricao") or row_prev.get("descricao") or account_description(all_accounts, account_id)
+                ws.append([
+                    branch_display_name(branch),
                     year,
-                    "Anual",
-                    "Consolidado",
-                    f"{account_id} - {row.get('descricao') or ''}",
-                    value,
-                    "Saldo exibido conforme criterio gerencial; contas 2 e 3 com sinal invertido.",
-                    "/api/v1/executivo/contabilidade/sintetico",
-                    f"Debitos={format_formula_value(number(row.get('debitos')))}; Creditos={format_formula_value(number(row.get('creditos')))}",
-                )
-
-    for (year, month), accounts in sorted(monthly_accounts.items()):
-        for account_id in sorted(accounts):
-            row = accounts[account_id]
-            debits = number(row.get("debitos"))
-            credits = number(row.get("creditos"))
-            saldo = number(row.get("saldo"))
-            if abs(debits) < 0.005 and abs(credits) < 0.005 and abs(saldo) < 0.005:
-                continue
-            value = account_display_value(account_id, row)
-            ws.append([
-                "Consolidado",
-                year,
-                month,
-                "Mensal",
-                account_group_description(account_id),
-                None,
-                None if len(account_id) not in (4, 6, 10) else row.get("descricao"),
-                len(account_id),
-                account_id,
-                row.get("descricao"),
-                0.0,
-                debits,
-                credits,
-                value,
-                value,
-            ])
-            excel_row = ws.max_row
-            for col in range(11, 16):
-                set_number_format(ws.cell(excel_row, col), "money")
+                    account_group_description(account_id),
+                    account_grau3(all_accounts, account_id),
+                    account_natureza(all_accounts, account_id),
+                    len(account_id),
+                    account_id,
+                    description,
+                    saldo_anterior,
+                    debit,
+                    credit,
+                    saldo_mes,
+                    saldo_atual,
+                ])
+                excel_row = ws.max_row
+                for col in range(9, 14):
+                    set_number_format(ws.cell(excel_row, col), "money")
+                if len(account_id) <= 4:
+                    write_audit(
+                        audit_rows,
+                        ws.title,
+                        f"I{excel_row}:M{excel_row}",
+                        "Balancete",
+                        "Anual por loja",
+                        year,
+                        "Anual",
+                        branch_display_name(branch),
+                        f"{account_id} - {description or ''}",
+                        saldo_atual,
+                        "Patrimoniais: saldo anterior acumulado + movimento do exercício. Resultado: saldo anterior zero e saldo atual do próprio exercício.",
+                        "/api/v1/executivo/contabilidade/sintetico por filial",
+                        f"Debitos={format_formula_value(debit)}; Creditos={format_formula_value(credit)}; SaldoMes={format_formula_value(saldo_mes)}",
+                    )
 
     ws.freeze_panes = "A10"
-    ws.auto_filter.ref = f"A9:O{ws.max_row}"
-    add_table(ws, "TabelaBalanceteGeral", f"A9:O{ws.max_row}")
+    ws.auto_filter.ref = f"A9:M{ws.max_row}"
     widths = {
-        "A": 14, "B": 12, "C": 10, "D": 14, "E": 18, "F": 14, "G": 28,
-        "H": 10, "I": 16, "J": 48, "K": 16, "L": 16, "M": 16, "N": 16, "O": 16,
+        "A": 18, "B": 12, "C": 18, "D": 24, "E": 32, "F": 10, "G": 16,
+        "H": 48, "I": 16, "J": 16, "K": 16, "L": 16, "M": 16,
     }
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
-    trim_worksheet_fast(ws, 15, ws.max_row)
+    trim_worksheet_fast(ws, 13, ws.max_row)
+
+
+def comparativa_line_plan(template_ws) -> list[tuple[str, str]]:
+    """Lê a ordem/rótulo das linhas visíveis da aba comparativa do template.
+
+    Reaproveita exatamente as linhas (8..72) que o controller mostra na
+    SGA_DRE Comparativa, garantindo que a versão filtrável tenha as mesmas
+    contas, na mesma ordem e com os rótulos já corrigidos.
+    """
+    plan: list[tuple[str, str]] = []
+    for row in range(8, 73):
+        label = CORRECTED_LABELS.get((template_ws.title, row)) or template_ws.cell(row, 3).value
+        key = dre_key_for_row(template_ws.title, row, label)
+        if not key:
+            continue
+        plan.append((key, str(label or "").strip()))
+    return plan
+
+
+def fill_dre_comparativa_filtravel(
+    wb,
+    template_ws,
+    years: list[int],
+    dre_by_year: dict[int, dict[str, float]],
+    branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
+    branches: list[BranchInfo],
+    audit_rows: list[list[Any]],
+) -> None:
+    """Aba em formato longo (uma linha por Ano x linha da DRE) para permitir
+    filtrar o exercício pelo filtro nativo do Excel, mantendo os comparativos
+    por filial do controller (consolidado, A.V. e % no consolidado).
+    """
+    sheet_name = "DRE Comparativa por Ano"
+    if sheet_name in wb.sheetnames:
+        del wb[sheet_name]
+    ws = wb.create_sheet(sheet_name)
+
+    plan = comparativa_line_plan(template_ws)
+    headers = ["Ano", "Linha", "Consolidado", "(%) A.V."]
+    for branch in branches:
+        headers += [branch.nome, f"(%) A.V. {branch.nome}", f"(%) {branch.nome}/Consolidado"]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.fill = HEADER_FILL
+        cell.font = WHITE_FONT
+        cell.alignment = Alignment(wrap_text=True, vertical="center")
+
+    for year in sorted(years, reverse=True):
+        consolidated = dre_by_year[year]
+        for key, label in plan:
+            line = next((item for item in DRE_LINES if item.key == key), None)
+            value = consolidated.get(key, 0.0)
+            record: list[Any] = [year, label, value, av_for_dre_key(key, consolidated)]
+            for branch in branches:
+                branch_values = branch_dre_by_year[year].get(branch.id, {})
+                branch_value = branch_values.get(key, 0.0)
+                record += [
+                    branch_value,
+                    av_for_dre_key(key, branch_values),
+                    safe_ratio(branch_value, value),
+                ]
+            ws.append(record)
+            excel_row = ws.max_row
+            set_number_format(ws.cell(excel_row, 3), "money")
+            set_number_format(ws.cell(excel_row, 4), "percent")
+            col = 5
+            for _branch in branches:
+                set_number_format(ws.cell(excel_row, col), "money")
+                set_number_format(ws.cell(excel_row, col + 1), "percent")
+                set_number_format(ws.cell(excel_row, col + 2), "percent")
+                col += 3
+            write_audit(
+                audit_rows,
+                sheet_name,
+                f"A{excel_row}",
+                "DRE comparativa filtravel",
+                "Valor",
+                year,
+                "Anual",
+                "Consolidado",
+                label,
+                value,
+                dre_line_formula_text(line) if line else "linha calculada em Python",
+                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={year}-01-01&dataFim={year}-12-31&excluirEncerramento=true",
+                "Filtre a coluna Ano para escolher o exercício; comparativos por filial seguem o layout do controller.",
+            )
+
+    ws.freeze_panes = "C2"
+    ws.auto_filter.ref = ws.dimensions
+    ws.column_dimensions["A"].width = 8
+    ws.column_dimensions["B"].width = 46
+    ws.column_dimensions["C"].width = 18
+    ws.column_dimensions["D"].width = 12
+    col = 5
+    for _branch in branches:
+        ws.column_dimensions[get_column_letter(col)].width = 18
+        ws.column_dimensions[get_column_letter(col + 1)].width = 12
+        ws.column_dimensions[get_column_letter(col + 2)].width = 14
+        col += 3
 
 
 def create_mapa_calculo(wb, audit_rows: list[list[Any]]) -> None:
@@ -1265,10 +1432,11 @@ def generate_report(args: argparse.Namespace) -> Path:
     print(f"[dre-controller] consultando ActionAPI em {args.api_url}...", flush=True)
     api_key = first_api_key()
     branch_registry, branch_source = fetch_branch_registry(args.api_url, api_key)
-    report_branches = active_branches(branch_registry)
+    balancete_branches = branch_registry
+    report_branches = controller_visible_branches(branch_registry)
     inactive_text = inactive_branches_text(branch_registry, branch_source)
     print(
-        f"[dre-controller] filiais ativas para DRE/Planejamento: "
+        f"[dre-controller] filiais visiveis para DRE/Planejamento: "
         f"{', '.join(branch.id for branch in report_branches)}",
         flush=True,
     )
@@ -1280,15 +1448,36 @@ def generate_report(args: argparse.Namespace) -> Path:
         bp_accounts_by_year,
         indicators_by_year,
         branch_dre_by_year,
-        monthly_accounts,
-    ) = fetch_all_data(args, years, report_branches)
+        branch_accounts_by_year,
+        branch_accum_by_year,
+        branch_prior_before_first,
+    ) = fetch_all_data(args, years, balancete_branches)
 
+    planejamento_formula_mask = formula_cells(model, "SGA_Planejamento", 71, 25)
     fill_dre_exercicio(wb["SGA_DRE Comparativa Exercicio"], years, dre_by_year, audit_rows)
     fill_dre_comparativa(wb["SGA_DRE Comparativa"], selected_year, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
-    fill_planejamento(wb["SGA_Planejamento"], years, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
+    fill_dre_comparativa_filtravel(
+        wb,
+        wb["SGA_DRE Comparativa"],
+        years,
+        dre_by_year,
+        branch_dre_by_year,
+        report_branches,
+        audit_rows,
+    )
+    fill_planejamento(wb["SGA_Planejamento"], years, dre_by_year, branch_dre_by_year, report_branches, planejamento_formula_mask, audit_rows)
     fill_bp(wb["SGA_BP"], years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows)
     fill_fonte(wb["Fonte de Pesquisa e Orientações"], years, generated_at, branch_source, inactive_text)
-    fill_balancete_geral(wb["SGA_Balancete Geral"], years, dre_accounts_by_year, bp_accounts_by_year, monthly_accounts, generated_at, audit_rows)
+    fill_balancete_geral(
+        wb["SGA_Balancete Geral"],
+        years,
+        balancete_branches,
+        branch_accounts_by_year,
+        branch_accum_by_year,
+        branch_prior_before_first,
+        generated_at,
+        audit_rows,
+    )
     create_mapa_calculo(wb, audit_rows)
 
     required = [
@@ -1300,6 +1489,7 @@ def generate_report(args: argparse.Namespace) -> Path:
         "SGA_BP",
         "SGA_DRE Comparativa",
         "SGA_DRE Comparativa Exercicio",
+        "DRE Comparativa por Ano",
         "Mapa de Cálculo",
     ]
     save_controller_workbook(wb, output, required)
