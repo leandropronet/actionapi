@@ -12,10 +12,12 @@ Para DRE, o script solicita excluirEncerramento=true para remover o histórico
 1000191 (zeramento anual), pois contas de resultado ficam zeradas depois do
 encerramento contábil. Para BP, usa saldo acumulado normal.
 
+Se --anos não for informado, o script pergunta interativamente o intervalo.
+
 Exemplos:
 
     .\.venv\Scripts\python.exe scripts\relatorio_dre.py
-    .\.venv\Scripts\python.exe scripts\relatorio_dre.py --anos 2021-2025 --ano-filial 2025
+    .\.venv\Scripts\python.exe scripts\relatorio_dre.py --anos 2021-2025
     .\.venv\Scripts\python.exe scripts\relatorio_dre.py --api-url http://127.0.0.1:3001
 """
 
@@ -229,7 +231,11 @@ DRE_LINES: list[DreLine] = [
         "resultado_contabil_antes_impostos",
         "Resultado Contábil antes dos Impostos (com PCLD)",
         "Resultado",
-        formula=lambda v: -(v["pcld"] - v["outras_rec_desp"] + v["perdas_estoque"]) + v["lucro_operacional"] + v["resultado_financeiro"],
+        # A Perda de PCLD (4211250060) já está dentro de despesas_adm_com (que só
+        # devolve Constituição/Reversão/Perdas de Estoque). Subtrair o PCLD inteiro
+        # aqui contaria a Perda em dobro (erro do modelo, célula r59). Por isso
+        # descontamos apenas Constituição + Reversão = (pcld - pcld_perda).
+        formula=lambda v: -((v["pcld"] - v["pcld_perda"]) - v["outras_rec_desp"] + v["perdas_estoque"]) + v["lucro_operacional"] + v["resultado_financeiro"],
         bold=True,
     ),
     DreLine(
@@ -260,6 +266,75 @@ VISIBLE_DRE_KEYS = [
     line.key
     for line in DRE_LINES
     if line.section != "Auxiliar"
+]
+
+DRE_FORMULA_TEXT = {
+    "deducoes_geral_total": "Conta 311201, valor = créditos - débitos",
+    "impostos_geral": "Deduções Sobre Vendas Mercadorias - Devoluções de Vendas",
+    "deducoes_defensivos_total": "Conta 311202, valor = créditos - débitos",
+    "impostos_defensivos": "Deduções Sobre Vendas Defensivos - Devoluções de Vendas Defensivos",
+    "deducoes_fertilizantes_total": "Conta 311203, valor = créditos - débitos",
+    "impostos_fertilizantes": "Deduções Sobre Vendas Fertilizantes - Devoluções de Vendas Fertilizantes",
+    "deducoes_sementes_total": "Conta 311204, valor = créditos - débitos",
+    "impostos_sementes": "Deduções Sobre Vendas Sementes - Devoluções de Vendas Sementes",
+    "receita_liquida": "Receita Bruta + Deduções da Receita Bruta",
+    "lucro_bruto": "Receita Operacional Líquida - Custos sobre Vendas",
+    "despesas_adm_com": "Despesas Adm/Com fonte 4211 - Constituição PCLD - Reversão PCLD - Perdas Estimadas nos Estoques",
+    "despesas_adm_com_fonte": "Conta 4211, valor = débitos - créditos",
+    "lucro_operacional": "Lucro Bruto - Despesas Administrativas e Comerciais",
+    "resultado_financeiro": "Receitas Financeiras Totais - Despesas Financeiras Totais",
+    "pcld": "Despesa com Perda de PCLD + Constituição PCLD + Reversão PCLD",
+    "resultado_contabil_antes_impostos": "Lucro Operacional + Resultado Financeiro - Constituição PCLD - Reversão PCLD + Outras Receitas/Despesas - Perdas Estimadas nos Estoques",
+    "resultado_gerencial_antes_impostos": "Lucro Operacional + Resultado Financeiro + Outras Receitas/Despesas - Perdas Estimadas nos Estoques",
+    "resultado_exercicio": "Resultado Gerencial antes dos Impostos - Provisões Fiscais",
+    "depreciacao": "Depreciação Veículos + Depreciação Móveis/Equipamentos",
+    "ebitda": "Lucro Operacional antes do Resultado Financeiro e Provisões + Depreciação e Amortizações",
+    "margem_bruta_valor": "Lucro Bruto / Margem Bruta em valor",
+}
+
+DRE_COMPONENT_KEYS = {
+    "impostos_geral": ["deducoes_geral_total", "devolucoes_geral"],
+    "impostos_defensivos": ["deducoes_defensivos_total", "devolucoes_defensivos"],
+    "impostos_fertilizantes": ["deducoes_fertilizantes_total", "devolucoes_fertilizantes"],
+    "impostos_sementes": ["deducoes_sementes_total", "devolucoes_sementes"],
+    "receita_liquida": ["receita_bruta", "deducoes_receita"],
+    "lucro_bruto": ["receita_liquida", "custos_vendas"],
+    "despesas_adm_com": ["despesas_adm_com_fonte", "pcld_constituicao", "pcld_reversao", "perdas_estoque"],
+    "lucro_operacional": ["lucro_bruto", "despesas_adm_com"],
+    "resultado_financeiro": ["receitas_financeiras", "despesas_financeiras"],
+    "pcld": ["pcld_perda", "pcld_constituicao", "pcld_reversao"],
+    "resultado_contabil_antes_impostos": ["lucro_operacional", "resultado_financeiro", "pcld_constituicao", "pcld_reversao", "outras_rec_desp", "perdas_estoque"],
+    "resultado_gerencial_antes_impostos": ["lucro_operacional", "resultado_financeiro", "outras_rec_desp", "perdas_estoque"],
+    "resultado_exercicio": ["resultado_gerencial_antes_impostos", "provisoes_fiscais"],
+    "depreciacao": ["depreciacao_veiculos", "depreciacao_equipamentos"],
+    "ebitda": ["lucro_operacional", "depreciacao"],
+    "margem_bruta_valor": ["lucro_bruto"],
+}
+
+INDICATOR_DEFINITIONS = [
+    ("Receita Líquida", "receita_liquida", "money", "Receita Operacional Líquida da DRE"),
+    ("Lucro Bruto", "lucro_bruto", "money", "Receita Líquida - Custos sobre Vendas"),
+    ("Margem Bruta", "margem_bruta", "percent", "Lucro Bruto / Receita Líquida"),
+    ("EBITDA", "ebitda", "money", "Lucro Operacional antes do Resultado Financeiro e Provisões + Depreciação/Amortização"),
+    ("Margem EBITDA", "margem_ebitda", "percent", "EBITDA / Receita Líquida"),
+    ("Resultado do Exercício", "resultado_exercicio", "money", "Resultado Gerencial antes dos Impostos - Provisões Fiscais"),
+    ("Margem Líquida", "margem_liquida", "percent", "Resultado do Exercício / Receita Líquida"),
+    ("Liquidez Corrente", "liquidez_corrente", "decimal", "Ativo Circulante / Passivo Circulante"),
+    ("Liquidez Imediata", "liquidez_imediata", "decimal", "Disponível / Passivo Circulante"),
+    ("Liquidez Seca", "liquidez_seca", "decimal", "(Ativo Circulante - Estoques) / Passivo Circulante"),
+    ("Liquidez Geral — técnica: (AC + RLP) / (PC + PNC)", "liquidez_geral", "decimal", "(Ativo Circulante + Realizável a Longo Prazo) / (Passivo Circulante + Passivo Não Circulante)"),
+    ("Liquidez Geral — critério modelo: (AC + ANC) / (PC + PNC)", "liquidez_geral_modelo", "decimal", "(Ativo Circulante + Ativo Não Circulante) / (Passivo Circulante + Passivo Não Circulante)"),
+    ("Capital de Terceiros / PL: (PC + PNC) / PL", "endividamento", "decimal", "(Passivo Circulante + Passivo Não Circulante) / Patrimônio Líquido"),
+    ("Endividamento Geral: (PC + PNC) / Ativo", "endividamento_geral", "percent", "(Passivo Circulante + Passivo Não Circulante) / Ativo Total"),
+    ("Endividamento — critério modelo: Grupo 2 / PL", "endividamento_modelo", "decimal", "Grupo contábil 2 / Patrimônio Líquido; mantido para reconciliação com modelo"),
+    ("Empréstimos / EBITDA", "emprestimos_ebitda", "decimal", "Empréstimos e Financiamentos Circulantes / EBITDA"),
+    ("ROA — Resultado DRE / Ativo", "roa", "percent", "Resultado do Exercício / Ativo Total"),
+    ("ROE — Resultado DRE / PL", "roe", "percent", "Resultado do Exercício / Patrimônio Líquido"),
+    ("Ativo Total", "ativo_total", "money", "Conta 1 do Balanço Patrimonial"),
+    ("Passivo Total", "passivo_total", "money", "Conta 2 do Balanço Patrimonial apresentada com sinal positivo"),
+    ("Passivo Exigível", "passivo_exigivel", "money", "Passivo Circulante + Passivo Não Circulante"),
+    ("Patrimônio Líquido", "patrimonio_liquido", "money", "Conta 23 do Balanço Patrimonial apresentada com sinal positivo"),
+    ("Empréstimos e Financiamentos", "emprestimos", "money", "Conta 211104 do Balanço Patrimonial apresentada com sinal positivo"),
 ]
 
 BP_LINES = [
@@ -323,8 +398,11 @@ BP_LINES = [
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Gera relatório DRE + BP anual via ActionAPI.")
     parser.add_argument("--api-url", default=DEFAULT_API_URL)
-    parser.add_argument("--anos", default="2021-2025", help="Intervalo/lista de anos. Ex.: 2021-2025 ou 2021,2022,2025.")
-    parser.add_argument("--ano-filial", type=int, help="Ano usado na aba DRE por Filial. Padrão: maior ano informado.")
+    parser.add_argument(
+        "--anos",
+        default=None,
+        help="Intervalo/lista de anos. Ex.: 2021-2025 ou 2021,2022,2025. Se omitido, o script pergunta interativamente.",
+    )
     parser.add_argument("--arquivo", help="Caminho do arquivo .xlsx de saída.")
     parser.add_argument("--modelo", default=str(DEFAULT_MODEL), help="Planilha-modelo para validação opcional.")
     parser.add_argument("--sem-validar-modelo", action="store_true", help="Não compara contra a planilha-modelo.")
@@ -335,6 +413,12 @@ def parse_args() -> argparse.Namespace:
         help="Permite continuar mesmo se a API em execução não aplicar excluirEncerramento=true.",
     )
     return parser.parse_args()
+
+
+def prompt_for_years() -> str:
+    default = f"2021-{datetime.now().year}"
+    raw = input(f"Informe o intervalo de anos do relatório (ex.: 2021-2025) [Enter = {default}]: ").strip()
+    return raw or default
 
 
 def parse_years(raw: str) -> list[int]:
@@ -367,6 +451,34 @@ def value_from_source(row: dict[str, Any] | None, sign: str) -> float:
 
 def account_value(accounts: dict[str, dict[str, Any]], spec: SourceSpec) -> float:
     return value_from_source(accounts.get(spec.account), spec.sign)
+
+
+def dre_line_formula_text(line: DreLine) -> str:
+    if line.key in DRE_FORMULA_TEXT:
+        return DRE_FORMULA_TEXT[line.key]
+    if line.source:
+        if line.source.sign == "credit":
+            return f"Conta {line.source.account}, valor = créditos - débitos"
+        return f"Conta {line.source.account}, valor = débitos - créditos"
+    return "Fórmula não documentada"
+
+
+def dre_line_components_text(line: DreLine, values: dict[str, float]) -> str:
+    label_by_key = {item.key: item.label for item in DRE_LINES}
+    components = DRE_COMPONENT_KEYS.get(line.key, [])
+    if components:
+        return "; ".join(
+            f"{label_by_key.get(key, key)}={values.get(key, 0.0):,.2f}"
+            for key in components
+        )
+    if line.source:
+        return f"conta={line.source.account}; sinal={line.source.sign}"
+    else:
+        return ""
+
+
+def format_formula_value(value: float) -> str:
+    return f"{value:,.2f}"
 
 
 def bp_value(accounts: dict[str, dict[str, Any]], account_id: str) -> float:
@@ -641,38 +753,52 @@ def create_dre_exercicios(wb: Workbook, years: list[int], dre_by_year: dict[int,
 
 def create_dre_filial(
     wb: Workbook,
-    year: int,
-    consolidated: dict[str, float],
-    branch_dre: dict[str, dict[str, float]],
+    years: list[int],
+    dre_by_year: dict[int, dict[str, float]],
+    branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
 ) -> None:
+    # Uma linha por (ano, conta), com "Ano" na coluna A. Use o filtro nativo do
+    # Excel no cabeçalho dessa coluna para selecionar o(s) ano(s) de exercício —
+    # equivalente ao seletor de ano da planilha-modelo, sem depender de fórmulas
+    # cruzando abas.
     ws = wb.create_sheet("DRE por Filial")
-    headers = ["Seção", "Linha", "Consolidado", "AV Consolidado"]
+    headers = ["Ano", "Seção", "Linha", "Consolidado", "AV Consolidado"]
     for _branch_id, branch_name in BRANCHES:
         headers += [branch_name, f"% {branch_name}/Consolidado"]
     append_header(ws, headers)
     line_by_key = {line.key: line for line in DRE_LINES}
-    receita_liquida = consolidated.get("receita_liquida", 0.0)
-    for key in VISIBLE_DRE_KEYS:
-        line = line_by_key[key]
-        value = consolidated.get(key, 0.0)
-        row = [line.section, ("  " * line.level) + line.label, value, safe_ratio(value, receita_liquida) if line.percent_base else 0.0]
-        for branch_id, _branch_name in BRANCHES:
-            branch_value = branch_dre.get(branch_id, {}).get(key, 0.0)
-            row += [branch_value, safe_ratio(branch_value, value)]
-        ws.append(row)
-        excel_row = ws.max_row
-        for col in range(3, ws.max_column + 1, 2):
-            ws.cell(excel_row, col).number_format = MONEY
-        for col in range(4, ws.max_column + 1, 2):
-            ws.cell(excel_row, col).number_format = PERCENT
-        if line.bold:
-            for col in range(1, ws.max_column + 1):
-                ws.cell(excel_row, col).font = Font(bold=True, color=WHITE)
-                ws.cell(excel_row, col).fill = PatternFill("solid", fgColor=BLUE if line.section != "Resultado" else GREEN)
-    ws.freeze_panes = "C2"
+    for year in years:
+        consolidated = dre_by_year[year]
+        receita_liquida = consolidated.get("receita_liquida", 0.0)
+        branch_dre = branch_dre_by_year[year]
+        for key in VISIBLE_DRE_KEYS:
+            line = line_by_key[key]
+            value = consolidated.get(key, 0.0)
+            row = [
+                year,
+                line.section,
+                ("  " * line.level) + line.label,
+                value,
+                safe_ratio(value, receita_liquida) if line.percent_base else 0.0,
+            ]
+            for branch_id, _branch_name in BRANCHES:
+                branch_value = branch_dre.get(branch_id, {}).get(key, 0.0)
+                row += [branch_value, safe_ratio(branch_value, value)]
+            ws.append(row)
+            excel_row = ws.max_row
+            for col in range(4, ws.max_column + 1, 2):
+                ws.cell(excel_row, col).number_format = MONEY
+            for col in range(5, ws.max_column + 1, 2):
+                ws.cell(excel_row, col).number_format = PERCENT
+            if line.bold:
+                for col in range(1, ws.max_column + 1):
+                    ws.cell(excel_row, col).font = Font(bold=True, color=WHITE)
+                    ws.cell(excel_row, col).fill = PatternFill("solid", fgColor=BLUE if line.section != "Resultado" else GREEN)
+    ws.freeze_panes = "D2"
     ws.auto_filter.ref = ws.dimensions
-    ws.column_dimensions["A"].width = 18
-    ws.column_dimensions["B"].width = 58
+    ws.column_dimensions["A"].width = 10
+    ws.column_dimensions["B"].width = 18
+    ws.column_dimensions["C"].width = 58
 
 
 def create_bp_sheet(wb: Workbook, years: list[int], bp_by_year: dict[int, dict[str, dict[str, Any]]]) -> None:
@@ -702,33 +828,8 @@ def create_bp_sheet(wb: Workbook, years: list[int], bp_by_year: dict[int, dict[s
 
 def create_indicators_sheet(wb: Workbook, years: list[int], indicators: dict[int, dict[str, float]]) -> None:
     ws = wb.create_sheet("Indicadores")
-    indicator_rows = [
-        ("Receita Líquida", "receita_liquida", "money"),
-        ("Lucro Bruto", "lucro_bruto", "money"),
-        ("Margem Bruta", "margem_bruta", "percent"),
-        ("EBITDA", "ebitda", "money"),
-        ("Margem EBITDA", "margem_ebitda", "percent"),
-        ("Resultado do Exercício", "resultado_exercicio", "money"),
-        ("Margem Líquida", "margem_liquida", "percent"),
-        ("Liquidez Corrente", "liquidez_corrente", "decimal"),
-        ("Liquidez Imediata", "liquidez_imediata", "decimal"),
-        ("Liquidez Seca", "liquidez_seca", "decimal"),
-        ("Liquidez Geral — técnica: (AC + RLP) / (PC + PNC)", "liquidez_geral", "decimal"),
-        ("Liquidez Geral — critério modelo: (AC + ANC) / (PC + PNC)", "liquidez_geral_modelo", "decimal"),
-        ("Capital de Terceiros / PL: (PC + PNC) / PL", "endividamento", "decimal"),
-        ("Endividamento Geral: (PC + PNC) / Ativo", "endividamento_geral", "percent"),
-        ("Endividamento — critério modelo: Grupo 2 / PL", "endividamento_modelo", "decimal"),
-        ("Empréstimos / EBITDA", "emprestimos_ebitda", "decimal"),
-        ("ROA — Resultado DRE / Ativo", "roa", "percent"),
-        ("ROE — Resultado DRE / PL", "roe", "percent"),
-        ("Ativo Total", "ativo_total", "money"),
-        ("Passivo Total", "passivo_total", "money"),
-        ("Passivo Exigível", "passivo_exigivel", "money"),
-        ("Patrimônio Líquido", "patrimonio_liquido", "money"),
-        ("Empréstimos e Financiamentos", "emprestimos", "money"),
-    ]
     append_header(ws, ["Indicador"] + [str(year) for year in years])
-    for label, key, kind in indicator_rows:
+    for label, key, kind, _formula_text in INDICATOR_DEFINITIONS:
         ws.append([label] + [indicators[year].get(key, 0.0) for year in years])
         row = ws.max_row
         fmt = MONEY if kind == "money" else PERCENT if kind == "percent" else DECIMAL
@@ -872,6 +973,13 @@ def create_formula_audit_sheet(wb: Workbook) -> None:
             "Baixo/Médio",
             "Renomear a segunda linha para deixar claro que é o resultado gerencial sem efeito de PCLD.",
         ),
+        (
+            "Perda de PCLD (4211250060) no Resultado Contábil",
+            "Resultado Contábil 'com PCLD' desconta apenas Constituição + Reversão; a Perda já está dentro das Despesas Adm/Comerciais",
+            "Modelo (célula r59) desconta o PCLD inteiro (Perda + Constituição + Reversão), embora a Perda já esteja nas Despesas — dupla contagem quando a Perda ≠ 0 (ex.: 2021 = R$ 2,29 mi; zero em 2022-2025)",
+            "Médio",
+            "Corrigido: a Perda de PCLD deixa de ser subtraída em dobro na linha de Resultado Contábil. O Resultado do Exercício/Gerencial (e ROA/ROE/EBITDA) NÃO muda — mantém o critério do modelo de tratar a perda realizada como despesa real.",
+        ),
     ]
     for row in rows:
         ws.append(row)
@@ -888,6 +996,229 @@ def create_formula_audit_sheet(wb: Workbook) -> None:
     for row in ws.iter_rows(min_row=2):
         for cell in row:
             cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+
+def create_calculation_memory_sheet(
+    wb: Workbook,
+    years: list[int],
+    dre_by_year: dict[int, dict[str, float]],
+    bp_by_year: dict[int, dict[str, dict[str, Any]]],
+    indicators: dict[int, dict[str, float]],
+    branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
+) -> None:
+    ws = wb.create_sheet("Memória de Cálculo")
+    headers = [
+        "Bloco",
+        "Tipo de valor",
+        "Ano",
+        "Filial",
+        "Linha/Indicador",
+        "Valor",
+        "Fórmula / Critério",
+        "Numerador / Componentes",
+        "Denominador / Base",
+        "Fonte de dados",
+        "Observação",
+    ]
+    append_header(ws, headers)
+    line_by_key = {line.key: line for line in DRE_LINES}
+
+    def add_row(
+        bloco: str,
+        tipo: str,
+        year: int,
+        filial: str,
+        label: str,
+        value: float,
+        formula: str,
+        numerator: str,
+        denominator: str,
+        source: str,
+        note: str = "",
+        *,
+        kind: str = "money",
+    ) -> None:
+        ws.append([bloco, tipo, year, filial, label, value, formula, numerator, denominator, source, note])
+        row = ws.max_row
+        ws.cell(row, 6).number_format = PERCENT if kind == "percent" else MONEY if kind == "money" else DECIMAL
+        for col in range(7, 12):
+            ws.cell(row, col).alignment = Alignment(wrap_text=True, vertical="top")
+
+    for year in years:
+        dre_values = dre_by_year[year]
+        dre_source = (
+            "/api/v1/executivo/contabilidade/sintetico "
+            f"dataInicio={year}-01-01; dataFim={year}-12-31; "
+            f"excluirEncerramento=true; HIST_HIS<>{ENCERRAMENTO_HISTORICO}"
+        )
+        for key in VISIBLE_DRE_KEYS:
+            line = line_by_key[key]
+            value = dre_values.get(key, 0.0)
+            add_row(
+                "DRE",
+                "Valor",
+                year,
+                "Consolidado",
+                line.label,
+                value,
+                dre_line_formula_text(line),
+                dre_line_components_text(line, dre_values),
+                "",
+                dre_source,
+                "Valor apresentado na aba DRE Exercícios.",
+                kind="money",
+            )
+
+            if line.percent_base:
+                base_key = line.percent_base
+                base_label = line_by_key.get(base_key, DreLine(base_key, base_key, "")).label
+                base_value = dre_values.get(base_key, 0.0)
+                add_row(
+                    "DRE",
+                    "Análise vertical",
+                    year,
+                    "Consolidado",
+                    line.label,
+                    safe_ratio(value, base_value),
+                    "AV = valor da linha / base de comparação",
+                    f"{line.label}={format_formula_value(value)}",
+                    f"{base_label}={format_formula_value(base_value)}",
+                    "Valores calculados da própria DRE anual",
+                    "Base padrão: Receita Operacional Líquida. Linhas de resultado sem base ficam sem AV.",
+                    kind="percent",
+                )
+
+        for idx, year_current in enumerate(years):
+            if idx == 0 or year_current != year:
+                continue
+            previous_year = years[idx - 1]
+            previous_values = dre_by_year[previous_year]
+            for key in VISIBLE_DRE_KEYS:
+                line = line_by_key[key]
+                current_value = dre_values.get(key, 0.0)
+                previous_value = previous_values.get(key, 0.0)
+                add_row(
+                    "DRE",
+                    "Análise horizontal",
+                    year,
+                    "Consolidado",
+                    line.label,
+                    safe_ratio(current_value, previous_value) - 1 if previous_value else 0.0,
+                    "AH = (valor do ano atual / valor do ano anterior) - 1",
+                    f"{year}={format_formula_value(current_value)}",
+                    f"{previous_year}={format_formula_value(previous_value)}",
+                    "Valores calculados da própria DRE anual",
+                    "Quando o ano anterior é zero, o relatório retorna 0 para evitar divisão inválida.",
+                    kind="percent",
+                )
+
+    for year in years:
+        branch_source = (
+            "/api/v1/executivo/contabilidade/sintetico "
+            f"dataInicio={year}-01-01; dataFim={year}-12-31; filialId={{filial}}; "
+            f"excluirEncerramento=true; HIST_HIS<>{ENCERRAMENTO_HISTORICO}"
+        )
+        consolidated = dre_by_year[year]
+        for branch_id, branch_name in BRANCHES:
+            branch_values = branch_dre_by_year.get(year, {}).get(branch_id, {})
+            for key in VISIBLE_DRE_KEYS:
+                line = line_by_key[key]
+                branch_value = branch_values.get(key, 0.0)
+                consolidated_value = consolidated.get(key, 0.0)
+                add_row(
+                    "DRE por Filial",
+                    "Valor",
+                    year,
+                    f"{branch_id} - {branch_name}",
+                    line.label,
+                    branch_value,
+                    dre_line_formula_text(line),
+                    dre_line_components_text(line, branch_values),
+                    "",
+                    branch_source.replace("{filial}", branch_id),
+                    "Valor apresentado na aba DRE por Filial.",
+                    kind="money",
+                )
+                add_row(
+                    "DRE por Filial",
+                    "% sobre consolidado",
+                    year,
+                    f"{branch_id} - {branch_name}",
+                    line.label,
+                    safe_ratio(branch_value, consolidated_value),
+                    "% filial = valor da filial / valor consolidado da mesma linha",
+                    f"{branch_name}={format_formula_value(branch_value)}",
+                    f"Consolidado={format_formula_value(consolidated_value)}",
+                    "Valores calculados da DRE por filial e DRE consolidada",
+                    "Quando o consolidado é zero, o relatório retorna 0 para evitar divisão inválida.",
+                    kind="percent",
+                )
+
+    for year in years:
+        bp_source = (
+            "/api/v1/executivo/contabilidade/sintetico "
+            f"dataInicio={DATA_INICIO_PLANO_ATUAL}; dataFim={year}-12-31"
+        )
+        accounts = bp_by_year[year]
+        for line in BP_LINES:
+            value = bp_value(accounts, line.account)
+            raw = accounts.get(line.account, {})
+            formula = (
+                "Ativo: saldo D-C. Passivo/PL: sinal invertido para apresentação positiva."
+                if line.account.startswith("2")
+                else "Saldo acumulado D-C da conta."
+            )
+            add_row(
+                "Balanço Patrimonial",
+                "Valor",
+                year,
+                "Consolidado",
+                f"{line.account} - {line.label}",
+                value,
+                formula,
+                f"débitos={format_formula_value(number(raw.get('debitos')))}; créditos={format_formula_value(number(raw.get('creditos')))}",
+                f"saldo D-C={format_formula_value(number(raw.get('saldo')))}",
+                bp_source,
+                "Valor apresentado na aba Balanço Patrimonial.",
+                kind="money",
+            )
+
+    for year in years:
+        row = indicators[year]
+        for label, key, kind, formula_text in INDICATOR_DEFINITIONS:
+            value = row.get(key, 0.0)
+            add_row(
+                "Indicadores",
+                "Valor",
+                year,
+                "Consolidado",
+                label,
+                value,
+                formula_text,
+                "",
+                "",
+                "DRE + Balanço Patrimonial calculados pela ActionAPI",
+                "Valor apresentado na aba Indicadores.",
+                kind=kind,
+            )
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = ws.dimensions
+    widths = {
+        "A": 20,
+        "B": 22,
+        "C": 10,
+        "D": 22,
+        "E": 58,
+        "F": 18,
+        "G": 72,
+        "H": 62,
+        "I": 52,
+        "J": 68,
+        "K": 78,
+    }
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
 
 
 def create_api_accounts_sheet(wb: Workbook, year: int, accounts: dict[str, dict[str, Any]]) -> None:
@@ -914,10 +1245,7 @@ def create_api_accounts_sheet(wb: Workbook, year: int, accounts: dict[str, dict[
 
 
 def generate_report(args: argparse.Namespace) -> Path:
-    years = parse_years(args.anos)
-    branch_year = args.ano_filial or max(years)
-    if branch_year not in years:
-        years = sorted([*years, branch_year])
+    years = parse_years(args.anos or prompt_for_years())
 
     generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     output = (
@@ -955,19 +1283,21 @@ def generate_report(args: argparse.Namespace) -> Path:
         dre_by_year[year] = calculate_dre(dre_accounts)
         print(f"[dre] {year}: {len(dre_accounts)} contas DRE, {len(bp_accounts)} contas BP", flush=True)
 
-    branch_dre: dict[str, dict[str, float]] = {}
-    for branch_id, branch_name in BRANCHES:
-        accounts = fetch_synthetic(
-            args.api_url,
-            api_key,
-            data_inicio=f"{branch_year}-01-01",
-            data_fim=f"{branch_year}-12-31",
-            filial_id=branch_id,
-            excluir_encerramento=True,
-            historico_encerramento=args.historico_encerramento,
-        )
-        branch_dre[branch_id] = calculate_dre(accounts)
-        print(f"[dre] filial {branch_id} {branch_name}: {len(accounts)} contas", flush=True)
+    branch_dre_by_year: dict[int, dict[str, dict[str, float]]] = {}
+    for year in years:
+        branch_dre_by_year[year] = {}
+        for branch_id, branch_name in BRANCHES:
+            accounts = fetch_synthetic(
+                args.api_url,
+                api_key,
+                data_inicio=f"{year}-01-01",
+                data_fim=f"{year}-12-31",
+                filial_id=branch_id,
+                excluir_encerramento=True,
+                historico_encerramento=args.historico_encerramento,
+            )
+            branch_dre_by_year[year][branch_id] = calculate_dre(accounts)
+            print(f"[dre] filial {branch_id} {branch_name} {year}: {len(accounts)} contas", flush=True)
 
     indicators = {
         year: calculate_indicators(year, dre_by_year[year], bp_accounts_by_year[year])
@@ -981,13 +1311,14 @@ def generate_report(args: argparse.Namespace) -> Path:
     wb = Workbook()
     create_panel(wb, years, indicators, generated_at)
     create_dre_exercicios(wb, years, dre_by_year)
-    create_dre_filial(wb, branch_year, dre_by_year[branch_year], branch_dre)
+    create_dre_filial(wb, years, dre_by_year, branch_dre_by_year)
     create_bp_sheet(wb, years, bp_accounts_by_year)
     create_indicators_sheet(wb, years, indicators)
     create_validation_sheet(wb, years, dre_by_year, bp_accounts_by_year, model_values, model_path)
     create_mapping_sheet(wb)
     create_formula_audit_sheet(wb)
-    create_api_accounts_sheet(wb, branch_year, dre_accounts_by_year[branch_year])
+    create_calculation_memory_sheet(wb, years, dre_by_year, bp_accounts_by_year, indicators, branch_dre_by_year)
+    create_api_accounts_sheet(wb, max(years), dre_accounts_by_year[max(years)])
 
     required = [
         "Painel",
@@ -998,6 +1329,7 @@ def generate_report(args: argparse.Namespace) -> Path:
         "Validação",
         "Mapeamento",
         "Auditoria Fórmulas",
+        "Memória de Cálculo",
         "Contas API DRE",
     ]
     save(wb, output, required)

@@ -637,7 +637,10 @@ async function contabilidadeSintetico({
   add(dataFim, 'c.data_lancamento <= ?');
   add(filialId, 'c.filial_id = ?');
   if (truthy(excluirEncerramento)) {
-    params.push(String(historicoEncerramento));
+    // Default param só cobre undefined; uma string vazia geraria HIST_HIS <> ''
+    // e excluiria todo lançamento sem histórico. Por isso o fallback explícito.
+    const histEncerramento = String(historicoEncerramento || '').trim() || '1000191';
+    params.push(histEncerramento);
     conditions.push(`COALESCE(c._dados->>'HIST_HIS', '') <> $${params.length}`);
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
