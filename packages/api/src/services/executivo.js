@@ -676,6 +676,24 @@ async function contabilidadeSintetico({
   return { periodo: { dataInicio, dataFim }, contas: result.rows };
 }
 
+async function listarFiliais() {
+  const result = await db.query(
+    `SELECT
+       id,
+       _dados->>'CODI_EMP' AS codigo,
+       COALESCE(NULLIF(_dados->>'IDEN_EMP', ''), NULLIF(_dados->>'FANT_EMP', ''), id) AS identificacao,
+       _dados->>'FANT_EMP' AS fantasia,
+       _dados->>'RAZA_EMP' AS razao_social,
+       COALESCE(NULLIF(_dados->>'SITU_EMP', ''), 'SEM_STATUS') AS situacao,
+       (COALESCE(NULLIF(_dados->>'SITU_EMP', ''), 'A') <> 'I') AS ativa
+     FROM raw.filiais
+     ORDER BY
+       CASE WHEN id ~ '^\\d+$' THEN id::INT ELSE 999999 END,
+       id`,
+  );
+  return { filiais: result.rows };
+}
+
 async function visao360({ dataInicio, dataFim, filialId }) {
   const [fat, rec, pag, cont] = await Promise.all([
     faturamentoResumo({ dataInicio, dataFim, filialId }),
@@ -757,5 +775,6 @@ module.exports = {
   movimentosResumo,
   contabilidadeResumo,
   contabilidadeSintetico,
+  listarFiliais,
   visao360,
 };
