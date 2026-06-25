@@ -101,8 +101,23 @@ NUMBER_FMT = '#,##0.00'
 
 DRE_LINE_BY_KEY = {line.key: line for line in DRE_LINES}
 
-# A.V. (análise vertical) só nas linhas de subtotal/resultado, igual ao modelo do
-# controller: as linhas de detalhe ficam em branco.
+# =============================================================================
+# REGRA DE A.V. (ANÁLISE VERTICAL) — FONTE ÚNICA, NÃO DUPLICAR.
+#
+# No modelo do controller, a coluna "(%) A.V." (e a "(%) no Consolidado" da aba
+# comparativa por filial) SÓ é calculada nas linhas de subtotal/resultado da
+# DRE (as listadas em AV_KEYS abaixo, confirmado célula a célula na aba
+# "SGA_DRE Comparativa Exercicio" da planilha-modelo). Em todas as linhas de
+# detalhe (ex.: "Vendas de Mercadorias em Geral", "Despesas com RH Diretores")
+# a célula correspondente fica em BRANCO no modelo — não é zero, é vazio.
+#
+# Essa MESMA regra/conjunto vale em TODAS as abas que mostram A.V. ou % de
+# participação por linha da DRE: "DRE por Exercício" e "DRE Comparativa por
+# Ano". Não recalcule a regra separadamente em cada aba — sempre chame
+# av_for_dre_key(key, ...) e use seu retorno (None = deixar célula em branco).
+# Se um dia for preciso adicionar uma nova aba com A.V./percentual por linha,
+# reaproveite av_for_dre_key/AV_KEYS em vez de reescrever a condição.
+# =============================================================================
 AV_KEYS = {
     "receita_liquida",
     "custos_vendas",
@@ -508,9 +523,16 @@ def build_dre_comparativa_por_ano(
     branches: list[BranchInfo],
     audit_rows: list[list[Any]],
 ) -> None:
-    """Comparativo por filial, filtrável por exercício (filtro nativo na coluna Ano)."""
+    """Comparativo por filial, filtrável por exercício (filtro nativo na coluna Ano).
+
+    A.V. do Consolidado e "(%) no Consolidado" por filial usam a MESMA regra
+    seletiva de av_for_dre_key/AV_KEYS já aplicada em build_dre_exercicio: só
+    aparecem nas linhas de subtotal/resultado (ver bloco de comentário junto a
+    AV_KEYS). Nas linhas de detalhe, ambas as colunas ficam em branco (None),
+    igual ao modelo do controller.
+    """
     ws = wb.create_sheet("DRE Comparativa por Ano")
-    headers = ["Ano", "Contas Contábeis", "Consolidado"]
+    headers = ["Ano", "Contas Contábeis", "Consolidado", "(%) A.V."]
     for branch in branches:
         headers += [branch.nome, "(%) no Consolidado"]
     ws.append(headers)
@@ -521,15 +543,23 @@ def build_dre_comparativa_por_ano(
         for key in VISIBLE_DRE_KEYS:
             line = DRE_LINE_BY_KEY[key]
             value = consolidated.get(key, 0.0)
-            record: list[Any] = [year, ("  " * line.level) + line.label, value]
+            is_av_line = key in AV_KEYS
+            record: list[Any] = [
+                year,
+                ("  " * line.level) + line.label,
+                value,
+                av_for_dre_key(key, consolidated),
+            ]
             for branch in branches:
                 branch_values = branch_dre_by_year[year].get(branch.id, {})
                 branch_value = branch_values.get(key, 0.0)
-                record += [branch_value, safe_ratio(branch_value, value)]
+                share = safe_ratio(branch_value, value) if is_av_line else None
+                record += [branch_value, share]
             ws.append(record)
             r = ws.max_row
             set_number_format(ws.cell(r, 3), "money")
-            col = 4
+            set_number_format(ws.cell(r, 4), "percent")
+            col = 5
             for _branch in branches:
                 set_number_format(ws.cell(r, col), "money")
                 set_number_format(ws.cell(r, col + 1), "percent")
@@ -550,7 +580,8 @@ def build_dre_comparativa_por_ano(
     ws.column_dimensions["A"].width = 8
     ws.column_dimensions["B"].width = 48
     ws.column_dimensions["C"].width = 18
-    col = 4
+    ws.column_dimensions["D"].width = 12
+    col = 5
     for _branch in branches:
         ws.column_dimensions[get_column_letter(col)].width = 16
         ws.column_dimensions[get_column_letter(col + 1)].width = 14
