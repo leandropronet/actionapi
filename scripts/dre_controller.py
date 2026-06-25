@@ -194,7 +194,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def complete_interactive_args(args: argparse.Namespace) -> argparse.Namespace:
-    """No uso manual pergunta os anos; em serviço/Docker usa o default."""
+    """No uso manual pergunta os anos e a data final; em serviço/Docker usa o default."""
     if args.nao_interativo or not sys.stdin.isatty():
         args.anos = args.anos or "2021-2025"
         return args
@@ -208,6 +208,24 @@ def complete_interactive_args(args: argparse.Namespace) -> argparse.Namespace:
             print(f"  Valor inválido: {exc}", flush=True)
             continue
         args.anos = answer
+
+    if args.data_fim is None:
+        while True:
+            answer = input(
+                "Data final do exercício mais recente, formato DD/MM/AAAA "
+                "(Enter para fechar em 31/12 normalmente, sem corte): "
+            ).strip()
+            if not answer:
+                args.data_fim = None
+                break
+            try:
+                parse_br_date(answer)
+            except ValueError as exc:
+                print(f"  Valor inválido: {exc}", flush=True)
+                continue
+            args.data_fim = answer
+            break
+
     return args
 
 

@@ -23,13 +23,16 @@ puxado da API (`/api/v1/executivo/filiais`), nunca de uma aba estática.
 
 ## Como executar
 
-Sem argumentos, no terminal, o script pergunta o intervalo de exercícios:
+Sem argumentos, no terminal, o script pergunta o intervalo de exercícios e, em
+seguida, a data final do exercício mais recente (Enter para fechar em 31/12
+normalmente, sem corte):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\dre_controller.py
 ```
 
-Para execução agendada/Docker, informe `--anos` (ou use `--nao-interativo`):
+Para execução agendada/Docker, informe `--anos` (ou use `--nao-interativo`) —
+nesse caso nenhuma pergunta é feita, mesmo sem `--data-fim`:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\dre_controller.py `
