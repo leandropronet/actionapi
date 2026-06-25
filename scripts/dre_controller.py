@@ -459,13 +459,15 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
 # Abas
 # --------------------------------------------------------------------------- #
 def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, dict[str, float]], audit_rows: list[list[Any]]) -> None:
-    # Colunas intercaladas por ano, igual ao modelo do controller:
+    # Colunas A/B replicam os símbolos de filtro do modelo (ver bloco de
+    # comentário junto a DRE_LINES.col_a/col_b — fonte única, não duplicar a
+    # regra aqui). Colunas de dados intercaladas por ano, igual ao modelo:
     # [(%) A.H. ano/ano-1 | Ano | (%) A.V. ano] ... e o ano mais antigo sem A.H.
     ws = wb.create_sheet("DRE por Exercício")
     years_desc = sorted(years, reverse=True)
     n = len(years_desc)
 
-    headers: list[Any] = ["Contas Contábeis"]
+    headers: list[Any] = [".", ".", "Contas Contábeis"]
     # tipo da coluna por posição: ("ah"|"val"|"av", year)
     col_spec: list[tuple[str, int]] = []
     for idx, y in enumerate(years_desc):
@@ -478,10 +480,11 @@ def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, d
         col_spec.append(("av", y))
     ws.append(headers)
     style_header(ws)
+    data_start_col = 4  # A=1, B=2, Contas Contábeis=3
 
     for key in VISIBLE_DRE_KEYS:
         line = DRE_LINE_BY_KEY[key]
-        record: list[Any] = [("  " * line.level) + line.label]
+        record: list[Any] = [line.col_a or None, line.col_b or None, ("  " * line.level) + line.label]
         for idx, y in enumerate(years_desc):
             if idx < n - 1:
                 cur = dre_by_year[y].get(key, 0.0)
@@ -491,13 +494,13 @@ def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, d
             record.append(av_for_dre_key(key, dre_by_year[y]))
         ws.append(record)
         r = ws.max_row
-        for col, (kind, _y) in enumerate(col_spec, start=2):
+        for col, (kind, _y) in enumerate(col_spec, start=data_start_col):
             set_number_format(ws.cell(r, col), "money" if kind == "val" else "percent")
         if line.bold:
             for col in range(1, ws.max_column + 1):
                 ws.cell(r, col).font = BOLD_FONT
                 ws.cell(r, col).fill = SUBTOTAL_FILL
-        for col, (kind, y) in enumerate(col_spec, start=2):
+        for col, (kind, y) in enumerate(col_spec, start=data_start_col):
             if kind != "val":
                 continue
             write_audit(
@@ -508,10 +511,12 @@ def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, d
                 dre_line_components_text(line, dre_by_year[y]),
             )
 
-    ws.freeze_panes = "B2"
+    ws.freeze_panes = "D2"
     ws.auto_filter.ref = ws.dimensions
-    ws.column_dimensions["A"].width = 50
-    for col, (kind, _y) in enumerate(col_spec, start=2):
+    ws.column_dimensions["A"].width = 4
+    ws.column_dimensions["B"].width = 6
+    ws.column_dimensions["C"].width = 48
+    for col, (kind, _y) in enumerate(col_spec, start=data_start_col):
         ws.column_dimensions[get_column_letter(col)].width = 16 if kind == "val" else 13
 
 
@@ -530,13 +535,18 @@ def build_dre_comparativa_por_ano(
     aparecem nas linhas de subtotal/resultado (ver bloco de comentário junto a
     AV_KEYS). Nas linhas de detalhe, ambas as colunas ficam em branco (None),
     igual ao modelo do controller.
+
+    Colunas B/C replicam os símbolos de filtro do modelo (DRE_LINES.col_a/
+    col_b — fonte única, não duplicar a regra aqui). A coluna "Ano" (A) é
+    exclusiva desta aba, para permitir o filtro nativo do Excel por exercício.
     """
     ws = wb.create_sheet("DRE Comparativa por Ano")
-    headers = ["Ano", "Contas Contábeis", "Consolidado", "(%) A.V."]
+    headers = ["Ano", ".", ".", "Contas Contábeis", "Consolidado", "(%) A.V."]
     for branch in branches:
         headers += [branch.nome, "(%) no Consolidado"]
     ws.append(headers)
     style_header(ws)
+    branch_start_col = 7
 
     for year in sorted(years, reverse=True):
         consolidated = dre_by_year[year]
@@ -546,6 +556,8 @@ def build_dre_comparativa_por_ano(
             is_av_line = key in AV_KEYS
             record: list[Any] = [
                 year,
+                line.col_a or None,
+                line.col_b or None,
                 ("  " * line.level) + line.label,
                 value,
                 av_for_dre_key(key, consolidated),
@@ -557,9 +569,9 @@ def build_dre_comparativa_por_ano(
                 record += [branch_value, share]
             ws.append(record)
             r = ws.max_row
-            set_number_format(ws.cell(r, 3), "money")
-            set_number_format(ws.cell(r, 4), "percent")
-            col = 5
+            set_number_format(ws.cell(r, 5), "money")
+            set_number_format(ws.cell(r, 6), "percent")
+            col = branch_start_col
             for _branch in branches:
                 set_number_format(ws.cell(r, col), "money")
                 set_number_format(ws.cell(r, col + 1), "percent")
@@ -575,13 +587,15 @@ def build_dre_comparativa_por_ano(
                 "Filtre a coluna Ano para escolher o exercício.",
             )
 
-    ws.freeze_panes = "C2"
+    ws.freeze_panes = "E2"
     ws.auto_filter.ref = ws.dimensions
     ws.column_dimensions["A"].width = 8
-    ws.column_dimensions["B"].width = 48
-    ws.column_dimensions["C"].width = 18
-    ws.column_dimensions["D"].width = 12
-    col = 5
+    ws.column_dimensions["B"].width = 4
+    ws.column_dimensions["C"].width = 6
+    ws.column_dimensions["D"].width = 48
+    ws.column_dimensions["E"].width = 18
+    ws.column_dimensions["F"].width = 12
+    col = branch_start_col
     for _branch in branches:
         ws.column_dimensions[get_column_letter(col)].width = 16
         ws.column_dimensions[get_column_letter(col + 1)].width = 14
@@ -688,12 +702,18 @@ def build_planejamento(
     branches: list[BranchInfo],
     audit_rows: list[list[Any]],
 ) -> None:
+    # Colunas A/B replicam os símbolos de filtro do modelo (DRE_LINES.col_a/
+    # col_b — fonte única, não duplicar a regra aqui). "(%) A.V." e "% Consol."
+    # usam a mesma regra seletiva de av_for_dre_key/AV_KEYS das abas de DRE:
+    # só aparecem em linhas de subtotal/resultado.
     ws = wb.create_sheet("Planejamento")
     last_year = max(years)
     plan_year = last_year + 1
     period_label = f"{min(years)}-{last_year}"
 
     headers = [
+        ".",
+        ".",
         "Contas Contábeis",
         f"Média {period_label}",
         str(last_year),
@@ -712,10 +732,13 @@ def build_planejamento(
 
     for key in VISIBLE_DRE_KEYS:
         line = DRE_LINE_BY_KEY[key]
+        is_av_line = key in AV_KEYS
         consolidated_media = average([dre_by_year[y].get(key, 0.0) for y in years])
         consolidated_last = dre_by_year[last_year].get(key, 0.0)
         consolidated_av = av_for_dre_key(key, dre_by_year[last_year])
         record: list[Any] = [
+            line.col_a or None,
+            line.col_b or None,
             ("  " * line.level) + line.label,
             consolidated_media,
             consolidated_last,
@@ -725,14 +748,15 @@ def build_planejamento(
         for branch in branches:
             branch_media = average([branch_dre_by_year.get(y, {}).get(branch.id, {}).get(key, 0.0) for y in years])
             branch_last = branch_dre_by_year[last_year].get(branch.id, {}).get(key, 0.0)
-            record += [branch_media, branch_last, None, safe_ratio(branch_last, consolidated_last)]
+            share = safe_ratio(branch_last, consolidated_last) if is_av_line else None
+            record += [branch_media, branch_last, None, share]
         ws.append(record)
         r = ws.max_row
-        set_number_format(ws.cell(r, 2), "money")
-        set_number_format(ws.cell(r, 3), "money")
         set_number_format(ws.cell(r, 4), "money")
-        set_number_format(ws.cell(r, 5), "percent")
-        col = 6
+        set_number_format(ws.cell(r, 5), "money")
+        set_number_format(ws.cell(r, 6), "money")
+        set_number_format(ws.cell(r, 7), "percent")
+        col = 8
         for _branch in branches:
             set_number_format(ws.cell(r, col), "money")       # Média
             set_number_format(ws.cell(r, col + 1), "money")   # último ano
@@ -744,16 +768,18 @@ def build_planejamento(
                 ws.cell(r, c).font = BOLD_FONT
                 ws.cell(r, c).fill = SUBTOTAL_FILL
         write_audit(
-            audit_rows, ws.title, f"C{r}", "Planejamento", "Último exercício", last_year, "Consolidado",
+            audit_rows, ws.title, f"E{r}", "Planejamento", "Último exercício", last_year, "Consolidado",
             line.label, consolidated_last,
             "Média = média simples dos exercícios fechados; planejado fica em branco; A.V. = valor / Receita Líquida.",
             "/api/v1/executivo/contabilidade/sintetico", dre_line_formula_text(line),
         )
 
-    ws.freeze_panes = "B2"
+    ws.freeze_panes = "D2"
     ws.auto_filter.ref = ws.dimensions
-    ws.column_dimensions["A"].width = 50
-    for col in range(2, ws.max_column + 1):
+    ws.column_dimensions["A"].width = 4
+    ws.column_dimensions["B"].width = 6
+    ws.column_dimensions["C"].width = 48
+    for col in range(4, ws.max_column + 1):
         ws.column_dimensions[get_column_letter(col)].width = 16
 
 

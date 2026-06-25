@@ -80,7 +80,32 @@ recalcular. A aba **`DRE Comparativa por Ano`** resolve isso:
 O A.V. é calculado **apenas nas linhas de subtotal/resultado** (Receita Líquida,
 Custos, Lucro Bruto, Despesas, Lucro Operacional, Resultado Financeiro, PCLD,
 Resultados, Provisões, Depreciação, EBITDA e Margem Bruta), igual ao critério do
-modelo — nas linhas de detalhe fica em branco.
+modelo — nas linhas de detalhe fica em branco. Essa regra é definida uma única
+vez em `AV_KEYS`/`av_for_dre_key` (scripts/dre_controller.py) e vale para as
+três abas que mostram A.V./percentual por linha da DRE (DRE por Exercício,
+DRE Comparativa por Ano e Planejamento) — não é recalculada separadamente em
+cada aba.
+
+## Colunas A/B (símbolos de filtro de conta)
+
+As abas `DRE por Exercício`, `DRE Comparativa por Ano` e `Planejamento` trazem
+duas colunas extras antes de `Contas Contábeis`, replicando os símbolos da
+planilha-modelo:
+
+- **Coluna A**: `*` nas contas analíticas/de detalhe (ex.: "Vendas de
+  Mercadorias em Geral"); vazia nas linhas de subtotal.
+- **Coluna B**: operador da linha de subtotal — `=` (primeira receita bruta),
+  `(-)` (linha subtraída), `(=)` (resultado) ou `( + )` (soma); vazia nas
+  linhas de detalhe e em algumas linhas específicas do modelo que não têm
+  símbolo (`Despesas Administrativas e Comerciais`, `EBITDA`, `Margem Bruta`).
+
+Esses símbolos servem para o usuário filtrar/agrupar contas no Excel (igual ao
+controller usa nativamente). A fonte de verdade é o atributo `col_a`/`col_b` de
+cada `DreLine` em `scripts/relatorio_dre.py` — conferido célula a célula contra
+as 3 abas do modelo (`SGA_DRE Comparativa`, `SGA_DRE Comparativa Exercicio` e
+`SGA_Planejamento`). Não recalcular essa regra a partir de `level`/`bold`: os
+símbolos não são deriváveis desses campos (há excertos onde divergem, ex.:
+`despesas_adm_com` é subtotal mas sem símbolo).
 
 ## Correções de critério aplicadas
 

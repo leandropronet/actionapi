@@ -116,6 +116,17 @@ class DreLine:
     formula: Callable[[dict[str, float]], float] | None = None
     bold: bool = False
     percent_base: str | None = "receita_liquida"
+    # col_a/col_b reproduzem os símbolos de filtro das colunas A e B da
+    # planilha-modelo (SGA_DRE Comparativa[ Exercicio]/SGA_Planejamento),
+    # conferidos célula a célula nessas 3 abas. NÃO são deriváveis de
+    # level/bold isoladamente (ex.: despesas_adm_com é bold mas sem símbolo;
+    # outras_rec_desp tem level=0 mas col_a="*"; depreciacao tem os dois
+    # símbolos juntos; ebitda/margem_bruta_valor não têm nenhum). Por isso
+    # ficam explícitos aqui — única fonte de verdade para qualquer script
+    # que precise reconstruir o filtro de contas analíticas (col_a="*") ou
+    # de operação (col_b="(-)"/"(=)"/"( + )"/"=").
+    col_a: str | None = None
+    col_b: str | None = None
 
 
 @dataclass(frozen=True)
@@ -127,45 +138,48 @@ class BpLine:
 
 
 DRE_LINES: list[DreLine] = [
-    DreLine("receita_bruta", "Receita Bruta com Vendas", "Receitas", source=SourceSpec("3111", "credit"), bold=True),
-    DreLine("vendas_mercadorias", "Vendas de Mercadorias em Geral", "Receitas", 1, SourceSpec("311101", "credit")),
-    DreLine("venda_defensivos", "Venda de Defensivos", "Receitas", 1, SourceSpec("311102", "credit")),
-    DreLine("venda_fertilizantes", "Venda de Fertilizantes", "Receitas", 1, SourceSpec("311103", "credit")),
-    DreLine("venda_sementes", "Venda de Sementes", "Receitas", 1, SourceSpec("311104", "credit")),
-    DreLine("prestacao_servico", "Prestação de Serviço/Locação", "Receitas", 1, SourceSpec("311105", "credit")),
-    DreLine("avp_receitas", "AVP Receitas", "Receitas", 1, SourceSpec("311108", "credit")),
-    DreLine("deducoes_receita", "Deduções da Receita Bruta", "Deduções", source=SourceSpec("3112", "credit"), bold=True),
-    DreLine("devolucoes_geral", "Devoluções de Vendas", "Deduções", 1, SourceSpec("3112010002", "credit")),
-    DreLine("impostos_geral", "Impostos nas Vendas em Geral", "Deduções", 1, formula=lambda v: v["deducoes_geral_total"] - v["devolucoes_geral"]),
+    DreLine("receita_bruta", "Receita Bruta com Vendas", "Receitas", source=SourceSpec("3111", "credit"), bold=True, col_b="="),
+    DreLine("vendas_mercadorias", "Vendas de Mercadorias em Geral", "Receitas", 1, SourceSpec("311101", "credit"), col_a="*"),
+    DreLine("venda_defensivos", "Venda de Defensivos", "Receitas", 1, SourceSpec("311102", "credit"), col_a="*"),
+    DreLine("venda_fertilizantes", "Venda de Fertilizantes", "Receitas", 1, SourceSpec("311103", "credit"), col_a="*"),
+    DreLine("venda_sementes", "Venda de Sementes", "Receitas", 1, SourceSpec("311104", "credit"), col_a="*"),
+    DreLine("prestacao_servico", "Prestação de Serviço/Locação", "Receitas", 1, SourceSpec("311105", "credit"), col_a="*"),
+    DreLine("avp_receitas", "AVP Receitas", "Receitas", 1, SourceSpec("311108", "credit"), col_a="*"),
+    DreLine("deducoes_receita", "Deduções da Receita Bruta", "Deduções", source=SourceSpec("3112", "credit"), bold=True, col_b="(-)"),
+    DreLine("devolucoes_geral", "Devoluções de Vendas", "Deduções", 1, SourceSpec("3112010002", "credit"), col_a="*"),
+    DreLine("impostos_geral", "Impostos nas Vendas em Geral", "Deduções", 1, formula=lambda v: v["deducoes_geral_total"] - v["devolucoes_geral"], col_a="*"),
     DreLine("deducoes_geral_total", "Deduções Sobre Vendas Mercadorias", "Auxiliar", source=SourceSpec("311201", "credit")),
-    DreLine("devolucoes_defensivos", "Devoluções de Vendas Defensivos", "Deduções", 1, SourceSpec("3112020002", "credit")),
+    DreLine("devolucoes_defensivos", "Devoluções de Vendas Defensivos", "Deduções", 1, SourceSpec("3112020002", "credit"), col_a="*"),
     DreLine(
         "impostos_defensivos",
         "Impostos nas Vendas de Defensivos",
         "Deduções",
         1,
         formula=lambda v: v["deducoes_defensivos_total"] - v["devolucoes_defensivos"],
+        col_a="*",
     ),
     DreLine("deducoes_defensivos_total", "Deduções Sobre Vendas Defensivos", "Auxiliar", source=SourceSpec("311202", "credit")),
-    DreLine("devolucoes_fertilizantes", "Devoluções de Vendas Fertilizantes", "Deduções", 1, SourceSpec("3112030002", "credit")),
+    DreLine("devolucoes_fertilizantes", "Devoluções de Vendas Fertilizantes", "Deduções", 1, SourceSpec("3112030002", "credit"), col_a="*"),
     DreLine(
         "impostos_fertilizantes",
         "Impostos nas Vendas de Fertilizantes",
         "Deduções",
         1,
         formula=lambda v: v["deducoes_fertilizantes_total"] - v["devolucoes_fertilizantes"],
+        col_a="*",
     ),
     DreLine("deducoes_fertilizantes_total", "Deduções Sobre Vendas Fertilizantes", "Auxiliar", source=SourceSpec("311203", "credit")),
-    DreLine("devolucoes_sementes", "Devoluções de Vendas Sementes", "Deduções", 1, SourceSpec("3112040002", "credit")),
+    DreLine("devolucoes_sementes", "Devoluções de Vendas Sementes", "Deduções", 1, SourceSpec("3112040002", "credit"), col_a="*"),
     DreLine(
         "impostos_sementes",
         "Impostos nas Vendas de Sementes",
         "Deduções",
         1,
         formula=lambda v: v["deducoes_sementes_total"] - v["devolucoes_sementes"],
+        col_a="*",
     ),
     DreLine("deducoes_sementes_total", "Deduções Sobre Vendas Sementes", "Auxiliar", source=SourceSpec("311204", "credit")),
-    DreLine("deducoes_servicos", "Deduções da Receita Bruta de Serviços e Locação", "Deduções", 1, SourceSpec("311205", "credit")),
+    DreLine("deducoes_servicos", "Deduções da Receita Bruta de Serviços e Locação", "Deduções", 1, SourceSpec("311205", "credit"), col_a="*"),
     DreLine(
         "receita_liquida",
         "Receita Operacional Líquida",
@@ -173,14 +187,15 @@ DRE_LINES: list[DreLine] = [
         formula=lambda v: v["receita_bruta"] + v["deducoes_receita"],
         bold=True,
         percent_base=None,
+        col_b="(=)",
     ),
-    DreLine("custos_vendas", "Custos sobre Vendas", "Custos", source=SourceSpec("41", "debit"), bold=True),
-    DreLine("custos_mercadorias", "Custos das Mercadorias em Geral Vendidas", "Custos", 1, SourceSpec("411101", "debit")),
-    DreLine("custos_defensivos", "Custos dos Defensivos Vendidos", "Custos", 1, SourceSpec("411102", "debit")),
-    DreLine("custos_fertilizantes", "Custos dos Fertilizantes Vendidos", "Custos", 1, SourceSpec("411103", "debit")),
-    DreLine("custos_sementes", "Custos das Sementes Vendidas", "Custos", 1, SourceSpec("411104", "debit")),
-    DreLine("custos_servicos", "Custos dos Serviços Prestados", "Custos", 1, SourceSpec("411105", "debit")),
-    DreLine("avp_custo", "AVP Custo", "Custos", 1, SourceSpec("411107", "debit")),
+    DreLine("custos_vendas", "Custos sobre Vendas", "Custos", source=SourceSpec("41", "debit"), bold=True, col_b="(-)"),
+    DreLine("custos_mercadorias", "Custos das Mercadorias em Geral Vendidas", "Custos", 1, SourceSpec("411101", "debit"), col_a="*"),
+    DreLine("custos_defensivos", "Custos dos Defensivos Vendidos", "Custos", 1, SourceSpec("411102", "debit"), col_a="*"),
+    DreLine("custos_fertilizantes", "Custos dos Fertilizantes Vendidos", "Custos", 1, SourceSpec("411103", "debit"), col_a="*"),
+    DreLine("custos_sementes", "Custos das Sementes Vendidas", "Custos", 1, SourceSpec("411104", "debit"), col_a="*"),
+    DreLine("custos_servicos", "Custos dos Serviços Prestados", "Custos", 1, SourceSpec("411105", "debit"), col_a="*"),
+    DreLine("avp_custo", "AVP Custo", "Custos", 1, SourceSpec("411107", "debit"), col_a="*"),
     DreLine(
         "lucro_bruto",
         "Lucro Bruto / Margem Bruta",
@@ -188,6 +203,7 @@ DRE_LINES: list[DreLine] = [
         formula=lambda v: v["receita_liquida"] - v["custos_vendas"],
         bold=True,
         percent_base="receita_liquida",
+        col_b="(=)",
     ),
     DreLine(
         "despesas_adm_com",
@@ -196,37 +212,49 @@ DRE_LINES: list[DreLine] = [
         source=SourceSpec("4211", "debit"),
         formula=lambda v: v["despesas_adm_com_fonte"] - v["pcld_constituicao"] - v["pcld_reversao"] - v["perdas_estoque"],
         bold=True,
+        # Sem símbolo no modelo (nem "*" nem operador) apesar de ser subtotal.
     ),
     DreLine("despesas_adm_com_fonte", "Despesas Administrativas e Comerciais (fonte 4211)", "Auxiliar", source=SourceSpec("4211", "debit")),
-    DreLine("rh_diretores", "Despesas com RH Diretores", "Despesas", 1, SourceSpec("421101", "debit")),
-    DreLine("rh_fixas", "Despesas com RH Fixas", "Despesas", 1, SourceSpec("421102", "debit")),
-    DreLine("rh_variaveis", "Despesas com RH Variáveis", "Despesas", 1, SourceSpec("421103", "debit")),
-    DreLine("ocupacao", "Ocupação", "Despesas", 1, SourceSpec("421104", "debit")),
-    DreLine("utilidades", "Utilidades e Serviços", "Despesas", 1, SourceSpec("421105", "debit")),
-    DreLine("funcionamento", "Despesas de Funcionamento", "Despesas", 1, SourceSpec("421108", "debit")),
-    DreLine("servicos_profissionais", "Serviços Profissionais", "Despesas", 1, SourceSpec("421109", "debit")),
-    DreLine("comunicacao", "Comunicação", "Despesas", 1, SourceSpec("421110", "debit")),
-    DreLine("propaganda", "Propaganda e Publicidade", "Despesas", 1, SourceSpec("421112", "debit")),
-    DreLine("frota", "Frota", "Despesas", 1, SourceSpec("421113", "debit")),
-    DreLine("transporte", "Transporte / Logísticas", "Despesas", 1, SourceSpec("421114", "debit")),
-    DreLine("tributos", "Tributos e Contribuições", "Despesas", 1, SourceSpec("421118", "debit")),
-    DreLine("despesas_bancarias", "Despesas Bancárias", "Despesas", 1, SourceSpec("421120", "debit")),
+    DreLine("rh_diretores", "Despesas com RH Diretores", "Despesas", 1, SourceSpec("421101", "debit"), col_a="*"),
+    DreLine("rh_fixas", "Despesas com RH Fixas", "Despesas", 1, SourceSpec("421102", "debit"), col_a="*"),
+    DreLine("rh_variaveis", "Despesas com RH Variáveis", "Despesas", 1, SourceSpec("421103", "debit"), col_a="*"),
+    DreLine("ocupacao", "Ocupação", "Despesas", 1, SourceSpec("421104", "debit"), col_a="*"),
+    DreLine("utilidades", "Utilidades e Serviços", "Despesas", 1, SourceSpec("421105", "debit"), col_a="*"),
+    DreLine("funcionamento", "Despesas de Funcionamento", "Despesas", 1, SourceSpec("421108", "debit"), col_a="*"),
+    DreLine("servicos_profissionais", "Serviços Profissionais", "Despesas", 1, SourceSpec("421109", "debit"), col_a="*"),
+    DreLine("comunicacao", "Comunicação", "Despesas", 1, SourceSpec("421110", "debit"), col_a="*"),
+    DreLine("propaganda", "Propaganda e Publicidade", "Despesas", 1, SourceSpec("421112", "debit"), col_a="*"),
+    DreLine("frota", "Frota", "Despesas", 1, SourceSpec("421113", "debit"), col_a="*"),
+    DreLine("transporte", "Transporte / Logísticas", "Despesas", 1, SourceSpec("421114", "debit"), col_a="*"),
+    DreLine("tributos", "Tributos e Contribuições", "Despesas", 1, SourceSpec("421118", "debit"), col_a="*"),
+    DreLine("despesas_bancarias", "Despesas Bancárias", "Despesas", 1, SourceSpec("421120", "debit"), col_a="*"),
     DreLine(
         "lucro_operacional",
         "Lucro Operacional antes do Resultado Financeiro e Provisões",
         "Resultado",
         formula=lambda v: v["lucro_bruto"] - v["despesas_adm_com"],
         bold=True,
+        col_b="(=)",
     ),
-    DreLine("resultado_financeiro", "Resultado Financeiro", "Financeiro", formula=lambda v: v["receitas_financeiras"] - v["despesas_financeiras"], bold=True),
-    DreLine("receitas_financeiras", "Receitas Financeiras Totais", "Financeiro", 1, SourceSpec("4312", "credit")),
-    DreLine("despesas_financeiras", "Despesas Financeiras Totais", "Financeiro", 1, SourceSpec("4311", "debit")),
-    DreLine("pcld", "PCLD", "Provisões", formula=lambda v: v["pcld_perda"] + v["pcld_constituicao"] + v["pcld_reversao"], bold=True),
-    DreLine("pcld_perda", "4211250060 - Despesa com Perda de PCLD", "Provisões", 1, SourceSpec("4211250060", "debit")),
-    DreLine("pcld_constituicao", "4211250001 - Constituição do PCLD Contábil", "Provisões", 1, SourceSpec("4211250001", "debit")),
-    DreLine("pcld_reversao", "4211250006 - Reversão do PCLD Contábil", "Provisões", 1, SourceSpec("4211250006", "debit")),
-    DreLine("outras_rec_desp", "Outras Receitas e Despesas Operacionais", "Outros", source=SourceSpec("4331", "credit")),
-    DreLine("perdas_estoque", "Constituição de Perdas Estimadas nos Estoques", "Outros", source=SourceSpec("4211250005", "debit")),
+    DreLine(
+        "resultado_financeiro",
+        "Resultado Financeiro",
+        "Financeiro",
+        formula=lambda v: v["receitas_financeiras"] - v["despesas_financeiras"],
+        bold=True,
+        col_b="( + )",
+    ),
+    DreLine("receitas_financeiras", "Receitas Financeiras Totais", "Financeiro", 1, SourceSpec("4312", "credit"), col_a="*"),
+    DreLine("despesas_financeiras", "Despesas Financeiras Totais", "Financeiro", 1, SourceSpec("4311", "debit"), col_a="*"),
+    DreLine("pcld", "PCLD", "Provisões", formula=lambda v: v["pcld_perda"] + v["pcld_constituicao"] + v["pcld_reversao"], bold=True, col_b="(-)"),
+    DreLine("pcld_perda", "4211250060 - Despesa com Perda de PCLD", "Provisões", 1, SourceSpec("4211250060", "debit"), col_a="*"),
+    DreLine("pcld_constituicao", "4211250001 - Constituição do PCLD Contábil", "Provisões", 1, SourceSpec("4211250001", "debit"), col_a="*"),
+    DreLine("pcld_reversao", "4211250006 - Reversão do PCLD Contábil", "Provisões", 1, SourceSpec("4211250006", "debit"), col_a="*"),
+    # outras_rec_desp/perdas_estoque têm level=0 no nosso modelo de dados (são
+    # fonte direta de conta), mas no layout do controller aparecem como linha
+    # analítica (col_a="*") dentro do bloco de PCLD/Outros — sem símbolo na col_b.
+    DreLine("outras_rec_desp", "Outras Receitas e Despesas Operacionais", "Outros", source=SourceSpec("4331", "credit"), col_a="*"),
+    DreLine("perdas_estoque", "Constituição de Perdas Estimadas nos Estoques", "Outros", source=SourceSpec("4211250005", "debit"), col_a="*"),
     DreLine(
         "resultado_contabil_antes_impostos",
         "Resultado Contábil antes dos Impostos (com PCLD)",
@@ -237,6 +265,7 @@ DRE_LINES: list[DreLine] = [
         # descontamos apenas Constituição + Reversão = (pcld - pcld_perda).
         formula=lambda v: -((v["pcld"] - v["pcld_perda"]) - v["outras_rec_desp"] + v["perdas_estoque"]) + v["lucro_operacional"] + v["resultado_financeiro"],
         bold=True,
+        col_b="(=)",
     ),
     DreLine(
         "resultado_gerencial_antes_impostos",
@@ -244,9 +273,10 @@ DRE_LINES: list[DreLine] = [
         "Resultado",
         formula=lambda v: v["lucro_operacional"] + v["resultado_financeiro"] + v["outras_rec_desp"] - v["perdas_estoque"],
         bold=True,
+        col_b="(=)",
     ),
-    DreLine("provisoes_fiscais", "Provisões Fiscais", "Impostos", source=SourceSpec("4341", "debit"), bold=True),
-    DreLine("ir_cs", "Imposto de Renda e Contribuição Social", "Impostos", 1, SourceSpec("434101", "debit")),
+    DreLine("provisoes_fiscais", "Provisões Fiscais", "Impostos", source=SourceSpec("4341", "debit"), bold=True, col_b="(-)"),
+    DreLine("ir_cs", "Imposto de Renda e Contribuição Social", "Impostos", 1, SourceSpec("434101", "debit"), col_a="*"),
     DreLine(
         "resultado_exercicio",
         "Resultado do Exercício",
@@ -254,10 +284,21 @@ DRE_LINES: list[DreLine] = [
         formula=lambda v: v["resultado_gerencial_antes_impostos"] - v["provisoes_fiscais"],
         bold=True,
         percent_base="receita_liquida",
+        col_b="(=)",
     ),
-    DreLine("depreciacao", "Depreciação e Amortizações", "EBITDA", formula=lambda v: v["depreciacao_veiculos"] + v["depreciacao_equipamentos"], bold=True),
-    DreLine("depreciacao_veiculos", "4211130006 - Depreciação e Amortizações Veículos", "EBITDA", 1, SourceSpec("4211130006", "debit")),
-    DreLine("depreciacao_equipamentos", "4211080003 - Depreciação e Amortizações Móveis e Equip. Inform.", "EBITDA", 1, SourceSpec("4211080003", "debit")),
+    DreLine(
+        "depreciacao",
+        "Depreciação e Amortizações",
+        "EBITDA",
+        formula=lambda v: v["depreciacao_veiculos"] + v["depreciacao_equipamentos"],
+        bold=True,
+        # Única linha do modelo com os dois símbolos simultâneos.
+        col_a="*",
+        col_b="(-)",
+    ),
+    DreLine("depreciacao_veiculos", "4211130006 - Depreciação e Amortizações Veículos", "EBITDA", 1, SourceSpec("4211130006", "debit"), col_a="*"),
+    DreLine("depreciacao_equipamentos", "4211080003 - Depreciação e Amortizações Móveis e Equip. Inform.", "EBITDA", 1, SourceSpec("4211080003", "debit"), col_a="*"),
+    # ebitda/margem_bruta_valor não têm símbolo em nenhuma das duas colunas no modelo.
     DreLine("ebitda", "EBITDA", "Resultado", formula=lambda v: v["lucro_operacional"] + v["depreciacao"], bold=True, percent_base="receita_liquida"),
     DreLine("margem_bruta_valor", "Margem Bruta (valor)", "Resultado", formula=lambda v: v["lucro_bruto"], bold=True),
 ]
