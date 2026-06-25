@@ -123,22 +123,32 @@ mantém "% Consol.", explicado abaixo).
 
 ## Aba Planejamento: médias, exercício corrente e --data-fim
 
-- A coluna **"Média"** usa só os exercícios **fechados** do intervalo — nunca
-  inclui o ano parcial cortado por `--data-fim`. Ex.: `--anos 2021-2025
-  --data-fim 31/05/2026` (que estende automaticamente para 2021-2026) gera
-  "Média 2021-2025", calculada só com os 5 anos fechados.
-- Quando há um ano parcial, a aba ganha uma coluna extra entre a Média e o
-  ano corrente, com o valor do **último exercício fechado** (ex.: "2025"),
-  para servir de referência estável ao lado da média.
-- A coluna do exercício corrente é rotulada com o **mês/ano do corte**
-  (formato `mês/AAAA` em português, ex.: "maio/2026") em vez do ano puro,
-  para deixar explícito que é parcial.
-- Sem `--data-fim`, a aba volta ao formato simples de 3 colunas por bloco
-  (Média, último ano, planejado) — a coluna extra do exercício fechado não
-  aparece, pois seria redundante (o "último ano" já é o último fechado).
-- A coluna **"% Consol."** (participação da filial) é sempre calculada com
-  base no **último exercício fechado**, nunca no ano parcial — um período
-  incompleto distorceria a proporção entre filiais.
+Estrutura de colunas **fixa** — não muda se você usar `--data-fim` ou não:
+
+- **Consolidado (4 colunas):** Média | Último exercício fechado | Parcial | Planejado.
+- **Cada filial (5 colunas):** Média | Último exercício fechado | Parcial | Planejado | % Consol.
+- Uma linha mesclada acima do cabeçalho agrupa visualmente cada bloco
+  ("CONSOLIDADO" sobre as 4 colunas; o nome da filial sobre as 5 dela),
+  igual ao modelo do controller. O filtro automático do Excel fica na linha
+  de cabeçalho real (a de baixo), não na linha de agrupamento.
+
+Regras:
+
+- **"Média"** usa só os exercícios **fechados** do intervalo — nunca inclui
+  o ano parcial cortado por `--data-fim`. Ex.: `--anos 2021-2025 --data-fim
+  31/05/2026` (que estende automaticamente para 2021-2026) gera "Média
+  2021-2025", calculada só com os 5 anos fechados.
+- **"Último exercício fechado"** mostra o valor do último ano realmente
+  fechado (ex.: "2025"), sempre — com ou sem `--data-fim`.
+- **"Parcial"** só tem valor quando há `--data-fim` (ano ainda não fechado);
+  sem `--data-fim` a coluna existe mas fica vazia em todas as linhas, com o
+  cabeçalho "(parcial)". Quando há corte, o cabeçalho mostra o **mês/ano**
+  em português (ex.: "maio/2026") em vez do ano puro, pra deixar explícito
+  que é parcial.
+- **"% Consol."** (participação da filial, só nas linhas de subtotal/
+  resultado) é sempre calculada com base no **último exercício fechado**,
+  nunca no ano parcial — um período incompleto distorceria a proporção
+  entre filiais.
 
 ## Colunas A/B (símbolos de filtro de conta)
 
