@@ -43,6 +43,31 @@ API em outra porta:
 .\.venv\Scripts\python.exe scripts\dre_controller.py --api-url http://127.0.0.1:3001 --anos 2021-2025
 ```
 
+### Relatório parcial (até uma data específica)
+
+Para fechar o exercício mais recente numa data específica em vez de 31/12 — por
+exemplo, tirar o relatório com o ano corrente só até 31/05/2026 — use
+`--data-fim`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\dre_controller.py `
+  --anos 2021-2025 `
+  --data-fim 2026-05-31
+```
+
+Regras:
+
+- O ano de `--data-fim` precisa ser o **ano mais recente** do intervalo. Se ele
+  não estiver em `--anos` (como no exemplo acima, onde 2026 não estava em
+  `2021-2025`), o script adiciona esse ano automaticamente.
+- Só o ano mais recente é cortado; os anos anteriores continuam fechando em
+  31/12 normalmente.
+- O nome do arquivo gerado automaticamente ganha o sufixo `-ate-AAAA-MM-DD`
+  (ex.: `dre-controller-2021-2026-ate-2026-05-31.xlsx`), salvo se `--arquivo`
+  for informado.
+- A aba `Mapa de Cálculo` registra a data exata usada em cada consulta à API,
+  então é possível confirmar o corte direto na planilha.
+
 O script depende das rotas atuais — reinicie a API se elas tiverem mudado:
 
 - `/api/v1/executivo/contabilidade/sintetico?excluirEncerramento=true`

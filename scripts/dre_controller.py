@@ -167,6 +167,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--api-url", default=DEFAULT_API_URL)
     parser.add_argument("--anos", help="Intervalo/lista de anos. Ex.: 2021-2025 ou 2023,2024,2025.")
+    parser.add_argument(
+        "--data-fim",
+        help=(
+            "Corta o exercício mais recente numa data específica em vez de 31/12 "
+            "(formato AAAA-MM-DD). Ex.: --data-fim 2026-05-31 para um relatório "
+            "parcial do ano corrente até 31/05/2026. O ano dessa data deve ser o "
+            "mais recente do intervalo; se não estiver em --anos, é adicionado "
+            "automaticamente."
+        ),
+    )
     parser.add_argument("--arquivo", help="Arquivo .xlsx de saída.")
     parser.add_argument("--historico-encerramento", default=ENCERRAMENTO_HISTORICO)
     parser.add_argument(
@@ -324,6 +334,22 @@ def average(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def resolve_year_ends(years: list[int], data_fim: str | None) -> dict[int, str]:
+    """Data final (dataFim) de cada exercício na consulta à API.
+
+    Por padrão é 31/12 de cada ano. Quando --data-fim é informado, ele só vale
+    para o ano mais recente do intervalo (relatório parcial do exercício
+    corrente, ex.: até 2026-05-31) — os anos anteriores continuam fechados em
+    31/12. A validação de que data_fim pertence ao ano mais recente é feita em
+    generate_report(); esta função só monta o mapa ano -> data final.
+    """
+    last_year = max(years)
+    ends = {year: f"{year}-12-31" for year in years}
+    if data_fim:
+        ends[last_year] = data_fim
+    return ends
+
+
 def av_for_dre_key(key: str, values: dict[str, float]) -> float | None:
     if key not in AV_KEYS:
         return None
@@ -357,7 +383,7 @@ def write_audit(
 # --------------------------------------------------------------------------- #
 # Coleta de dados (somente ActionAPI)
 # --------------------------------------------------------------------------- #
-def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[BranchInfo]):
+def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[BranchInfo], year_ends: dict[int, str]):
     api_key = first_api_key()
     dre_accounts_by_year: dict[int, dict[str, dict[str, Any]]] = {}
     dre_by_year: dict[int, dict[str, float]] = {}
@@ -373,7 +399,7 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
             args.api_url,
             api_key,
             data_inicio=f"{year}-01-01",
-            data_fim=f"{year}-12-31",
+            data_fim=year_ends[year],
             excluir_encerramento=True,
             historico_encerramento=args.historico_encerramento,
         )
@@ -383,20 +409,20 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
             args.api_url,
             api_key,
             data_inicio=DATA_INICIO_PLANO_ATUAL,
-            data_fim=f"{year}-12-31",
+            data_fim=year_ends[year],
         )
         dre_accounts_by_year[year] = dre_accounts
         dre_by_year[year] = calculate_dre(dre_accounts)
         bp_accounts_by_year[year] = bp_accounts
         indicators_by_year[year] = calculate_indicators(year, dre_by_year[year], bp_accounts)
-        print(f"[dre-controller] {year}: DRE e BP carregados", flush=True)
+        print(f"[dre-controller] {year} (até {year_ends[year]}): DRE e BP carregados", flush=True)
 
     def fetch_branch_year(year: int, branch: BranchInfo):
         accounts = fetch_synthetic(
             args.api_url,
             api_key,
             data_inicio=f"{year}-01-01",
-            data_fim=f"{year}-12-31",
+            data_fim=year_ends[year],
             filial_id=branch.id,
             excluir_encerramento=True,
             historico_encerramento=args.historico_encerramento,
@@ -417,11 +443,14 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
             print(f"[dre-controller] {year} filial {branch.id} {branch.nome}: DRE carregada", flush=True)
 
     def fetch_branch_accum(year: int, branch: BranchInfo):
+        # year_ends só tem entradas para os anos pedidos em --anos; o ano
+        # anterior ao primeiro (usado só para o saldo de abertura do
+        # balancete) sempre fecha em 31/12, mesmo com --data-fim.
         accounts = fetch_synthetic(
             args.api_url,
             api_key,
             data_inicio=DATA_INICIO_PLANO_ATUAL,
-            data_fim=f"{year}-12-31",
+            data_fim=year_ends.get(year, f"{year}-12-31"),
             filial_id=branch.id,
         )
         return year, branch, accounts
@@ -458,7 +487,13 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
 # --------------------------------------------------------------------------- #
 # Abas
 # --------------------------------------------------------------------------- #
-def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, dict[str, float]], audit_rows: list[list[Any]]) -> None:
+def build_dre_exercicio(
+    wb: Workbook,
+    years: list[int],
+    dre_by_year: dict[int, dict[str, float]],
+    audit_rows: list[list[Any]],
+    year_ends: dict[int, str],
+) -> None:
     # Colunas A/B replicam os símbolos de filtro do modelo (ver bloco de
     # comentário junto a DRE_LINES.col_a/col_b — fonte única, não duplicar a
     # regra aqui). Colunas de dados intercaladas por ano, igual ao modelo:
@@ -507,7 +542,7 @@ def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, d
                 audit_rows, ws.title, f"{get_column_letter(col)}{r}", "DRE por exercicio", "Valor",
                 y, "Consolidado", line.label, dre_by_year[y].get(key, 0.0),
                 dre_line_formula_text(line),
-                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={y}-01-01&dataFim={y}-12-31&excluirEncerramento=true",
+                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={y}-01-01&dataFim={year_ends[y]}&excluirEncerramento=true",
                 dre_line_components_text(line, dre_by_year[y]),
             )
 
@@ -527,6 +562,7 @@ def build_dre_comparativa_por_ano(
     branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
     branches: list[BranchInfo],
     audit_rows: list[list[Any]],
+    year_ends: dict[int, str],
 ) -> None:
     """Comparativo por filial, filtrável por exercício (filtro nativo na coluna Ano).
 
@@ -583,7 +619,7 @@ def build_dre_comparativa_por_ano(
             write_audit(
                 audit_rows, ws.title, f"A{r}", "DRE comparativa", "Valor", year, "Consolidado",
                 line.label, value, dre_line_formula_text(line),
-                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={year}-01-01&dataFim={year}-12-31&excluirEncerramento=true",
+                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={year}-01-01&dataFim={year_ends[year]}&excluirEncerramento=true",
                 "Filtre a coluna Ano para escolher o exercício.",
             )
 
@@ -624,6 +660,7 @@ def build_bp(
     indicators_by_year: dict[int, dict[str, float]],
     inactive_text: str,
     audit_rows: list[list[Any]],
+    year_ends: dict[int, str],
 ) -> None:
     ws = wb.create_sheet("Balanço Patrimonial")
     ws.append([inactive_text])
@@ -646,7 +683,7 @@ def build_bp(
                 audit_rows, ws.title, f"{get_column_letter(3 + idx)}{r}", "Balanço Patrimonial", "Valor",
                 year, "Consolidado", f"{line.account} - {line.label}", bp_value(bp_accounts_by_year[year], line.account),
                 "Ativo = saldo D-C; Passivo/PL = sinal invertido para apresentação positiva.",
-                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={DATA_INICIO_PLANO_ATUAL}&dataFim={year}-12-31",
+                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={DATA_INICIO_PLANO_ATUAL}&dataFim={year_ends[year]}",
                 "",
             )
         if line.bold:
@@ -928,15 +965,34 @@ def save_workbook(wb: Workbook, output: Path, required: list[str]) -> None:
 
 def generate_report(args: argparse.Namespace) -> Path:
     years = parse_years(args.anos)
+
+    if args.data_fim:
+        try:
+            cutoff = datetime.strptime(args.data_fim, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise ValueError(f"--data-fim inválida: {args.data_fim!r}. Use o formato AAAA-MM-DD.") from exc
+        if cutoff.year not in years:
+            years = sorted([*years, cutoff.year])
+        if cutoff.year != max(years):
+            raise ValueError(
+                "--data-fim deve cair no ano mais recente do intervalo (relatório "
+                f"parcial só vale para o exercício corrente). Ano em --data-fim: "
+                f"{cutoff.year}; ano mais recente em --anos: {max(years)}."
+            )
+
     if len(years) > 6:
         raise ValueError("Informe no máximo 6 exercícios por relatório.")
+    year_ends = resolve_year_ends(years, args.data_fim)
 
+    output_suffix = f"-ate-{args.data_fim}" if args.data_fim else ""
     output = (
         Path(args.arquivo).resolve()
         if args.arquivo
-        else ROOT / "relatorios" / f"dre-controller-{min(years)}-{max(years)}.xlsx"
+        else ROOT / "relatorios" / f"dre-controller-{min(years)}-{max(years)}{output_suffix}.xlsx"
     )
     generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    if args.data_fim:
+        print(f"[dre-controller] exercício {max(years)} cortado em {args.data_fim} (relatório parcial)", flush=True)
 
     print(f"[dre-controller] consultando ActionAPI em {args.api_url}...", flush=True)
     api_key = first_api_key()
@@ -960,7 +1016,7 @@ def generate_report(args: argparse.Namespace) -> Path:
         branch_accounts_by_year,
         branch_accum_by_year,
         branch_prior_before_first,
-    ) = fetch_all_data(args, years, balancete_branches)
+    ) = fetch_all_data(args, years, balancete_branches, year_ends)
 
     # Ordem das abas igual ao modelo do controller (Planejamento, Balancete,
     # BP, Comparativa, Comparativa Exercício), com a Comparativa por Ano no lugar
@@ -972,9 +1028,9 @@ def generate_report(args: argparse.Namespace) -> Path:
         wb, years, balancete_branches, branch_accounts_by_year, branch_accum_by_year,
         branch_prior_before_first, generated_at, audit_rows,
     )
-    build_bp(wb, years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows)
-    build_dre_comparativa_por_ano(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
-    build_dre_exercicio(wb, years, dre_by_year, audit_rows)
+    build_bp(wb, years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows, year_ends)
+    build_dre_comparativa_por_ano(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows, year_ends)
+    build_dre_exercicio(wb, years, dre_by_year, audit_rows, year_ends)
     build_mapa_calculo(wb, audit_rows, generated_at)
 
     required = [
