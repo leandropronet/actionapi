@@ -23,7 +23,7 @@ Também existe um script independente para cada arquivo:
 | Contabilidade | `scripts/gerar_relatorio_contabilidade.py` |
 | Visão 360° | `scripts/gerar_relatorio_visao_360.py` |
 | DRE e Balanço Patrimonial anual | `scripts/relatorio_dre.py` |
-| Réplica da planilha DRE/BP do controller | `scripts/dre_controller.py` |
+| DRE/BP no estilo do controller (via API, sem template) | `scripts/dre_controller.py` |
 
 ## Execução
 

@@ -1,35 +1,35 @@
-# Réplica da planilha DRE/BP do controller
+# Relatório DRE/BP no estilo do controller
 
 Script: `scripts/dre_controller.py`
 
-Este script gera uma réplica da planilha do controller
-`SGA_DRE E BP 2021 a 2025 ANUAL_v2.xlsx`, mantendo as mesmas abas e o mesmo
-conceito visual, mas substituindo o motor de cálculo do Excel por Python +
-ActionAPI.
+Gera um relatório DRE + Balanço Patrimonial no **conceito** da planilha do
+controller (DRE por exercício, comparativo por filial, balanço/indicadores,
+planejamento e balancete geral), porém **100% montado a partir da ActionAPI** —
+sem abrir nenhuma planilha-modelo e sem fórmulas vivas no Excel.
 
-## Objetivo
+## Independente da planilha-modelo
 
-Usar a planilha do controller como referência de layout, sem carregar o custo e
-o risco das fórmulas `SOMASES/SUMIFS` espalhadas. O arquivo gerado:
+O script **não** carrega mais `SGA_DRE E BP 2021 a 2025 ANUAL_v2.xlsx`. Todas as
+abas são construídas do zero com os saldos vindos de
+`/api/v1/executivo/contabilidade/sintetico`. Vantagens:
 
-- mantém as abas originais;
-- escreve valores estáticos calculados pela API;
-- não possui fórmulas reais em células;
-- aplica as correções já identificadas na auditoria;
-- deixa a aba `SGA_Balancete Geral` anual por loja, no layout original do
-  controller.
+- nenhuma dependência de arquivo externo ou do layout/fórmulas do controller;
+- valores são números estáticos calculados em Python (sem `SOMASE/SUMIFS`);
+- as linhas da DRE/BP vêm de `DRE_LINES`/`BP_LINES` (mesma fonte do
+  `relatorio_dre.py`), então correção de critério feita lá vale aqui também.
+
+Se algum dado de cadastro for necessário no futuro (ex.: nome de filial), ele é
+puxado da API (`/api/v1/executivo/filiais`), nunca de uma aba estática.
 
 ## Como executar
 
-Para uso manual, pode executar sem informar os anos. O script pergunta o
-intervalo de exercícios e o exercício da aba comparativa:
+Sem argumentos, no terminal, o script pergunta o intervalo de exercícios:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\dre_controller.py
 ```
 
-Para execução agendada/Docker, informe os parâmetros ou use `--nao-interativo`
-para não depender de entrada no terminal.
+Para execução agendada/Docker, informe `--anos` (ou use `--nao-interativo`):
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\dre_controller.py `
@@ -37,121 +37,66 @@ para não depender de entrada no terminal.
   --arquivo relatorios\dre-controller-2021-2025.xlsx
 ```
 
-Para testar com API em outra porta:
+API em outra porta:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\dre_controller.py `
-  --api-url http://127.0.0.1:3001 `
-  --anos 2021-2025
+.\.venv\Scripts\python.exe scripts\dre_controller.py --api-url http://127.0.0.1:3001 --anos 2021-2025
 ```
 
-Importante: reinicie a API/container antes de usar a porta padrão, pois o script
-depende das rotas/parâmetros atuais:
+O script depende das rotas atuais — reinicie a API se elas tiverem mudado:
 
 - `/api/v1/executivo/contabilidade/sintetico?excluirEncerramento=true`
 - `/api/v1/executivo/filiais`
 
 ## Abas geradas
 
-- `SGA_Planejamento`
-- `SGA_Balancete Geral`
-- `SGA_BP`
-- `SGA_DRE Comparativa Exercicio` (comparação dos exercícios lado a lado)
-- `DRE Comparativa por Ano` (substitui a antiga `SGA_DRE Comparativa`)
-- `Mapa de Cálculo`
-
-A aba `Mapa de Cálculo` documenta célula, bloco, linha/indicador, valor, critério
-e fonte de dados — substitui a leitura das fórmulas do Excel, já que a planilha
-final é calculada pelo Python.
-
-As abas estáticas do template `SGA_Dados Copiados`, `SGA_Tab_Cadastro` e
-`Fonte de Pesquisa e Orientações` **não são mais geradas**: todos os dados vêm da
-ActionAPI. Se algum dado de cadastro for necessário, deve ser puxado da API (ex.:
-`/api/v1/executivo/filiais`) em vez de uma aba estática.
+- **`DRE por Exercício`**: DRE com os anos lado a lado, A.V. por ano e A.H. entre
+  anos consecutivos.
+- **`DRE Comparativa por Ano`**: comparativo por filial, **filtrável por ano**.
+- **`Balanço Patrimonial`**: contas do BP por ano + bloco de indicadores.
+- **`Planejamento`**: por linha da DRE, média dos exercícios, último exercício,
+  coluna de planejado em branco e A.V.; o mesmo por filial.
+- **`Balancete Geral`**: uma linha por Loja/Exercício/Conta (saldo anterior,
+  débito, crédito, saldo do mês e saldo atual).
+- **`Mapa de Cálculo`**: documenta cada célula calculada (aba, célula, valor,
+  critério e fonte na API) — substitui a leitura das fórmulas do Excel.
 
 ## Filtro por ano de exercício
 
-O arquivo final não usa fórmulas vivas (`SUMIFS`), então não dá para trocar o
-ano numa célula e recalcular como no modelo do controller. A aba
-**`DRE Comparativa por Ano`** substitui a `SGA_DRE Comparativa` e resolve isso:
+Como o arquivo não usa fórmulas vivas, não dá para trocar o ano numa célula e
+recalcular. A aba **`DRE Comparativa por Ano`** resolve isso:
 
 - uma linha por **Ano × linha da DRE**, cobrindo todos os anos de `--anos`;
-- segue a **mesma sequência de colunas visível** do controller: `Contas
-  Contábeis`, `Consolidado` e, por filial, `Valor` + `(%) no Consolidado`
-  (as colunas de A.V. do modelo são ocultas e não foram replicadas);
-- linhas de subtotal/resultado em **negrito com fundo verde**, como no controller;
-- **filtro automático** do Excel já habilitado: abra o filtro da coluna `Ano`,
-  escolha o exercício e a DRE inteira com os comparativos por filial passa a
-  mostrar somente aquele ano. Colunas `Ano`/`Contas Contábeis` ficam congeladas.
+- segue a sequência de colunas visível do controller: `Contas Contábeis`,
+  `Consolidado` e, por filial, `Valor` + `(%) no Consolidado` (sem as colunas de
+  A.V. que eram ocultas no modelo);
+- linhas de subtotal/resultado em **negrito com fundo verde**;
+- **filtro automático** já habilitado: abra o filtro da coluna `Ano`, escolha o
+  exercício e a DRE inteira com os comparativos por filial passa a mostrar só
+  aquele ano. Colunas `Ano`/`Contas Contábeis` ficam congeladas.
 
-A aba `SGA_DRE Comparativa Exercicio` mantém a comparação lado a lado dos
-exercícios; nela o **A.V.** é calculado apenas nas linhas de subtotal/resultado
-(Receita Líquida, Custos, Lucro Bruto, Despesas, Lucro Operacional, Resultado
-Financeiro, PCLD, Resultados, Provisões, Depreciação, EBITDA e Margem Bruta),
-igual ao modelo — as linhas de detalhe ficam em branco.
+## Análise Vertical (A.V.)
 
-## Ajustes de estrutura
+O A.V. é calculado **apenas nas linhas de subtotal/resultado** (Receita Líquida,
+Custos, Lucro Bruto, Despesas, Lucro Operacional, Resultado Financeiro, PCLD,
+Resultados, Provisões, Depreciação, EBITDA e Margem Bruta), igual ao critério do
+modelo — nas linhas de detalhe fica em branco.
 
-- `SGA_Planejamento`: cada bloco de filial agora possui 4 colunas fixas:
-  `Média 2021/25`, `2025`, `2026 (Planejado)` em branco e `(%) A.V. - 2025`.
-  A média usa os exercícios fechados informados em `--anos`; o planejado fica em
-  branco até definirmos a fonte/regra de orçamento. A coluna de A.V. respeita a
-  máscara de fórmulas da planilha original: só os campos que tinham cálculo no
-  controller recebem percentual; os demais ficam em branco.
-- `SGA_Balancete Geral`: a tabela é reconstruída em `A9:M...`, com as colunas
-  originais `Loja`, `Exercício`, `Grau 1`, `Grau 3`, `Natureza da Conta`,
-  `Grau`, `Conta Contábil`, `Nomenclatura da Conta`, `Saldo Anterior`,
-  `Débito`, `Crédito`, `Saldo do Mês` e `Saldo Atual`. O balancete principal
-  não mistura linhas mensais; a visão mês a mês deve ficar em aba própria para
-  não quebrar a estrutura/filtros do controller.
-- `SGA_BP`: a frase de filiais inativas é calculada via
-  `/api/v1/executivo/filiais` usando `SITU_EMP`. Se todas estiverem ativas, o
-  relatório informa `nenhuma`.
+## Correções de critério aplicadas
 
-## Correções aplicadas
+- DRE sem o lançamento de encerramento anual (`excluirEncerramento=true`,
+  `HIST_HIS <> 1000191`).
+- Resultado Contábil antes dos impostos sem dupla contagem da perda de PCLD.
+- Resultado Gerencial separado do Resultado Contábil.
+- ROA = `Resultado do Exercício / Ativo Total`.
+- ROE = `Resultado do Exercício / Patrimônio Líquido`.
+- Liquidez Geral técnica = `(AC + Realizável LP) / (PC + PNC)`.
+- Endividamento técnico = `(PC + PNC) / Patrimônio Líquido`.
+- Impostos nas vendas abertos como total de deduções menos devoluções.
 
-- DRE calculada sem lançamento de encerramento anual:
-
-  ```text
-  excluirEncerramento=true
-  HIST_HIS <> 1000191
-  ```
-
-- Resultado Contábil antes dos impostos corrigido para não descontar a perda de
-  PCLD em dobro.
-- Resultado Gerencial antes dos impostos separado do resultado contábil.
-- ROA usa `Resultado do Exercício / Ativo Total`.
-- ROE usa `Resultado do Exercício / Patrimônio Líquido`.
-- Liquidez Geral usa o critério técnico:
-
-  ```text
-  (Ativo Circulante + Realizável a Longo Prazo) /
-  (Passivo Circulante + Passivo Não Circulante)
-  ```
-
-- Endividamento usa o critério técnico:
-
-  ```text
-  (Passivo Circulante + Passivo Não Circulante) / Patrimônio Líquido
-  ```
-
-- Impostos nas vendas são abertos como total de deduções menos devoluções,
-  evitando dupla contagem visual nas sublinhas.
-
-## Observação sobre leveza
-
-A planilha original possui milhares de colunas “usadas” por fórmulas/formatação.
-O script poda as áreas vazias pesadas, preservando a área útil das abas, para
-manter a réplica leve e abrir mais rápido no Excel.
-
-O script valida a saída e falha se encontrar fórmula real remanescente em
-células. Também remove as tabelas estruturadas antigas do template e recria os
-filtros como `AutoFilter`, evitando o erro de reparo do Excel em
-`/xl/tables/table*.xml`.
-
-## Observação sobre diferenças contra a planilha modelo
+## Diferenças contra a planilha-modelo
 
 Quando os valores diferirem da planilha `SGA_DRE E BP 2021 a 2025 ANUAL_v2.xlsx`,
-o primeiro critério de validação é comparar API e PostgreSQL atual. Na validação
-de 24/06/2026, API e PostgreSQL bateram entre si; a diferença encontrada em 2025
-indica planilha modelo/cache desatualizada ou gerada com outro recorte.
+o critério de validação é comparar API × PostgreSQL atual. Na validação de
+24/06/2026, API e PostgreSQL bateram entre si; diferenças apontam planilha
+modelo/cache desatualizada ou gerada com outro recorte.
