@@ -51,38 +51,44 @@ depende das rotas/parâmetros atuais:
 - `/api/v1/executivo/contabilidade/sintetico?excluirEncerramento=true`
 - `/api/v1/executivo/filiais`
 
-## Abas preservadas
+## Abas geradas
 
-- `SGA_Dados Copiados`
 - `SGA_Planejamento`
-- `Fonte de Pesquisa e Orientações`
 - `SGA_Balancete Geral`
-- `SGA_Tab_Cadastro`
 - `SGA_BP`
-- `SGA_DRE Comparativa`
-- `SGA_DRE Comparativa Exercicio`
+- `SGA_DRE Comparativa Exercicio` (comparação dos exercícios lado a lado)
+- `DRE Comparativa por Ano` (substitui a antiga `SGA_DRE Comparativa`)
+- `Mapa de Cálculo`
 
-Além das abas originais, o script cria `Mapa de Cálculo`, com célula, bloco,
-linha/indicador, valor, critério e fonte de dados. Essa aba substitui a leitura
-das fórmulas do Excel, já que a planilha final é calculada pelo Python.
+A aba `Mapa de Cálculo` documenta célula, bloco, linha/indicador, valor, critério
+e fonte de dados — substitui a leitura das fórmulas do Excel, já que a planilha
+final é calculada pelo Python.
+
+As abas estáticas do template `SGA_Dados Copiados`, `SGA_Tab_Cadastro` e
+`Fonte de Pesquisa e Orientações` **não são mais geradas**: todos os dados vêm da
+ActionAPI. Se algum dado de cadastro for necessário, deve ser puxado da API (ex.:
+`/api/v1/executivo/filiais`) em vez de uma aba estática.
 
 ## Filtro por ano de exercício
 
 O arquivo final não usa fórmulas vivas (`SUMIFS`), então não dá para trocar o
-ano numa célula e recalcular como no modelo do controller. Para permitir filtrar
-o exercício, o script cria a aba **`DRE Comparativa por Ano`**:
+ano numa célula e recalcular como no modelo do controller. A aba
+**`DRE Comparativa por Ano`** substitui a `SGA_DRE Comparativa` e resolve isso:
 
 - uma linha por **Ano × linha da DRE**, cobrindo todos os anos de `--anos`;
-- as mesmas colunas comparativas do controller: `Consolidado`, `(%) A.V.` e, por
-  filial, `Valor`, `(%) A.V.` e `(%) filial/Consolidado`;
+- segue a **mesma sequência de colunas visível** do controller: `Contas
+  Contábeis`, `Consolidado` e, por filial, `Valor` + `(%) no Consolidado`
+  (as colunas de A.V. do modelo são ocultas e não foram replicadas);
+- linhas de subtotal/resultado em **negrito com fundo verde**, como no controller;
 - **filtro automático** do Excel já habilitado: abra o filtro da coluna `Ano`,
   escolha o exercício e a DRE inteira com os comparativos por filial passa a
-  mostrar somente aquele ano. Painéis `Ano`/`Linha` ficam congelados.
+  mostrar somente aquele ano. Colunas `Ano`/`Contas Contábeis` ficam congeladas.
 
-A aba `SGA_DRE Comparativa` (layout idêntico ao controller) continua existindo,
-fixada no ano de `--ano-comparativa`; a aba `SGA_DRE Comparativa Exercicio`
-mantém a comparação lado a lado dos últimos exercícios. A `DRE Comparativa por
-Ano` é a que permite escolher o exercício sem regerar o arquivo.
+A aba `SGA_DRE Comparativa Exercicio` mantém a comparação lado a lado dos
+exercícios; nela o **A.V.** é calculado apenas nas linhas de subtotal/resultado
+(Receita Líquida, Custos, Lucro Bruto, Despesas, Lucro Operacional, Resultado
+Financeiro, PCLD, Resultados, Provisões, Depreciação, EBITDA e Margem Bruta),
+igual ao modelo — as linhas de detalhe ficam em branco.
 
 ## Ajustes de estrutura
 
@@ -101,8 +107,6 @@ Ano` é a que permite escolher o exercício sem regerar o arquivo.
 - `SGA_BP`: a frase de filiais inativas é calculada via
   `/api/v1/executivo/filiais` usando `SITU_EMP`. Se todas estiverem ativas, o
   relatório informa `nenhuma`.
-- `SGA_DRE Comparativa`: o exercício exibido vem de `--ano-comparativa` ou, por
-  padrão, do maior ano em `--anos`; não fica mais fixo no texto do template.
 
 ## Correções aplicadas
 

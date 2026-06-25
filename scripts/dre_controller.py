@@ -92,6 +92,8 @@ except ModuleNotFoundError:
 ROOT = Path(__file__).resolve().parents[1]
 
 HEADER_FILL = PatternFill("solid", fgColor="0B5D1E")
+SUBTOTAL_FILL = PatternFill("solid", fgColor="E2EFDA")
+BOLD_FONT = Font(bold=True)
 WHITE_FONT = Font(color="FFFFFF", bold=True)
 MONEY_FMT = '#,##0.00;[Red]-#,##0.00;""'
 PERCENT_FMT = '0.00%;[Red]-0.00%;""'
@@ -143,7 +145,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--api-url", default=DEFAULT_API_URL)
     parser.add_argument("--anos", help="Intervalo/lista de anos. Ex.: 2021-2025.")
-    parser.add_argument("--ano-comparativa", type=int, help="Ano da aba SGA_DRE Comparativa. Padrão: maior ano.")
     parser.add_argument("--modelo", default=str(DEFAULT_MODEL), help="Arquivo .xlsx usado como template visual.")
     parser.add_argument("--arquivo", help="Arquivo .xlsx de saída.")
     parser.add_argument("--historico-encerramento", default=ENCERRAMENTO_HISTORICO)
@@ -176,15 +177,6 @@ def complete_interactive_args(args: argparse.Namespace) -> argparse.Namespace:
             "Quais exercícios deseja gerar? Use intervalo/lista, ex.: 2021-2025 ou 2023,2024,2025",
             "2021-2025",
         )
-
-    years = parse_years(args.anos)
-    if args.ano_comparativa is None:
-        default_year = str(max(years))
-        answer = ask_with_default(
-            "Qual exercício deve aparecer na aba SGA_DRE Comparativa?",
-            default_year,
-        )
-        args.ano_comparativa = int(answer)
 
     return args
 
@@ -670,11 +662,33 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
     )
 
 
+# A.V. (Análise Vertical) só nas linhas de subtotal/resultado, igual ao modelo do
+# controller (SGA_DRE Comparativa Exercicio): as linhas de detalhe ficam em branco.
+AV_KEYS = {
+    "receita_liquida",
+    "custos_vendas",
+    "lucro_bruto",
+    "despesas_adm_com",
+    "lucro_operacional",
+    "resultado_financeiro",
+    "pcld",
+    "resultado_contabil_antes_impostos",
+    "resultado_gerencial_antes_impostos",
+    "resultado_exercicio_contabil",
+    "resultado_exercicio",
+    "provisoes_fiscais",
+    "depreciacao",
+    "ebitda",
+    "margem_bruta_valor",
+}
+
+
 def av_for_dre_key(key: str, values: dict[str, float]) -> float | None:
-    line = next((item for item in DRE_LINES if item.key == key), None)
-    if not line or not line.percent_base:
+    if key not in AV_KEYS:
         return None
-    return safe_ratio(values.get(key, 0.0), values.get(line.percent_base, 0.0))
+    line = next((item for item in DRE_LINES if item.key == key), None)
+    base_key = line.percent_base if (line and line.percent_base) else "receita_liquida"
+    return safe_ratio(values.get(key, 0.0), values.get(base_key, 0.0))
 
 
 def fill_dre_exercicio(
@@ -759,96 +773,6 @@ def fill_dre_exercicio(
                     "valores calculados na propria DRE",
                     f"{year}={format_formula_value(current)}; {display_years[idx + 1]}={format_formula_value(previous)}",
                 )
-
-
-def fill_dre_comparativa(
-    ws,
-    year: int,
-    dre_by_year: dict[int, dict[str, float]],
-    branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
-    branches: list[BranchInfo],
-    audit_rows: list[list[Any]],
-) -> None:
-    unmerge_intersecting(ws, 7, 7, 4, 80)
-    clear_range(ws, 7, 120, 4, 80)
-    ws.cell(4, 4, year)
-    ws.cell(7, 4, f"Consolidado - {year}")
-    ws.cell(7, 5, "Soma filiais")
-    ws.cell(7, 6, "Confere")
-    ws.cell(7, 7, f"(%) A.V. - {year}")
-    for col in range(4, 8):
-        ws.cell(7, col).fill = HEADER_FILL
-        ws.cell(7, col).font = WHITE_FONT
-
-    for idx, branch in enumerate(branches):
-        col = 8 + (idx * 3)
-        ws.cell(7, col, branch.nome)
-        ws.cell(7, col + 1, f"(%) A.V. - {year}")
-        ws.cell(7, col + 2, "(%) no Consolidado")
-        for header_col in range(col, col + 3):
-            ws.cell(7, header_col).fill = HEADER_FILL
-            ws.cell(7, header_col).font = WHITE_FONT
-
-    consolidated = dre_by_year[year]
-    for row in range(8, 73):
-        corrected = CORRECTED_LABELS.get((ws.title, row))
-        if corrected:
-            ws.cell(row, 3, corrected)
-        key = dre_key_for_row(ws.title, row, ws.cell(row, 3).value)
-        if not key:
-            continue
-
-        value = consolidated.get(key, 0.0)
-        value_cell = ws.cell(row, 4, value)
-        set_number_format(value_cell, "money")
-        line = next((item for item in DRE_LINES if item.key == key), None)
-        write_audit(
-            audit_rows,
-            ws.title,
-            value_cell.coordinate,
-            "DRE comparativa",
-            "Valor",
-            year,
-            "Anual",
-            "Consolidado",
-            str(ws.cell(row, 3).value or ""),
-            value,
-            dre_line_formula_text(line) if line else "linha calculada em Python",
-            f"/api/v1/executivo/contabilidade/sintetico?dataInicio={year}-01-01&dataFim={year}-12-31&excluirEncerramento=true",
-            dre_line_components_text(line, consolidated) if line else "",
-        )
-        branch_sum = 0.0
-        av_cell = ws.cell(row, 7, av_for_dre_key(key, consolidated))
-        set_number_format(av_cell, "percent")
-        for idx, branch in enumerate(branches):
-            col = 8 + (idx * 3)
-            branch_values = branch_dre_by_year[year].get(branch.id, {})
-            branch_value = branch_values.get(key, 0.0)
-            branch_sum += branch_value
-            branch_cell = ws.cell(row, col, branch_value)
-            set_number_format(branch_cell, "money")
-            branch_av_cell = ws.cell(row, col + 1, av_for_dre_key(key, branch_values))
-            branch_share_cell = ws.cell(row, col + 2, safe_ratio(branch_value, value))
-            set_number_format(branch_av_cell, "percent")
-            set_number_format(branch_share_cell, "percent")
-            write_audit(
-                audit_rows,
-                ws.title,
-                branch_cell.coordinate,
-                "DRE comparativa",
-                "Valor por filial",
-                year,
-                "Anual",
-                branch.label,
-                str(ws.cell(row, 3).value or ""),
-                branch_value,
-                dre_line_formula_text(line) if line else "linha calculada em Python",
-                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={year}-01-01&dataFim={year}-12-31&filialId={branch.id}&excluirEncerramento=true",
-                dre_line_components_text(line, branch_values) if line else "",
-            )
-        sum_cell = ws.cell(row, 5, branch_sum)
-        ws.cell(row, 6, abs(branch_sum - value) < 0.01)
-        set_number_format(sum_cell, "money")
 
 
 def average(values: list[float]) -> float:
@@ -1077,25 +1001,6 @@ def fill_bp(
         ws.cell(62, col, ativo - passivo)
 
 
-def fill_fonte(ws, years: list[int], generated_at: str, branch_source: str, inactive_text: str) -> None:
-    rows = [
-        ("Fonte dos dados", "ActionAPI /api/v1/executivo/contabilidade/sintetico"),
-        ("Período", f"{min(years)} a {max(years)}"),
-        ("Gerado em", generated_at),
-        ("Cálculo", "Python; planilha gerada sem fórmulas em células."),
-        ("DRE", f"excluirEncerramento=true; HIST_HIS <> {ENCERRAMENTO_HISTORICO}"),
-        ("Filiais", f"{branch_source}. {inactive_text}"),
-        ("Balancete", "Aba anual por loja, no layout original A:M do controller. A visão mensal deve ser gerada em aba própria para não quebrar filtros/estrutura."),
-        ("DRE Comparativa por Ano", "Aba filtrável: uma linha por exercício x conta da DRE. Use o filtro da coluna 'Ano' para escolher o exercício e ver o comparativo por filial (consolidado, A.V. e % no consolidado), já que a planilha não usa fórmulas vivas para trocar o ano."),
-        ("Planejamento", "Cada bloco possui Média dos exercícios fechados, último exercício fechado, planejado em branco e A.V. do último exercício."),
-        ("Mapa de Cálculo", "Aba criada pelo Python para documentar células calculadas, fonte e critério, já que o arquivo final não contém fórmulas."),
-        ("Correções", "PCLD sem dupla contagem da perda; ROA/ROE pelo resultado da DRE; Liquidez Geral e Endividamento técnicos; impostos/devoluções abertos sem dupla contagem visual."),
-        ("Validação", "As abas preservam o layout/conceito do controller; os valores foram reescritos como números estáticos."),
-    ]
-    for idx, (label, text) in enumerate(rows, start=1):
-        ws.cell(idx, 1, f"{label}: {text}")
-
-
 def account_group_description(account_id: str) -> str:
     if account_id.startswith("1"):
         return "Ativo"
@@ -1290,9 +1195,13 @@ def fill_dre_comparativa_filtravel(
     branches: list[BranchInfo],
     audit_rows: list[list[Any]],
 ) -> None:
-    """Aba em formato longo (uma linha por Ano x linha da DRE) para permitir
-    filtrar o exercício pelo filtro nativo do Excel, mantendo os comparativos
-    por filial do controller (consolidado, A.V. e % no consolidado).
+    """Substitui a aba SGA_DRE Comparativa por uma versão filtrável por ano.
+
+    Mantém exatamente a sequência de colunas visível do controller
+    (Consolidado e, por filial, Valor + (%) no Consolidado) e acrescenta a
+    coluna "Ano" para filtrar o exercício pelo filtro nativo do Excel — já que
+    a planilha gerada não usa fórmulas vivas para trocar o ano. As colunas de
+    A.V. do modelo são ocultas/sem uso e não são replicadas aqui.
     """
     sheet_name = "DRE Comparativa por Ano"
     if sheet_name in wb.sheetnames:
@@ -1300,9 +1209,9 @@ def fill_dre_comparativa_filtravel(
     ws = wb.create_sheet(sheet_name)
 
     plan = comparativa_line_plan(template_ws)
-    headers = ["Ano", "Linha", "Consolidado", "(%) A.V."]
+    headers = ["Ano", "Contas Contábeis", "Consolidado"]
     for branch in branches:
-        headers += [branch.nome, f"(%) A.V. {branch.nome}", f"(%) {branch.nome}/Consolidado"]
+        headers += [branch.nome, "(%) no Consolidado"]
     ws.append(headers)
     for cell in ws[1]:
         cell.fill = HEADER_FILL
@@ -1313,26 +1222,25 @@ def fill_dre_comparativa_filtravel(
         consolidated = dre_by_year[year]
         for key, label in plan:
             line = next((item for item in DRE_LINES if item.key == key), None)
+            is_subtotal = bool(line and line.bold)
             value = consolidated.get(key, 0.0)
-            record: list[Any] = [year, label, value, av_for_dre_key(key, consolidated)]
+            record: list[Any] = [year, label, value]
             for branch in branches:
                 branch_values = branch_dre_by_year[year].get(branch.id, {})
                 branch_value = branch_values.get(key, 0.0)
-                record += [
-                    branch_value,
-                    av_for_dre_key(key, branch_values),
-                    safe_ratio(branch_value, value),
-                ]
+                record += [branch_value, safe_ratio(branch_value, value)]
             ws.append(record)
             excel_row = ws.max_row
             set_number_format(ws.cell(excel_row, 3), "money")
-            set_number_format(ws.cell(excel_row, 4), "percent")
-            col = 5
+            col = 4
             for _branch in branches:
                 set_number_format(ws.cell(excel_row, col), "money")
                 set_number_format(ws.cell(excel_row, col + 1), "percent")
-                set_number_format(ws.cell(excel_row, col + 2), "percent")
-                col += 3
+                col += 2
+            if is_subtotal:
+                for c in range(1, ws.max_column + 1):
+                    ws.cell(excel_row, c).font = BOLD_FONT
+                    ws.cell(excel_row, c).fill = SUBTOTAL_FILL
             write_audit(
                 audit_rows,
                 sheet_name,
@@ -1352,15 +1260,13 @@ def fill_dre_comparativa_filtravel(
     ws.freeze_panes = "C2"
     ws.auto_filter.ref = ws.dimensions
     ws.column_dimensions["A"].width = 8
-    ws.column_dimensions["B"].width = 46
+    ws.column_dimensions["B"].width = 48
     ws.column_dimensions["C"].width = 18
-    ws.column_dimensions["D"].width = 12
-    col = 5
+    col = 4
     for _branch in branches:
-        ws.column_dimensions[get_column_letter(col)].width = 18
-        ws.column_dimensions[get_column_letter(col + 1)].width = 12
-        ws.column_dimensions[get_column_letter(col + 2)].width = 14
-        col += 3
+        ws.column_dimensions[get_column_letter(col)].width = 16
+        ws.column_dimensions[get_column_letter(col + 1)].width = 14
+        col += 2
 
 
 def create_mapa_calculo(wb, audit_rows: list[list[Any]]) -> None:
@@ -1416,9 +1322,6 @@ def generate_report(args: argparse.Namespace) -> Path:
     model = Path(args.modelo).resolve()
     if not model.exists():
         raise FileNotFoundError(f"Template não encontrado: {model}")
-    selected_year = args.ano_comparativa or max(years)
-    if selected_year not in years:
-        raise ValueError("--ano-comparativa deve estar dentro de --anos.")
 
     output = (
         Path(args.arquivo).resolve()
@@ -1455,7 +1358,8 @@ def generate_report(args: argparse.Namespace) -> Path:
 
     planejamento_formula_mask = formula_cells(model, "SGA_Planejamento", 71, 25)
     fill_dre_exercicio(wb["SGA_DRE Comparativa Exercicio"], years, dre_by_year, audit_rows)
-    fill_dre_comparativa(wb["SGA_DRE Comparativa"], selected_year, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
+    # A aba filtrável por ano substitui a SGA_DRE Comparativa (que é deletada
+    # depois). O plano de linhas é lido do template antes da remoção.
     fill_dre_comparativa_filtravel(
         wb,
         wb["SGA_DRE Comparativa"],
@@ -1467,7 +1371,6 @@ def generate_report(args: argparse.Namespace) -> Path:
     )
     fill_planejamento(wb["SGA_Planejamento"], years, dre_by_year, branch_dre_by_year, report_branches, planejamento_formula_mask, audit_rows)
     fill_bp(wb["SGA_BP"], years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows)
-    fill_fonte(wb["Fonte de Pesquisa e Orientações"], years, generated_at, branch_source, inactive_text)
     fill_balancete_geral(
         wb["SGA_Balancete Geral"],
         years,
@@ -1480,14 +1383,21 @@ def generate_report(args: argparse.Namespace) -> Path:
     )
     create_mapa_calculo(wb, audit_rows)
 
-    required = [
-        "SGA_Dados Copiados",
-        "SGA_Planejamento",
-        "Fonte de Pesquisa e Orientações",
-        "SGA_Balancete Geral",
-        "SGA_Tab_Cadastro",
-        "SGA_BP",
+    # Abas estáticas do template que não são mais necessárias: tudo vem da API.
+    # SGA_DRE Comparativa é substituída pela aba filtrável "DRE Comparativa por Ano".
+    for obsolete in (
         "SGA_DRE Comparativa",
+        "SGA_Dados Copiados",
+        "SGA_Tab_Cadastro",
+        "Fonte de Pesquisa e Orientações",
+    ):
+        if obsolete in wb.sheetnames:
+            del wb[obsolete]
+
+    required = [
+        "SGA_Planejamento",
+        "SGA_Balancete Geral",
+        "SGA_BP",
         "SGA_DRE Comparativa Exercicio",
         "DRE Comparativa por Ano",
         "Mapa de Cálculo",
