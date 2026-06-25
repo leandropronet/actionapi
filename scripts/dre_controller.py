@@ -444,38 +444,49 @@ def fetch_all_data(args: argparse.Namespace, years: list[int], branches: list[Br
 # Abas
 # --------------------------------------------------------------------------- #
 def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, dict[str, float]], audit_rows: list[list[Any]]) -> None:
+    # Colunas intercaladas por ano, igual ao modelo do controller:
+    # [(%) A.H. ano/ano-1 | Ano | (%) A.V. ano] ... e o ano mais antigo sem A.H.
     ws = wb.create_sheet("DRE por Exercício")
     years_desc = sorted(years, reverse=True)
-    headers = ["Contas Contábeis"] + [str(y) for y in years_desc]
-    headers += [f"(%) A.V. {y}" for y in years_desc]
-    for idx in range(len(years_desc) - 1):
-        headers.append(f"(%) A.H. {years_desc[idx]}/{years_desc[idx + 1]}")
+    n = len(years_desc)
+
+    headers: list[Any] = ["Contas Contábeis"]
+    # tipo da coluna por posição: ("ah"|"val"|"av", year)
+    col_spec: list[tuple[str, int]] = []
+    for idx, y in enumerate(years_desc):
+        if idx < n - 1:
+            headers.append(f"(%) A.H. {y}/{years_desc[idx + 1]}")
+            col_spec.append(("ah", y))
+        headers.append(str(y))
+        col_spec.append(("val", y))
+        headers.append(f"(%) A.V. {y}")
+        col_spec.append(("av", y))
     ws.append(headers)
     style_header(ws)
 
-    n_years = len(years_desc)
     for key in VISIBLE_DRE_KEYS:
         line = DRE_LINE_BY_KEY[key]
         record: list[Any] = [("  " * line.level) + line.label]
-        record += [dre_by_year[y].get(key, 0.0) for y in years_desc]
-        record += [av_for_dre_key(key, dre_by_year[y]) for y in years_desc]
-        for idx in range(n_years - 1):
-            cur = dre_by_year[years_desc[idx]].get(key, 0.0)
-            prev = dre_by_year[years_desc[idx + 1]].get(key, 0.0)
-            record.append(safe_ratio(cur, prev) - 1 if prev else None)
+        for idx, y in enumerate(years_desc):
+            if idx < n - 1:
+                cur = dre_by_year[y].get(key, 0.0)
+                prev = dre_by_year[years_desc[idx + 1]].get(key, 0.0)
+                record.append(safe_ratio(cur, prev) - 1 if prev else None)
+            record.append(dre_by_year[y].get(key, 0.0))
+            record.append(av_for_dre_key(key, dre_by_year[y]))
         ws.append(record)
         r = ws.max_row
-        for col in range(2, 2 + n_years):
-            set_number_format(ws.cell(r, col), "money")
-        for col in range(2 + n_years, ws.max_column + 1):
-            set_number_format(ws.cell(r, col), "percent")
+        for col, (kind, _y) in enumerate(col_spec, start=2):
+            set_number_format(ws.cell(r, col), "money" if kind == "val" else "percent")
         if line.bold:
             for col in range(1, ws.max_column + 1):
                 ws.cell(r, col).font = BOLD_FONT
                 ws.cell(r, col).fill = SUBTOTAL_FILL
-        for idx, y in enumerate(years_desc):
+        for col, (kind, y) in enumerate(col_spec, start=2):
+            if kind != "val":
+                continue
             write_audit(
-                audit_rows, ws.title, f"{get_column_letter(2 + idx)}{r}", "DRE por exercicio", "Valor",
+                audit_rows, ws.title, f"{get_column_letter(col)}{r}", "DRE por exercicio", "Valor",
                 y, "Consolidado", line.label, dre_by_year[y].get(key, 0.0),
                 dre_line_formula_text(line),
                 f"/api/v1/executivo/contabilidade/sintetico?dataInicio={y}-01-01&dataFim={y}-12-31&excluirEncerramento=true",
@@ -485,8 +496,8 @@ def build_dre_exercicio(wb: Workbook, years: list[int], dre_by_year: dict[int, d
     ws.freeze_panes = "B2"
     ws.auto_filter.ref = ws.dimensions
     ws.column_dimensions["A"].width = 50
-    for col in range(2, ws.max_column + 1):
-        ws.column_dimensions[get_column_letter(col)].width = 16
+    for col, (kind, _y) in enumerate(col_spec, start=2):
+        ws.column_dimensions[get_column_letter(col)].width = 16 if kind == "val" else 13
 
 
 def build_dre_comparativa_por_ano(
@@ -557,6 +568,7 @@ INDICATOR_ROWS = [
     ("ROA", "roa", "Resultado do Exercício / Ativo Total", "percent"),
     ("ROE", "roe", "Resultado do Exercício / Patrimônio Líquido", "percent"),
     ("EBITDA", "ebitda", "Lucro Operacional + Depreciação/Amortização", "money"),
+    ("Empréstimos e Financiamentos (Circulante)", "emprestimos", "Conta 211104 do BP (saldo circulante)", "money"),
 ]
 
 
@@ -597,9 +609,16 @@ def build_bp(
                 ws.cell(r, col).font = BOLD_FONT
                 ws.cell(r, col).fill = SUBTOTAL_FILL
 
-    # Check Ativo - Passivo
+    # Bloco Ativo / Passivo / Ativo - Passivo por ano (igual ao modelo)
     ws.append([])
-    ws.append(["CHECK", "Ativo - Passivo"] + [
+    for account, label in (("1", "Ativo"), ("2", "Passivo")):
+        ws.append([account, label] + [bp_value(bp_accounts_by_year[y], account) for y in years])
+        r = ws.max_row
+        for idx in range(len(years)):
+            set_number_format(ws.cell(r, 3 + idx), "money")
+        for col in range(1, ws.max_column + 1):
+            ws.cell(r, col).font = BOLD_FONT
+    ws.append(["", "Ativo - Passivo"] + [
         bp_value(bp_accounts_by_year[y], "1") - bp_value(bp_accounts_by_year[y], "2") for y in years
     ])
     r = ws.max_row
@@ -651,7 +670,12 @@ def build_planejamento(
         f"(%) A.V. {last_year}",
     ]
     for branch in branches:
-        headers += [f"{branch.nome} Média", f"{branch.nome} {last_year}", f"{branch.nome} % Consol."]
+        headers += [
+            f"{branch.nome} Média",
+            f"{branch.nome} {last_year}",
+            f"{branch.nome} {plan_year} (Planejado)",
+            f"{branch.nome} % Consol.",
+        ]
     ws.append(headers)
     style_header(ws)
 
@@ -670,7 +694,7 @@ def build_planejamento(
         for branch in branches:
             branch_media = average([branch_dre_by_year.get(y, {}).get(branch.id, {}).get(key, 0.0) for y in years])
             branch_last = branch_dre_by_year[last_year].get(branch.id, {}).get(key, 0.0)
-            record += [branch_media, branch_last, safe_ratio(branch_last, consolidated_last)]
+            record += [branch_media, branch_last, None, safe_ratio(branch_last, consolidated_last)]
         ws.append(record)
         r = ws.max_row
         set_number_format(ws.cell(r, 2), "money")
@@ -679,10 +703,11 @@ def build_planejamento(
         set_number_format(ws.cell(r, 5), "percent")
         col = 6
         for _branch in branches:
-            set_number_format(ws.cell(r, col), "money")
-            set_number_format(ws.cell(r, col + 1), "money")
-            set_number_format(ws.cell(r, col + 2), "percent")
-            col += 3
+            set_number_format(ws.cell(r, col), "money")       # Média
+            set_number_format(ws.cell(r, col + 1), "money")   # último ano
+            set_number_format(ws.cell(r, col + 2), "money")   # planejado (branco)
+            set_number_format(ws.cell(r, col + 3), "percent")  # % no consolidado
+            col += 4
         if line.bold:
             for c in range(1, ws.max_column + 1):
                 ws.cell(r, c).font = BOLD_FONT
@@ -880,24 +905,27 @@ def generate_report(args: argparse.Namespace) -> Path:
         branch_prior_before_first,
     ) = fetch_all_data(args, years, balancete_branches)
 
+    # Ordem das abas igual ao modelo do controller (Planejamento, Balancete,
+    # BP, Comparativa, Comparativa Exercício), com a Comparativa por Ano no lugar
+    # da antiga SGA_DRE Comparativa. Mapa de Cálculo fica ao final.
     wb = Workbook()
     wb.remove(wb.active)
-    build_dre_exercicio(wb, years, dre_by_year, audit_rows)
-    build_dre_comparativa_por_ano(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
-    build_bp(wb, years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows)
     build_planejamento(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
     build_balancete_geral(
         wb, years, balancete_branches, branch_accounts_by_year, branch_accum_by_year,
         branch_prior_before_first, generated_at, audit_rows,
     )
+    build_bp(wb, years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows)
+    build_dre_comparativa_por_ano(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
+    build_dre_exercicio(wb, years, dre_by_year, audit_rows)
     build_mapa_calculo(wb, audit_rows, generated_at)
 
     required = [
-        "DRE por Exercício",
-        "DRE Comparativa por Ano",
-        "Balanço Patrimonial",
         "Planejamento",
         "Balancete Geral",
+        "Balanço Patrimonial",
+        "DRE Comparativa por Ano",
+        "DRE por Exercício",
         "Mapa de Cálculo",
     ]
     save_workbook(wb, output, required)
