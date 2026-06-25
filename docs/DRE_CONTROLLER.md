@@ -52,16 +52,21 @@ exemplo, tirar o relatório com o ano corrente só até 31/05/2026 — use
 ```powershell
 .\.venv\Scripts\python.exe scripts\dre_controller.py `
   --anos 2021-2025 `
-  --data-fim 2026-05-31
+  --data-fim 31/05/2026
 ```
 
 Regras:
 
+- `--data-fim` é digitado no **padrão brasileiro `DD/MM/AAAA`** (ex.:
+  `31/05/2026`). Também aceita `DD-MM-AAAA`, `DD.MM.AAAA` ou `DDMMAAAA` sem
+  separador; **não** aceita o formato ISO (`AAAA-MM-DD`).
 - O ano de `--data-fim` precisa ser o **ano mais recente** do intervalo. Se ele
   não estiver em `--anos` (como no exemplo acima, onde 2026 não estava em
   `2021-2025`), o script adiciona esse ano automaticamente.
 - Só o ano mais recente é cortado; os anos anteriores continuam fechando em
   31/12 normalmente.
+- Internamente a data é convertida para ISO (`AAAA-MM-DD`) antes de qualquer
+  consulta à API/Postgres — o formato brasileiro é só para digitação.
 - O nome do arquivo gerado automaticamente ganha o sufixo `-ate-AAAA-MM-DD`
   (ex.: `dre-controller-2021-2026-ate-2026-05-31.xlsx`), salvo se `--arquivo`
   for informado.

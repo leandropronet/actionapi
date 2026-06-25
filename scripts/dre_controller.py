@@ -27,7 +27,7 @@ import argparse
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -170,9 +170,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--data-fim",
         help=(
-            "Corta o exercício mais recente numa data específica em vez de 31/12 "
-            "(formato AAAA-MM-DD). Ex.: --data-fim 2026-05-31 para um relatório "
-            "parcial do ano corrente até 31/05/2026. O ano dessa data deve ser o "
+            "Corta o exercício mais recente numa data específica em vez de 31/12, "
+            "no formato brasileiro DD/MM/AAAA (ex.: --data-fim 31/05/2026 para um "
+            "relatório parcial do ano corrente até 31/05/2026). Também aceita "
+            "DDMMAAAA sem separador (ex.: 31052026). O ano dessa data deve ser o "
             "mais recente do intervalo; se não estiver em --anos, é adicionado "
             "automaticamente."
         ),
@@ -334,19 +335,37 @@ def average(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
-def resolve_year_ends(years: list[int], data_fim: str | None) -> dict[int, str]:
-    """Data final (dataFim) de cada exercício na consulta à API.
+def parse_br_date(raw: str) -> date:
+    """Converte --data-fim (formato brasileiro) para um objeto date.
 
-    Por padrão é 31/12 de cada ano. Quando --data-fim é informado, ele só vale
-    para o ano mais recente do intervalo (relatório parcial do exercício
+    Aceita DD/MM/AAAA (padrão), DD-MM-AAAA e DDMMAAAA sem separador — nunca
+    AAAA-MM-DD: o parâmetro é digitado pelo usuário no padrão do Brasil. A
+    conversão para ISO (AAAA-MM-DD), exigida pela API/Postgres, é feita uma
+    única vez aqui; o resto do script só circula a data já em ISO.
+    """
+    text = str(raw or "").strip()
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d%m%Y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"--data-fim inválida: {raw!r}. Use o formato brasileiro DD/MM/AAAA (ex.: 31/05/2026).")
+
+
+def resolve_year_ends(years: list[int], data_fim_iso: str | None) -> dict[int, str]:
+    """Data final (dataFim) de cada exercício na consulta à API, em ISO (AAAA-MM-DD).
+
+    Por padrão é 31/12 de cada ano. Quando data_fim_iso é informado, ele só
+    vale para o ano mais recente do intervalo (relatório parcial do exercício
     corrente, ex.: até 2026-05-31) — os anos anteriores continuam fechados em
-    31/12. A validação de que data_fim pertence ao ano mais recente é feita em
-    generate_report(); esta função só monta o mapa ano -> data final.
+    31/12. O parâmetro já vem convertido de DD/MM/AAAA para ISO por
+    parse_br_date(); a validação de que a data pertence ao ano mais recente é
+    feita em generate_report(). Esta função só monta o mapa ano -> data final.
     """
     last_year = max(years)
     ends = {year: f"{year}-12-31" for year in years}
-    if data_fim:
-        ends[last_year] = data_fim
+    if data_fim_iso:
+        ends[last_year] = data_fim_iso
     return ends
 
 
@@ -966,11 +985,10 @@ def save_workbook(wb: Workbook, output: Path, required: list[str]) -> None:
 def generate_report(args: argparse.Namespace) -> Path:
     years = parse_years(args.anos)
 
+    cutoff_iso: str | None = None
     if args.data_fim:
-        try:
-            cutoff = datetime.strptime(args.data_fim, "%Y-%m-%d").date()
-        except ValueError as exc:
-            raise ValueError(f"--data-fim inválida: {args.data_fim!r}. Use o formato AAAA-MM-DD.") from exc
+        cutoff = parse_br_date(args.data_fim)
+        cutoff_iso = cutoff.isoformat()
         if cutoff.year not in years:
             years = sorted([*years, cutoff.year])
         if cutoff.year != max(years):
@@ -982,17 +1000,17 @@ def generate_report(args: argparse.Namespace) -> Path:
 
     if len(years) > 6:
         raise ValueError("Informe no máximo 6 exercícios por relatório.")
-    year_ends = resolve_year_ends(years, args.data_fim)
+    year_ends = resolve_year_ends(years, cutoff_iso)
 
-    output_suffix = f"-ate-{args.data_fim}" if args.data_fim else ""
+    output_suffix = f"-ate-{cutoff_iso}" if cutoff_iso else ""
     output = (
         Path(args.arquivo).resolve()
         if args.arquivo
         else ROOT / "relatorios" / f"dre-controller-{min(years)}-{max(years)}{output_suffix}.xlsx"
     )
     generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-    if args.data_fim:
-        print(f"[dre-controller] exercício {max(years)} cortado em {args.data_fim} (relatório parcial)", flush=True)
+    if cutoff_iso:
+        print(f"[dre-controller] exercício {max(years)} cortado em {args.data_fim} ({cutoff_iso}) — relatório parcial", flush=True)
 
     print(f"[dre-controller] consultando ActionAPI em {args.api_url}...", flush=True)
     api_key = first_api_key()
