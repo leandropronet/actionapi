@@ -87,8 +87,9 @@ O script depende das rotas atuais — reinicie a API se elas tiverem mudado:
   anos consecutivos.
 - **`DRE Comparativa por Ano`**: comparativo por filial, **filtrável por ano**.
 - **`Balanço Patrimonial`**: contas do BP por ano + bloco de indicadores.
-- **`Planejamento`**: por linha da DRE, média dos exercícios, último exercício,
-  coluna de planejado em branco e A.V.; o mesmo por filial.
+- **`Planejamento`**: por linha da DRE, média dos exercícios **fechados**, valor
+  do exercício corrente e coluna de planejado em branco; o mesmo por filial
+  (sem A.V. — ver seção própria abaixo).
 - **`Balancete Geral`**: uma linha por Loja/Exercício/Conta (saldo anterior,
   débito, crédito, saldo do mês e saldo atual).
 - **`Mapa de Cálculo`**: documenta cada célula calculada (aba, célula, valor,
@@ -114,10 +115,30 @@ O A.V. é calculado **apenas nas linhas de subtotal/resultado** (Receita Líquid
 Custos, Lucro Bruto, Despesas, Lucro Operacional, Resultado Financeiro, PCLD,
 Resultados, Provisões, Depreciação, EBITDA e Margem Bruta), igual ao critério do
 modelo — nas linhas de detalhe fica em branco. Essa regra é definida uma única
-vez em `AV_KEYS`/`av_for_dre_key` (scripts/dre_controller.py) e vale para as
-três abas que mostram A.V./percentual por linha da DRE (DRE por Exercício,
-DRE Comparativa por Ano e Planejamento) — não é recalculada separadamente em
-cada aba.
+vez em `AV_KEYS`/`av_for_dre_key` (scripts/dre_controller.py) e vale para a
+coluna "(%) A.V." de `DRE por Exercício`/`DRE Comparativa por Ano` e para a
+coluna "% Consol." de `Planejamento` — não é recalculada separadamente em
+cada aba. A aba `Planejamento` **não tem coluna de A.V.** (removida — só
+mantém "% Consol.", explicado abaixo).
+
+## Aba Planejamento: médias, exercício corrente e --data-fim
+
+- A coluna **"Média"** usa só os exercícios **fechados** do intervalo — nunca
+  inclui o ano parcial cortado por `--data-fim`. Ex.: `--anos 2021-2025
+  --data-fim 31/05/2026` (que estende automaticamente para 2021-2026) gera
+  "Média 2021-2025", calculada só com os 5 anos fechados.
+- Quando há um ano parcial, a aba ganha uma coluna extra entre a Média e o
+  ano corrente, com o valor do **último exercício fechado** (ex.: "2025"),
+  para servir de referência estável ao lado da média.
+- A coluna do exercício corrente é rotulada com o **mês/ano do corte**
+  (formato `mês/AAAA` em português, ex.: "maio/2026") em vez do ano puro,
+  para deixar explícito que é parcial.
+- Sem `--data-fim`, a aba volta ao formato simples de 3 colunas por bloco
+  (Média, último ano, planejado) — a coluna extra do exercício fechado não
+  aparece, pois seria redundante (o "último ano" já é o último fechado).
+- A coluna **"% Consol."** (participação da filial) é sempre calculada com
+  base no **último exercício fechado**, nunca no ano parcial — um período
+  incompleto distorceria a proporção entre filiais.
 
 ## Colunas A/B (símbolos de filtro de conta)
 

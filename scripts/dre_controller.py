@@ -147,6 +147,15 @@ BALANCETE_BRANCH_NAMES = {
     "9": "Piracanjuba",
 }
 
+# Nomes de mês em português, para rotular a coluna do ano parcial na aba
+# Planejamento (ex.: "maio/2026" quando --data-fim corta em 31/05/2026).
+# Hardcoded em vez de locale.setlocale("pt_BR") porque esse locale costuma
+# não estar instalado no Windows, e o nome do mês não pode depender disso.
+MESES_PT = [
+    "", "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+]
+
 
 @dataclass(frozen=True)
 class BranchInfo:
@@ -775,29 +784,57 @@ def build_planejamento(
     branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
     branches: list[BranchInfo],
     audit_rows: list[list[Any]],
+    cutoff_iso: str | None,
 ) -> None:
-    # Colunas A/B replicam os símbolos de filtro do modelo (DRE_LINES.col_a/
-    # col_b — fonte única, não duplicar a regra aqui). "(%) A.V." e "% Consol."
-    # usam a mesma regra seletiva de av_for_dre_key/AV_KEYS das abas de DRE:
-    # só aparecem em linhas de subtotal/resultado.
+    """Aba Planejamento.
+
+    Quando o último ano do intervalo é parcial (--data-fim corta o exercício
+    corrente), a Média e o quadro de exercícios fechados NUNCA incluem esse
+    ano parcial — só os anos realmente fechados. Nesse caso a aba ganha uma
+    coluna extra com o valor do último exercício fechado (ex.: 2025), e a
+    coluna do ano corrente é rotulada com o mês/ano do corte (ex.: "maio/
+    2026") em vez do ano puro, para deixar claro que é parcial. Sem
+    --data-fim, o layout volta ao formato simples de 3 colunas por bloco
+    (Média, último ano, planejado) — sem a coluna extra, que seria redundante.
+
+    Colunas A/B replicam os símbolos de filtro do modelo (DRE_LINES.col_a/
+    col_b — fonte única, não duplicar a regra aqui). "% Consol." usa a mesma
+    regra seletiva de av_for_dre_key/AV_KEYS das abas de DRE (só aparece em
+    linhas de subtotal/resultado) e é sempre calculada com base no último
+    exercício FECHADO — nunca no ano parcial, para não distorcer o
+    percentual de participação por filial com um período incompleto.
+    """
     ws = wb.create_sheet("Planejamento")
     last_year = max(years)
     plan_year = last_year + 1
-    period_label = f"{min(years)}-{last_year}"
+    is_partial = bool(cutoff_iso)
 
-    headers = [
-        ".",
-        ".",
-        "Contas Contábeis",
-        f"Média {period_label}",
-        str(last_year),
-        f"{plan_year} (Planejado)",
-        f"(%) A.V. {last_year}",
-    ]
+    closed_years = [y for y in years if not (is_partial and y == last_year)]
+    if not closed_years:
+        closed_years = [last_year]
+    last_closed_year = max(closed_years)
+    period_label = (
+        f"{min(closed_years)}-{max(closed_years)}"
+        if len(closed_years) > 1
+        else str(closed_years[0])
+    )
+
+    if is_partial:
+        cutoff_date = date.fromisoformat(cutoff_iso)
+        current_label = f"{MESES_PT[cutoff_date.month]}/{cutoff_date.year}"
+    else:
+        current_label = str(last_year)
+
+    headers = [".", ".", "Contas Contábeis", f"Média {period_label}"]
+    if is_partial:
+        headers.append(str(last_closed_year))
+    headers += [current_label, f"{plan_year} (Planejado)"]
     for branch in branches:
+        headers.append(f"{branch.nome} Média")
+        if is_partial:
+            headers.append(f"{branch.nome} {last_closed_year}")
         headers += [
-            f"{branch.nome} Média",
-            f"{branch.nome} {last_year}",
+            f"{branch.nome} {current_label}",
             f"{branch.nome} {plan_year} (Planejado)",
             f"{branch.nome} % Consol.",
         ]
@@ -807,44 +844,60 @@ def build_planejamento(
     for key in VISIBLE_DRE_KEYS:
         line = DRE_LINE_BY_KEY[key]
         is_av_line = key in AV_KEYS
-        consolidated_media = average([dre_by_year[y].get(key, 0.0) for y in years])
-        consolidated_last = dre_by_year[last_year].get(key, 0.0)
-        consolidated_av = av_for_dre_key(key, dre_by_year[last_year])
+        consolidated_media = average([dre_by_year[y].get(key, 0.0) for y in closed_years])
+        consolidated_closed = dre_by_year[last_closed_year].get(key, 0.0)
+        consolidated_current = dre_by_year[last_year].get(key, 0.0)
         record: list[Any] = [
             line.col_a or None,
             line.col_b or None,
             ("  " * line.level) + line.label,
             consolidated_media,
-            consolidated_last,
-            None,  # planejado em branco
-            consolidated_av,
         ]
+        if is_partial:
+            record.append(consolidated_closed)
+        record += [consolidated_current, None]  # current (parcial ou fechado) + planejado em branco
+
         for branch in branches:
-            branch_media = average([branch_dre_by_year.get(y, {}).get(branch.id, {}).get(key, 0.0) for y in years])
-            branch_last = branch_dre_by_year[last_year].get(branch.id, {}).get(key, 0.0)
-            share = safe_ratio(branch_last, consolidated_last) if is_av_line else None
-            record += [branch_media, branch_last, None, share]
+            branch_media = average([
+                branch_dre_by_year.get(y, {}).get(branch.id, {}).get(key, 0.0) for y in closed_years
+            ])
+            branch_closed = branch_dre_by_year.get(last_closed_year, {}).get(branch.id, {}).get(key, 0.0)
+            branch_current = branch_dre_by_year[last_year].get(branch.id, {}).get(key, 0.0)
+            share = safe_ratio(branch_closed, consolidated_closed) if is_av_line else None
+            record.append(branch_media)
+            if is_partial:
+                record.append(branch_closed)
+            record += [branch_current, None, share]
+
         ws.append(record)
         r = ws.max_row
-        set_number_format(ws.cell(r, 4), "money")
-        set_number_format(ws.cell(r, 5), "money")
-        set_number_format(ws.cell(r, 6), "money")
-        set_number_format(ws.cell(r, 7), "percent")
-        col = 8
+        col = 4
+        money_cols_consolidated = 3 if is_partial else 2  # média + [fechado] + atual
+        for _ in range(money_cols_consolidated):
+            set_number_format(ws.cell(r, col), "money")
+            col += 1
+        set_number_format(ws.cell(r, col), "money")  # planejado
+        col += 1
         for _branch in branches:
-            set_number_format(ws.cell(r, col), "money")       # Média
-            set_number_format(ws.cell(r, col + 1), "money")   # último ano
-            set_number_format(ws.cell(r, col + 2), "money")   # planejado (branco)
-            set_number_format(ws.cell(r, col + 3), "percent")  # % no consolidado
-            col += 4
+            money_cols_branch = 3 if is_partial else 2  # média + [fechado] + atual
+            for _ in range(money_cols_branch):
+                set_number_format(ws.cell(r, col), "money")
+                col += 1
+            set_number_format(ws.cell(r, col), "money")  # planejado
+            col += 1
+            set_number_format(ws.cell(r, col), "percent")  # % no consolidado
+            col += 1
         if line.bold:
             for c in range(1, ws.max_column + 1):
                 ws.cell(r, c).font = BOLD_FONT
                 ws.cell(r, c).fill = SUBTOTAL_FILL
         write_audit(
-            audit_rows, ws.title, f"E{r}", "Planejamento", "Último exercício", last_year, "Consolidado",
-            line.label, consolidated_last,
-            "Média = média simples dos exercícios fechados; planejado fica em branco; A.V. = valor / Receita Líquida.",
+            audit_rows, ws.title, f"D{r}", "Planejamento", "Último exercício fechado", last_closed_year, "Consolidado",
+            line.label, consolidated_closed,
+            f"Média = média simples dos exercícios fechados ({period_label}); "
+            f"coluna '{current_label}' é o exercício corrente (parcial, até {cutoff_iso})"
+            if is_partial else
+            f"Média = média simples dos exercícios fechados ({period_label}); planejado fica em branco.",
             "/api/v1/executivo/contabilidade/sintetico", dre_line_formula_text(line),
         )
 
@@ -1059,7 +1112,7 @@ def generate_report(args: argparse.Namespace) -> Path:
     # da antiga SGA_DRE Comparativa. Mapa de Cálculo fica ao final.
     wb = Workbook()
     wb.remove(wb.active)
-    build_planejamento(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows)
+    build_planejamento(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows, cutoff_iso)
     build_balancete_geral(
         wb, years, balancete_branches, branch_accounts_by_year, branch_accum_by_year,
         branch_prior_before_first, generated_at, audit_rows,
