@@ -11,8 +11,10 @@ const contabil    = require('./contabil');
 const dimensoes   = require('./dimensoes');
 
 const ANOS = Number(process.env.CARGA_INICIAL_ANOS) || 5;
+const DATA_INICIO_FIXA = process.env.CARGA_INICIAL_DESDE || null;
 
-// Gera janelas mensais a partir de hoje retroagindo N anos
+// Gera janelas mensais a partir de hoje retroagindo N anos.
+// Usado quando CARGA_INICIAL_DESDE não foi configurado.
 function gerarJanelas(anos) {
   const janelas = [];
   const hoje = new Date();
@@ -27,7 +29,34 @@ function gerarJanelas(anos) {
   return janelas.reverse(); // cronológico
 }
 
-// Registra janelas pendentes em etl_carga_inicial (se ainda não existirem)
+function validarDataIso(valor, nome) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valor || '')) {
+    throw new Error(`${nome} deve estar no formato AAAA-MM-DD.`);
+  }
+}
+
+function gerarJanelasDesde(dataInicio) {
+  validarDataIso(dataInicio, 'CARGA_INICIAL_DESDE');
+  const janelas = [];
+  const hoje = new Date();
+  const limite = new Date(Date.UTC(hoje.getFullYear(), hoje.getMonth() + 1, 1));
+  let cursor = new Date(`${dataInicio}T00:00:00Z`);
+
+  while (cursor < limite) {
+    const proximo = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, 1));
+    const fimInclusivo = new Date(proximo.getTime() - 86400000);
+    janelas.push({
+      inicio: cursor.toISOString().slice(0, 10),
+      fim: fimInclusivo.toISOString().slice(0, 10),
+    });
+    cursor = proximo;
+  }
+
+  return janelas;
+}
+
+// Registra janelas pendentes em etl_carga_inicial (se ainda não existirem).
+// Isso permite retomar a carga histórica sem duplicar janelas já processadas.
 async function prepararJanelas(dominio, filiais, janelas) {
   for (const filial of filiais) {
     for (const j of janelas) {
@@ -91,7 +120,11 @@ async function executarDominio(dominio, fn) {
 }
 
 async function main() {
-  console.log(`=== CARGA INICIAL (${ANOS} anos) ===`);
+  console.log(
+    DATA_INICIO_FIXA
+      ? `=== CARGA INICIAL (desde ${DATA_INICIO_FIXA}) ===`
+      : `=== CARGA INICIAL (${ANOS} anos) ===`
+  );
 
   // 1. Carrega dimensões primeiro (filiais, produtos, clientes, vendedores)
   console.log('\n[1/6] Carregando dimensões...');
@@ -104,7 +137,7 @@ async function main() {
   }
   console.log(`Filiais encontradas: ${filiais.join(', ')}`);
 
-  const janelas = gerarJanelas(ANOS);
+  const janelas = DATA_INICIO_FIXA ? gerarJanelasDesde(DATA_INICIO_FIXA) : gerarJanelas(ANOS);
 
   // 2. Prepara janelas para todos os domínios
   for (const dom of ['faturamento', 'duplicatas', 'pedidos', 'financeiro_cp', 'financeiro_cr', 'contabil']) {

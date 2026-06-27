@@ -12,7 +12,10 @@
  * Para executar um job manualmente (sem aguardar o cron):
  *   node -e "require('./src/jobs/faturamento').sincronizar().then(console.log)"
  *
- * Para carga inicial (5 anos de histórico):
+ * Para carga inicial histórica:
+ *   CARGA_INICIAL_DESDE=2015-01-01 node src/carga_inicial/index.js
+ *
+ * Se CARGA_INICIAL_DESDE não for informado, usa CARGA_INICIAL_ANOS.
  *   node src/carga_inicial/index.js
  */
 const path = require('path');

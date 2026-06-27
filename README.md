@@ -76,7 +76,7 @@ ActionAPI/
 │   │       │   ├── contabil.js      # Lançamentos (CABLANCTB + LANCONTAB)
 │   │       │   └── dimensoes.js     # Dimensões: clientes, produtos, grupos,
 │   │       │                        #   vendedores, filiais, PAs, propriedades, etc.
-│   │       ├── carga_inicial/       # Carga histórica (5 anos, batch mensal)
+│   │       ├── carga_inicial/       # Carga histórica mensal, resumível e configurável por data
 │   │       │   └── index.js         # Orquestrador resumível via etl_carga_inicial
 │   │       └── transforms/
 │   │           └── analytics.js     # Materializa camada analytics (futuro)
@@ -184,7 +184,8 @@ Isso vai:
 
 ### 4. Execute a carga inicial (apenas uma vez)
 
-O ETL incremental parte de 2020-01-01 por padrão. Para carregar o histórico completo (5 anos):
+O ETL incremental mantém os dados atuais por cursor de alteração. Para carregar
+histórico, use a carga inicial mensal e resumível:
 
 ```bash
 # Dentro do container ETL
@@ -192,6 +193,24 @@ docker compose exec etl-service node src/carga_inicial/index.js
 ```
 
 O progresso é salvo em `etl_carga_inicial` — se interrompido, re-execute que continua de onde parou.
+
+Para fixar a carga histórica em uma data inicial absoluta, use
+`CARGA_INICIAL_DESDE=AAAA-MM-DD` no `.env`. Quando essa variável está definida,
+ela tem prioridade sobre `CARGA_INICIAL_ANOS`; por exemplo,
+`CARGA_INICIAL_DESDE=2015-01-01` mantém a carga sempre desde 01/01/2015.
+
+Backfills históricos específicos também estão disponíveis para lacunas que não
+dependem da tabela `etl_carga_inicial`, por exemplo:
+
+```bash
+cd packages/etl
+npm run faturamento:backfill -- 2015
+npm run nfe-entrada:backfill -- 2015
+npm run pedidos:backfill -- 2015
+node src/scripts/backfill-duplicatas.js 2015
+node src/scripts/backfill-recebimentos.js 2015
+node src/scripts/backfill-contabil-historico.js --desde 2015-01-01 --ate 2027-01-01
+```
 
 ### 5. Verifique
 

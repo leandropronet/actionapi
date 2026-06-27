@@ -119,5 +119,41 @@ cd packages\etl
 npm run healthcheck
 ```
 
+## Carga histórica desde 2015
+
+A carga histórica padrão pode ser fixada por data no `.env`:
+
+```env
+CARGA_INICIAL_DESDE=2015-01-01
+```
+
+Quando `CARGA_INICIAL_DESDE` está definido, ele tem prioridade sobre
+`CARGA_INICIAL_ANOS` e a carga inicial cria janelas mensais desde essa data:
+
+```powershell
+cd packages\etl
+npm run carga-inicial
+```
+
+Backfills específicos usados para recompor lacunas históricas desde 2015:
+
+```powershell
+cd packages\etl
+npm run faturamento:backfill -- 2015
+npm run nfe-entrada:backfill -- 2015
+npm run pedidos:backfill -- 2015
+node src\scripts\backfill-duplicatas.js 2015
+node src\scripts\backfill-recebimentos.js 2015
+node src\scripts\backfill-financeiro-titulos.js 2015-01-01
+node src\scripts\backfill-parcelas-cp.js 2015-01-01
+node src\scripts\backfill-pagamentos.js 2015-01-01
+node src\scripts\backfill-contabil-cabecalhos.js 2015-01-01
+node src\scripts\backfill-contabil-historico.js --desde 2015-01-01 --ate 2027-01-01
+```
+
+Esses backfills consultam o Oracle apenas com `SELECT` e escrevem no PostgreSQL
+por `UPSERT`, então podem ser reexecutados para completar ou conferir períodos.
+Backfills e reconciliações não avançam os cursores incrementais.
+
 As tabelas de monitoramento são criadas automaticamente pelo ETL. A definição
 também está em `migrations/015_etl_monitoring.sql`.

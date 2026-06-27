@@ -14,10 +14,12 @@
     "financeiro:backfill-titulos": "node src/scripts/backfill-financeiro-titulos.js",
     "financeiro:backfill-pagamentos": "node src/scripts/backfill-pagamentos.js",
     "financeiro:backfill-parcelas-cp": "node src/scripts/backfill-parcelas-cp.js",
+    "faturamento:backfill": "node src/scripts/backfill-faturamento.js",
     "financeiro:exportar-contas-pagar": "node src/scripts/export-contas-pagar-avancado.js",
     "financeiro:recalcular-saldos": "node src/scripts/recalcular-saldos-financeiros.js",
     "financeiro:validar-saldos": "node src/scripts/validar-saldos-financeiros.js",
     "financeiro:sincronizar-agora": "node src/scripts/sincronizar-financeiro-agora.js",
+    "nfe-entrada:backfill": "node src/scripts/backfill-nfe-entrada.js",
     "telegram:testar": "node src/scripts/testar-telegram.js",
     "healthcheck": "node src/scripts/healthcheck.js",
     "pedidos:backfill": "node --max-old-space-size=2048 src/scripts/backfill-pedidos.js"

@@ -18,8 +18,9 @@ abas são construídas do zero com os saldos vindos de
 - as linhas da DRE/BP vêm de `DRE_LINES`/`BP_LINES` (mesma fonte do
   `relatorio_dre.py`), então correção de critério feita lá vale aqui também.
 
-Se algum dado de cadastro for necessário no futuro (ex.: nome de filial), ele é
-puxado da API (`/api/v1/executivo/filiais`), nunca de uma aba estática.
+Os dados de cadastro de filial vêm da API (`/api/v1/executivo/filiais`), nunca
+de uma aba estática. Se essa rota não estiver disponível, o script usa a lista
+operacional antiga apenas como fallback.
 
 ## Como executar
 
@@ -81,6 +82,20 @@ O script depende das rotas atuais — reinicie a API se elas tiverem mudado:
 - `/api/v1/executivo/contabilidade/sintetico?excluirEncerramento=true`
 - `/api/v1/executivo/filiais`
 
+## Consolidado e filiais
+
+Nas abas de DRE, o **Consolidado** é calculado como a **soma das filiais
+exibidas no próprio relatório**. Isso evita o problema clássico de a chamada
+geral da API conter uma filial que não aparece nas colunas do comparativo.
+
+O script valida internamente essa consistência antes de salvar o arquivo. Se o
+consolidado anual, a média do `Planejamento`, o último exercício fechado ou o
+período parcial não baterem com a soma das filiais, a geração falha com mensagem
+indicando a linha divergente.
+
+A planilha final não cria aba auxiliar de conferência; a rastreabilidade fica na
+aba `Mapa de Cálculo`.
+
 ## Abas geradas
 
 - **`DRE por Exercício`**: DRE com os anos lado a lado, A.V. por ano e A.H. entre
@@ -92,8 +107,10 @@ O script depende das rotas atuais — reinicie a API se elas tiverem mudado:
   (sem A.V. — ver seção própria abaixo).
 - **`Balancete Geral`**: uma linha por Loja/Exercício/Conta (saldo anterior,
   débito, crédito, saldo do mês e saldo atual).
-- **`Mapa de Cálculo`**: documenta cada célula calculada (aba, célula, valor,
-  critério e fonte na API) — substitui a leitura das fórmulas do Excel.
+- **`Mapa de Cálculo`**: documenta cada célula calculada das abas gerenciais e
+  os intervalos calculados do Balancete Geral (aba, célula/range, valor,
+  critério, fonte, dependências e formato) — substitui a leitura das fórmulas do
+  Excel.
 
 ## Filtro por ano de exercício
 
@@ -101,9 +118,10 @@ Como o arquivo não usa fórmulas vivas, não dá para trocar o ano numa célula
 recalcular. A aba **`DRE Comparativa por Ano`** resolve isso:
 
 - uma linha por **Ano × linha da DRE**, cobrindo todos os anos de `--anos`;
-- segue a sequência de colunas visível do controller: `Contas Contábeis`,
-  `Consolidado` e, por filial, `Valor` + `(%) no Consolidado` (sem as colunas de
-  A.V. que eram ocultas no modelo);
+- segue a sequência `Contas Contábeis`, `Consolidado` e, por filial,
+  `Valor` + `(%) no Consolidado`;
+- as filiais vêm do cadastro da API, com código no cabeçalho para evitar
+  ambiguidade;
 - linhas de subtotal/resultado em **negrito com fundo verde**;
 - **filtro automático** já habilitado: abra o filtro da coluna `Ano`, escolha o
   exercício e a DRE inteira com os comparativos por filial passa a mostrar só
@@ -163,13 +181,12 @@ planilha-modelo:
   linhas de detalhe e em algumas linhas específicas do modelo que não têm
   símbolo (`Despesas Administrativas e Comerciais`, `EBITDA`, `Margem Bruta`).
 
-Esses símbolos servem para o usuário filtrar/agrupar contas no Excel (igual ao
-controller usa nativamente). A fonte de verdade é o atributo `col_a`/`col_b` de
-cada `DreLine` em `scripts/relatorio_dre.py` — conferido célula a célula contra
-as 3 abas do modelo (`SGA_DRE Comparativa`, `SGA_DRE Comparativa Exercicio` e
-`SGA_Planejamento`). Não recalcular essa regra a partir de `level`/`bold`: os
-símbolos não são deriváveis desses campos (há excertos onde divergem, ex.:
-`despesas_adm_com` é subtotal mas sem símbolo).
+Esses símbolos servem para o usuário filtrar/agrupar contas no Excel. A fonte de
+verdade é o atributo `col_a`/`col_b` de cada `DreLine` em
+`scripts/relatorio_dre.py`; o `dre_controller.py` não lê nenhuma planilha
+externa para obter esses símbolos. Não recalcular essa regra a partir de
+`level`/`bold`: os símbolos não são deriváveis desses campos (há casos onde
+divergem, ex.: `despesas_adm_com` é subtotal mas sem símbolo).
 
 ## Correções de critério aplicadas
 

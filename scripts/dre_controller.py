@@ -33,7 +33,7 @@ from typing import Any
 
 try:
     from openpyxl import Workbook, load_workbook
-    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 except ModuleNotFoundError:
     print(
@@ -61,6 +61,7 @@ try:
         dre_line_formula_text,
         fetch_synthetic,
         first_api_key,
+        format_formula_value,
         number,
         parse_years,
         safe_ratio,
@@ -83,6 +84,7 @@ except ModuleNotFoundError:
         dre_line_formula_text,
         fetch_synthetic,
         first_api_key,
+        format_formula_value,
         number,
         parse_years,
         safe_ratio,
@@ -91,10 +93,19 @@ except ModuleNotFoundError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-HEADER_FILL = PatternFill("solid", fgColor="0B5D1E")
-SUBTOTAL_FILL = PatternFill("solid", fgColor="E2EFDA")
-BOLD_FONT = Font(bold=True)
-WHITE_FONT = Font(color="FFFFFF", bold=True)
+HEADER_FILL = PatternFill("solid", fgColor="143D59")
+GROUP_HEADER_FILL = PatternFill("solid", fgColor="0B5D1E")
+SUBTOTAL_FILL = PatternFill("solid", fgColor="DFF1E4")
+ZEBRA_FILL = PatternFill("solid", fgColor="F7FAFC")
+WARNING_FILL = PatternFill("solid", fgColor="FFF4CE")
+OK_FILL = PatternFill("solid", fgColor="E2F0D9")
+THIN_SIDE = Side(style="thin", color="D7DEE8")
+HEADER_SIDE = Side(style="thin", color="FFFFFF")
+THIN_BORDER = Border(left=THIN_SIDE, right=THIN_SIDE, top=THIN_SIDE, bottom=THIN_SIDE)
+HEADER_BORDER = Border(left=HEADER_SIDE, right=HEADER_SIDE, top=HEADER_SIDE, bottom=HEADER_SIDE)
+BOLD_FONT = Font(name="Aptos", bold=True, color="17324D")
+MUTED_FONT = Font(name="Aptos", color="64748B")
+WHITE_FONT = Font(name="Aptos", color="FFFFFF", bold=True)
 MONEY_FMT = '#,##0.00;[Red]-#,##0.00;""'
 PERCENT_FMT = '0.00%;[Red]-0.00%;""'
 NUMBER_FMT = '#,##0.00'
@@ -272,25 +283,31 @@ def fetch_branch_registry(api_url: str, api_key: str) -> tuple[list[BranchInfo],
 
 
 def controller_visible_branches(branches: list[BranchInfo]) -> list[BranchInfo]:
-    """Filiais exibidas nas abas de DRE comparativa (layout do controller)."""
-    by_id = {branch.id: branch for branch in branches}
-    visible: list[BranchInfo] = []
-    for branch_id, branch_name in BRANCHES:
-        current = by_id.get(branch_id)
-        visible.append(
-            BranchInfo(
-                id=branch_id,
-                nome=branch_name,
-                situacao=current.situacao if current else "A",
-                ativa=current.ativa if current else True,
-                origem=current.origem if current else "controller-layout",
-            )
-        )
-    return visible
+    """Filiais exibidas nas abas de DRE.
+
+    O layout antigo do controller tinha uma lista fixa de filiais. Aqui a lista
+    vem do cadastro da API para que o consolidado seja conciliado com todas as
+    filiais efetivamente presentes na base. Se a rota de cadastro cair, o
+    fallback continua sendo a lista operacional antiga.
+    """
+    return sorted(branches, key=branch_sort_key)
+
+
+def branch_sort_key(branch: BranchInfo) -> tuple[int, int, str]:
+    inactive = (not branch.ativa) or branch.situacao.upper() == "I"
+    numeric_id = int(branch.id) if branch.id.isdigit() else 999999
+    return (1 if inactive else 0, numeric_id, branch.id)
 
 
 def branch_display_name(branch: BranchInfo) -> str:
     return BALANCETE_BRANCH_NAMES.get(branch.id) or branch.nome or branch.id
+
+
+def branch_report_name(branch: BranchInfo) -> str:
+    base = branch.label
+    if (not branch.ativa) or branch.situacao.upper() == "I":
+        return f"{base} - inativa"
+    return base
 
 
 def inactive_branches_text(branches: list[BranchInfo], source: str) -> str:
@@ -347,15 +364,48 @@ def set_number_format(cell, kind: str = "money") -> None:
         cell.number_format = PERCENT_FMT
     elif kind == "number":
         cell.number_format = NUMBER_FMT
+    elif kind == "blank":
+        cell.number_format = "General"
     else:
         cell.number_format = MONEY_FMT
 
 
-def style_header(ws, row: int = 1) -> None:
+def style_header(ws, row: int = 1, fill: PatternFill = HEADER_FILL) -> None:
+    ws.row_dimensions[row].height = 28
     for cell in ws[row]:
-        cell.fill = HEADER_FILL
+        cell.fill = fill
         cell.font = WHITE_FONT
-        cell.alignment = Alignment(wrap_text=True, vertical="center")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        cell.border = HEADER_BORDER
+
+
+def apply_modern_layout(
+    ws,
+    header_rows: tuple[int, ...] = (1,),
+    data_start_row: int = 2,
+    max_style_rows: int | None = None,
+) -> None:
+    ws.sheet_view.showGridLines = False
+    ws.sheet_view.zoomScale = 90
+    max_row = min(ws.max_row, max_style_rows) if max_style_rows else ws.max_row
+    max_col = ws.max_column
+    for row in ws.iter_rows(min_row=1, max_row=max_row, max_col=max_col):
+        row_idx = row[0].row
+        is_header = row_idx in header_rows
+        for cell in row:
+            if not is_header:
+                cell.border = THIN_BORDER
+                cell.alignment = Alignment(vertical="center", wrap_text=True)
+                if row_idx >= data_start_row and row_idx % 2 == 0 and cell.fill.fill_type is None:
+                    cell.fill = ZEBRA_FILL
+
+
+def mark_subtotal_row(ws, row: int) -> None:
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row, col)
+        cell.font = BOLD_FONT
+        cell.fill = SUBTOTAL_FILL
+        cell.border = THIN_BORDER
 
 
 def average(values: list[float]) -> float:
@@ -422,8 +472,52 @@ def write_audit(
     criterio: str,
     fonte: str,
     observacao: str = "",
+    *,
+    referencias: str = "",
+    formato: str = "money",
 ) -> None:
-    audit_rows.append([sheet, cell, bloco, tipo, year, branch, label, value, criterio, fonte, observacao])
+    audit_rows.append([
+        sheet,
+        cell,
+        bloco,
+        tipo,
+        year,
+        branch,
+        label,
+        value,
+        criterio,
+        fonte,
+        referencias,
+        observacao,
+        formato,
+    ])
+
+
+def dre_source(year: int, year_ends: dict[int, str], branch: BranchInfo | None = None) -> str:
+    filial = f"&filialId={branch.id}" if branch else ""
+    return (
+        "/api/v1/executivo/contabilidade/sintetico?"
+        f"dataInicio={year}-01-01&dataFim={year_ends[year]}{filial}"
+        f"&excluirEncerramento=true&historicoEncerramento={ENCERRAMENTO_HISTORICO}"
+    )
+
+
+def sum_dre_from_branches(
+    years: list[int],
+    branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
+    branches: list[BranchInfo],
+) -> dict[int, dict[str, float]]:
+    keys = [line.key for line in DRE_LINES]
+    result: dict[int, dict[str, float]] = {}
+    for year in years:
+        result[year] = {
+            key: sum(
+                branch_dre_by_year.get(year, {}).get(branch.id, {}).get(key, 0.0)
+                for branch in branches
+            )
+            for key in keys
+        }
+    return result
 
 
 # --------------------------------------------------------------------------- #
@@ -578,19 +672,51 @@ def build_dre_exercicio(
         for col, (kind, _y) in enumerate(col_spec, start=data_start_col):
             set_number_format(ws.cell(r, col), "money" if kind == "val" else "percent")
         if line.bold:
-            for col in range(1, ws.max_column + 1):
-                ws.cell(r, col).font = BOLD_FONT
-                ws.cell(r, col).fill = SUBTOTAL_FILL
+            mark_subtotal_row(ws, r)
         for col, (kind, y) in enumerate(col_spec, start=data_start_col):
-            if kind != "val":
-                continue
-            write_audit(
-                audit_rows, ws.title, f"{get_column_letter(col)}{r}", "DRE por exercicio", "Valor",
-                y, "Consolidado", line.label, dre_by_year[y].get(key, 0.0),
-                dre_line_formula_text(line),
-                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={y}-01-01&dataFim={year_ends[y]}&excluirEncerramento=true",
-                dre_line_components_text(line, dre_by_year[y]),
-            )
+            cell_ref = f"{get_column_letter(col)}{r}"
+            if kind == "val":
+                write_audit(
+                    audit_rows, ws.title, cell_ref, "DRE por exercicio", "Valor",
+                    y, "Consolidado", line.label, dre_by_year[y].get(key, 0.0),
+                    "Consolidado DRE = soma das filiais exibidas; " + dre_line_formula_text(line),
+                    "Soma das chamadas por filial: " + dre_source(y, year_ends),
+                    "Valor apresentado na aba DRE por Exercício.",
+                    referencias=dre_line_components_text(line, dre_by_year[y]),
+                    formato="money",
+                )
+            elif kind == "av":
+                av_value = av_for_dre_key(key, dre_by_year[y])
+                base_key = line.percent_base if line.percent_base else "receita_liquida"
+                write_audit(
+                    audit_rows, ws.title, cell_ref, "DRE por exercicio", "Analise vertical",
+                    y, "Consolidado", line.label, av_value,
+                    "A.V. = valor da linha / base de comparacao; fica em branco nas linhas de detalhe.",
+                    "Valores calculados da propria DRE anual.",
+                    "Linha sem A.V. no layout." if av_value is None else "Percentual apresentado na aba DRE por Exercício.",
+                    referencias=(
+                        f"Numerador={line.label}={format_formula_value(dre_by_year[y].get(key, 0.0))}; "
+                        f"Base={dre_label(base_key)}={format_formula_value(dre_by_year[y].get(base_key, 0.0))}"
+                    ),
+                    formato="percent" if av_value is not None else "blank",
+                )
+            elif kind == "ah":
+                years_desc_index = years_desc.index(y)
+                previous_year = years_desc[years_desc_index + 1]
+                cur = dre_by_year[y].get(key, 0.0)
+                prev = dre_by_year[previous_year].get(key, 0.0)
+                write_audit(
+                    audit_rows, ws.title, cell_ref, "DRE por exercicio", "Analise horizontal",
+                    y, "Consolidado", line.label, safe_ratio(cur, prev) - 1 if prev else None,
+                    "A.H. = (ano atual / ano anterior) - 1; fica em branco quando nao ha base anterior.",
+                    "Valores calculados da propria DRE anual.",
+                    "Comparativo entre exercicios da mesma linha.",
+                    referencias=(
+                        f"{y}={format_formula_value(cur)}; "
+                        f"{previous_year}={format_formula_value(prev)}"
+                    ),
+                    formato="percent",
+                )
 
     ws.freeze_panes = "D2"
     ws.auto_filter.ref = ws.dimensions
@@ -599,6 +725,8 @@ def build_dre_exercicio(
     ws.column_dimensions["C"].width = 48
     for col, (kind, _y) in enumerate(col_spec, start=data_start_col):
         ws.column_dimensions[get_column_letter(col)].width = 16 if kind == "val" else 13
+    apply_modern_layout(ws, header_rows=(1,), data_start_row=2)
+    ws.sheet_properties.tabColor = "0B5D1E"
 
 
 def build_dre_comparativa_por_ano(
@@ -625,7 +753,7 @@ def build_dre_comparativa_por_ano(
     ws = wb.create_sheet("DRE Comparativa por Ano")
     headers = ["Ano", ".", ".", "Contas Contábeis", "Consolidado", "(%) A.V."]
     for branch in branches:
-        headers += [branch.nome, "(%) no Consolidado"]
+        headers += [branch_report_name(branch), "(%) no Consolidado"]
     ws.append(headers)
     style_header(ws)
     branch_start_col = 7
@@ -659,15 +787,56 @@ def build_dre_comparativa_por_ano(
                 set_number_format(ws.cell(r, col + 1), "percent")
                 col += 2
             if line.bold:
-                for c in range(1, ws.max_column + 1):
-                    ws.cell(r, c).font = BOLD_FONT
-                    ws.cell(r, c).fill = SUBTOTAL_FILL
+                mark_subtotal_row(ws, r)
             write_audit(
-                audit_rows, ws.title, f"A{r}", "DRE comparativa", "Valor", year, "Consolidado",
-                line.label, value, dre_line_formula_text(line),
-                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={year}-01-01&dataFim={year_ends[year]}&excluirEncerramento=true",
-                "Filtre a coluna Ano para escolher o exercício.",
+                audit_rows, ws.title, f"E{r}", "DRE comparativa", "Valor", year, "Consolidado",
+                line.label, value, "Consolidado DRE = soma das filiais exibidas; " + dre_line_formula_text(line),
+                "Soma das chamadas por filial: " + dre_source(year, year_ends),
+                "Filtre a coluna Ano para escolher o exercicio.",
+                referencias=dre_line_components_text(line, consolidated),
+                formato="money",
             )
+            base_key = line.percent_base if line.percent_base else "receita_liquida"
+            av_value = av_for_dre_key(key, consolidated)
+            write_audit(
+                audit_rows, ws.title, f"F{r}", "DRE comparativa", "Analise vertical", year, "Consolidado",
+                line.label, av_value,
+                "A.V. = valor consolidado / base de comparacao; fica em branco nas linhas de detalhe.",
+                "Valores calculados da propria DRE comparativa.",
+                "Linha sem A.V. no layout." if av_value is None else "Percentual apresentado na aba DRE Comparativa por Ano.",
+                referencias=(
+                    f"Numerador={line.label}={format_formula_value(value)}; "
+                    f"Base={dre_label(base_key)}={format_formula_value(consolidated.get(base_key, 0.0))}"
+                ),
+                formato="percent" if av_value is not None else "blank",
+            )
+            col = branch_start_col
+            for branch in branches:
+                branch_values = branch_dre_by_year[year].get(branch.id, {})
+                branch_value = branch_values.get(key, 0.0)
+                share = safe_ratio(branch_value, value) if is_av_line else None
+                branch_name = branch_report_name(branch)
+                write_audit(
+                    audit_rows, ws.title, f"{get_column_letter(col)}{r}", "DRE comparativa", "Valor",
+                    year, branch_name, line.label, branch_value, dre_line_formula_text(line),
+                    dre_source(year, year_ends, branch),
+                    "Valor da filial usado na soma do consolidado.",
+                    referencias=dre_line_components_text(line, branch_values),
+                    formato="money",
+                )
+                write_audit(
+                    audit_rows, ws.title, f"{get_column_letter(col + 1)}{r}", "DRE comparativa",
+                    "% no consolidado", year, branch_name, line.label, share,
+                    "% filial = valor da filial / consolidado da mesma linha; fica em branco nas linhas de detalhe.",
+                    "Valores calculados da DRE por filial e do consolidado por soma.",
+                    "Linha sem percentual no layout." if share is None else "Participacao da filial na linha consolidada.",
+                    referencias=(
+                        f"Filial={format_formula_value(branch_value)}; "
+                        f"Consolidado={format_formula_value(value)}"
+                    ),
+                    formato="percent" if share is not None else "blank",
+                )
+                col += 2
 
     ws.freeze_panes = "E2"
     ws.auto_filter.ref = ws.dimensions
@@ -682,6 +851,8 @@ def build_dre_comparativa_por_ano(
         ws.column_dimensions[get_column_letter(col)].width = 16
         ws.column_dimensions[get_column_letter(col + 1)].width = 14
         col += 2
+    apply_modern_layout(ws, header_rows=(1,), data_start_row=2)
+    ws.sheet_properties.tabColor = "1D6F42"
 
 
 INDICATOR_ROWS = [
@@ -710,6 +881,7 @@ def build_bp(
 ) -> None:
     ws = wb.create_sheet("Balanço Patrimonial")
     ws.append([inactive_text])
+    ws.cell(1, 1).font = MUTED_FONT
     ws.append([])
     headers = ["Conta", "Nomenclatura"] + [str(y) for y in years]
     ws.append(headers)
@@ -733,25 +905,43 @@ def build_bp(
                 "",
             )
         if line.bold:
-            for col in range(1, ws.max_column + 1):
-                ws.cell(r, col).font = BOLD_FONT
-                ws.cell(r, col).fill = SUBTOTAL_FILL
+            mark_subtotal_row(ws, r)
 
     # Bloco Ativo / Passivo / Ativo - Passivo por ano (igual ao modelo)
     ws.append([])
     for account, label in (("1", "Ativo"), ("2", "Passivo")):
         ws.append([account, label] + [bp_value(bp_accounts_by_year[y], account) for y in years])
         r = ws.max_row
-        for idx in range(len(years)):
+        for idx, year in enumerate(years):
             set_number_format(ws.cell(r, 3 + idx), "money")
-        for col in range(1, ws.max_column + 1):
-            ws.cell(r, col).font = BOLD_FONT
+            write_audit(
+                audit_rows, ws.title, f"{get_column_letter(3 + idx)}{r}", "Balanço Patrimonial",
+                "Resumo BP", year, "Consolidado", label, bp_value(bp_accounts_by_year[year], account),
+                "Resumo por grupo do BP; Passivo/PL com sinal invertido para apresentacao positiva.",
+                f"/api/v1/executivo/contabilidade/sintetico?dataInicio={DATA_INICIO_PLANO_ATUAL}&dataFim={year_ends[year]}",
+                "Bloco de conferencia Ativo/Passivo.",
+                referencias=f"Conta={account}",
+                formato="money",
+            )
+        mark_subtotal_row(ws, r)
     ws.append(["", "Ativo - Passivo"] + [
         bp_value(bp_accounts_by_year[y], "1") - bp_value(bp_accounts_by_year[y], "2") for y in years
     ])
     r = ws.max_row
-    for idx in range(len(years)):
+    for idx, year in enumerate(years):
         set_number_format(ws.cell(r, 3 + idx), "money")
+        ativo = bp_value(bp_accounts_by_year[year], "1")
+        passivo = bp_value(bp_accounts_by_year[year], "2")
+        write_audit(
+            audit_rows, ws.title, f"{get_column_letter(3 + idx)}{r}", "Balanço Patrimonial",
+            "Conferencia BP", year, "Consolidado", "Ativo - Passivo", ativo - passivo,
+            "Ativo - Passivo; usado para conferir fechamento do BP.",
+            "Valores calculados das linhas do proprio BP.",
+            "Quanto mais proximo de zero, melhor a conciliacao do balanco.",
+            referencias=f"Ativo={format_formula_value(ativo)}; Passivo={format_formula_value(passivo)}",
+            formato="money",
+        )
+    mark_subtotal_row(ws, r)
 
     # Indicadores
     ws.append([])
@@ -766,7 +956,9 @@ def build_bp(
             write_audit(
                 audit_rows, ws.title, f"{get_column_letter(3 + idx)}{r}", "Balanço Patrimonial", "Indicador",
                 year, "Consolidado", label, indicators_by_year[year].get(key, 0.0), criterio,
-                "DRE + BP calculados pela ActionAPI", "",
+                "DRE consolidada por soma das filiais + BP calculado pela ActionAPI", "",
+                referencias="EBITDA e resultados referenciam a DRE consolidada do relatorio." if "EBITDA" in label or key in {"roa", "roe"} else "",
+                formato=kind,
             )
 
     ws.freeze_panes = f"C{header_row + 1}"
@@ -775,6 +967,8 @@ def build_bp(
     ws.column_dimensions["B"].width = 60
     for idx in range(len(years)):
         ws.column_dimensions[get_column_letter(3 + idx)].width = 18
+    apply_modern_layout(ws, header_rows=(header_row,), data_start_row=header_row + 1)
+    ws.sheet_properties.tabColor = "7030A0"
 
 
 def build_planejamento(
@@ -785,6 +979,7 @@ def build_planejamento(
     branches: list[BranchInfo],
     audit_rows: list[list[Any]],
     cutoff_iso: str | None,
+    year_ends: dict[int, str],
 ) -> None:
     """Aba Planejamento.
 
@@ -836,10 +1031,10 @@ def build_planejamento(
     ws.merge_cells(start_row=1, start_column=4, end_row=1, end_column=7)
     branch_col = 8
     for branch in branches:
-        ws.cell(1, branch_col, branch.nome)
+        ws.cell(1, branch_col, branch_report_name(branch))
         ws.merge_cells(start_row=1, start_column=branch_col, end_row=1, end_column=branch_col + 4)
         branch_col += 5
-    style_header(ws, row=1)
+    style_header(ws, row=1, fill=GROUP_HEADER_FILL)
     for col in range(1, branch_col):
         ws.cell(1, col).alignment = Alignment(horizontal="center", vertical="center")
 
@@ -851,12 +1046,13 @@ def build_planejamento(
         f"{plan_year} (Planejado)",
     ]
     for branch in branches:
+        branch_name = branch_report_name(branch)
         headers += [
-            f"{branch.nome} Média",
-            f"{branch.nome} {last_closed_year}",
-            f"{branch.nome} {partial_label}",
-            f"{branch.nome} {plan_year} (Planejado)",
-            f"{branch.nome} % Consol.",
+            f"{branch_name} Média",
+            f"{branch_name} {last_closed_year}",
+            f"{branch_name} {partial_label}",
+            f"{branch_name} {plan_year} (Planejado)",
+            f"{branch_name} % Consol.",
         ]
     ws.append(headers)
     style_header(ws, row=2)
@@ -901,21 +1097,120 @@ def build_planejamento(
             set_number_format(ws.cell(r, col + 4), "percent")  # % no consolidado
             col += 5
         if line.bold:
-            for c in range(1, ws.max_column + 1):
-                ws.cell(r, c).font = BOLD_FONT
-                ws.cell(r, c).fill = SUBTOTAL_FILL
-        write_audit(
-            audit_rows, ws.title, f"D{r}", "Planejamento", "Último exercício fechado", last_closed_year, "Consolidado",
-            line.label, consolidated_closed,
-            (
-                f"Média = média simples dos exercícios fechados ({period_label}); "
-                f"coluna '{partial_label}' é o exercício corrente parcial, até {cutoff_iso}; planejado fica em branco."
-                if is_partial else
-                f"Média = média simples dos exercícios fechados ({period_label}); "
-                "coluna parcial sem dados (nenhum --data-fim informado); planejado fica em branco."
-            ),
-            "/api/v1/executivo/contabilidade/sintetico", dre_line_formula_text(line),
+            mark_subtotal_row(ws, r)
+        media_refs = "; ".join(
+            f"{year}={format_formula_value(dre_by_year[year].get(key, 0.0))}" for year in closed_years
         )
+        partial_note = (
+            f"Exercicio corrente parcial ate {cutoff_iso}."
+            if is_partial else
+            "Coluna parcial sem dados porque nenhum --data-fim foi informado."
+        )
+        write_audit(
+            audit_rows, ws.title, f"D{r}", "Planejamento", "Media", period_label, "Consolidado",
+            line.label, consolidated_media,
+            f"Media = media simples dos exercicios fechados ({period_label}); consolidado = soma das filiais exibidas.",
+            "DRE consolidada por soma das filiais.",
+            "Valor apresentado na coluna de media do Planejamento.",
+            referencias=media_refs,
+            formato="money",
+        )
+        write_audit(
+            audit_rows, ws.title, f"E{r}", "Planejamento", "Ultimo exercicio fechado", last_closed_year, "Consolidado",
+            line.label, consolidated_closed,
+            "Valor do ultimo exercicio fechado; consolidado = soma das filiais exibidas.",
+            "DRE consolidada por soma das filiais.",
+            "Valor apresentado na coluna do ultimo exercicio fechado.",
+            referencias=dre_line_components_text(line, dre_by_year[last_closed_year]),
+            formato="money",
+        )
+        write_audit(
+            audit_rows, ws.title, f"F{r}", "Planejamento", "Parcial", last_year if is_partial else "",
+            "Consolidado", line.label, consolidated_partial,
+            "Valor do exercicio parcial quando --data-fim e informado; caso contrario fica em branco.",
+            "DRE consolidada por soma das filiais.",
+            partial_note,
+            referencias=dre_line_components_text(line, dre_by_year[last_year]) if is_partial else "",
+            formato="money" if is_partial else "blank",
+        )
+        write_audit(
+            audit_rows, ws.title, f"G{r}", "Planejamento", "Planejado", plan_year, "Consolidado",
+            line.label, None,
+            "Celula reservada para planejamento manual; o script nao preenche valor.",
+            "Sem fonte automatica.",
+            "Celula intencionalmente em branco.",
+            referencias="",
+            formato="blank",
+        )
+
+        col = 8
+        for branch in branches:
+            branch_name = branch_report_name(branch)
+            branch_media_values = [
+                branch_dre_by_year.get(y, {}).get(branch.id, {}).get(key, 0.0) for y in closed_years
+            ]
+            branch_media = average(branch_media_values)
+            branch_closed = branch_dre_by_year.get(last_closed_year, {}).get(branch.id, {}).get(key, 0.0)
+            branch_partial = (
+                branch_dre_by_year.get(last_year, {}).get(branch.id, {}).get(key, 0.0) if is_partial else None
+            )
+            branch_share = safe_ratio(branch_closed, consolidated_closed) if is_av_line else None
+            branch_media_refs = "; ".join(
+                f"{year}={format_formula_value(branch_dre_by_year.get(year, {}).get(branch.id, {}).get(key, 0.0))}"
+                for year in closed_years
+            )
+            write_audit(
+                audit_rows, ws.title, f"{get_column_letter(col)}{r}", "Planejamento", "Media",
+                period_label, branch_name, line.label, branch_media,
+                f"Media da filial = media simples dos exercicios fechados ({period_label}).",
+                "DRE por filial calculada pela ActionAPI.",
+                "Valor apresentado na coluna de media da filial.",
+                referencias=branch_media_refs,
+                formato="money",
+            )
+            write_audit(
+                audit_rows, ws.title, f"{get_column_letter(col + 1)}{r}", "Planejamento",
+                "Ultimo exercicio fechado", last_closed_year, branch_name, line.label, branch_closed,
+                "Valor da filial no ultimo exercicio fechado.",
+                dre_source(last_closed_year, year_ends, branch),
+                "Este valor compoe a soma do consolidado.",
+                referencias=dre_line_components_text(line, branch_dre_by_year.get(last_closed_year, {}).get(branch.id, {})),
+                formato="money",
+            )
+            write_audit(
+                audit_rows, ws.title, f"{get_column_letter(col + 2)}{r}", "Planejamento", "Parcial",
+                last_year if is_partial else "", branch_name, line.label, branch_partial,
+                "Valor parcial da filial quando --data-fim e informado; caso contrario fica em branco.",
+                dre_source(last_year, year_ends, branch) if is_partial else "Sem fonte automatica.",
+                partial_note,
+                referencias=(
+                    dre_line_components_text(line, branch_dre_by_year.get(last_year, {}).get(branch.id, {}))
+                    if is_partial else ""
+                ),
+                formato="money" if is_partial else "blank",
+            )
+            write_audit(
+                audit_rows, ws.title, f"{get_column_letter(col + 3)}{r}", "Planejamento", "Planejado",
+                plan_year, branch_name, line.label, None,
+                "Celula reservada para planejamento manual; o script nao preenche valor.",
+                "Sem fonte automatica.",
+                "Celula intencionalmente em branco.",
+                referencias="",
+                formato="blank",
+            )
+            write_audit(
+                audit_rows, ws.title, f"{get_column_letter(col + 4)}{r}", "Planejamento",
+                "% Consol.", last_closed_year, branch_name, line.label, branch_share,
+                "% Consol. = filial no ultimo exercicio fechado / consolidado do ultimo exercicio fechado; fica em branco nas linhas de detalhe.",
+                "Valores calculados da DRE por filial e do consolidado por soma.",
+                "Linha sem percentual no layout." if branch_share is None else "Participacao da filial no consolidado fechado.",
+                referencias=(
+                    f"Filial={format_formula_value(branch_closed)}; "
+                    f"Consolidado={format_formula_value(consolidated_closed)}"
+                ),
+                formato="percent" if branch_share is not None else "blank",
+            )
+            col += 5
 
     ws.freeze_panes = "D3"
     ws.auto_filter.ref = f"A2:{get_column_letter(ws.max_column)}{ws.max_row}"
@@ -924,6 +1219,8 @@ def build_planejamento(
     ws.column_dimensions["C"].width = 48
     for col in range(4, ws.max_column + 1):
         ws.column_dimensions[get_column_letter(col)].width = 16
+    apply_modern_layout(ws, header_rows=(1, 2), data_start_row=3)
+    ws.sheet_properties.tabColor = "2F75B5"
 
 
 def build_balancete_geral(
@@ -935,6 +1232,7 @@ def build_balancete_geral(
     branch_prior_before_first: dict[str, dict[str, dict[str, Any]]],
     generated_at: str,
     audit_rows: list[list[Any]],
+    year_ends: dict[int, str],
 ) -> None:
     ws = wb.create_sheet("Balancete Geral")
     headers = [
@@ -952,7 +1250,7 @@ def build_balancete_geral(
         for branch_id in branch_accum_by_year.get(year, {}):
             all_accounts.update(branch_accum_by_year[year][branch_id])
 
-    sorted_branches = sorted(branches, key=lambda b: branch_display_name(b))
+    sorted_branches = sorted(branches, key=branch_sort_key)
     min_year = min(years)
 
     for branch in sorted_branches:
@@ -1026,13 +1324,107 @@ def build_balancete_geral(
     }
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
+    if ws.max_row >= 2:
+        balancete_audit_specs = [
+            ("I", "Saldo anterior", "Saldo acumulado anterior; para contas de resultado fica zero."),
+            ("J", "Debito", "Debitos do movimento do exercicio."),
+            ("K", "Credito", "Creditos do movimento do exercicio."),
+            ("L", "Saldo do mes", "Saldo do movimento: Ativo/Despesa = D-C; Passivo/Receita = sinal invertido para apresentacao."),
+            ("M", "Saldo atual", "Saldo acumulado atual para BP; para resultado, repete o saldo do movimento."),
+        ]
+        for col_letter, tipo, criterio in balancete_audit_specs:
+            write_audit(
+                audit_rows,
+                ws.title,
+                f"{col_letter}2:{col_letter}{ws.max_row}",
+                "Balancete Geral",
+                tipo,
+                "Todos",
+                "Todas",
+                f"Coluna {tipo}",
+                None,
+                criterio,
+                "/api/v1/executivo/contabilidade/sintetico por filial e exercicio.",
+                "Mapeamento aplicado a todas as linhas preenchidas da coluna.",
+                referencias="Chaves da propria linha: Loja, Exercicio e Conta Contabil.",
+                formato="blank",
+            )
+    apply_modern_layout(ws, header_rows=(1,), data_start_row=2, max_style_rows=5000)
+    ws.sheet_properties.tabColor = "595959"
+
+
+def validate_internal_consistency(
+    years: list[int],
+    report_dre_by_year: dict[int, dict[str, float]],
+    branch_dre_by_year: dict[int, dict[str, dict[str, float]]],
+    branches: list[BranchInfo],
+    cutoff_iso: str | None,
+) -> None:
+    """Valida a lógica interna sem criar aba auxiliar no relatório."""
+    tolerance = 0.01
+
+    def ensure_match(bloco: str, period: Any, key: str, used: float, branch_sum: float) -> None:
+        diff_used = used - branch_sum
+        if abs(diff_used) > tolerance:
+            raise RuntimeError(
+                "Inconsistencia interna no DRE Controller: "
+                f"{bloco} {period} / {dre_label(key)}. "
+                f"Consolidado={format_formula_value(used)}; "
+                f"soma filiais={format_formula_value(branch_sum)}; "
+                f"diferenca={format_formula_value(diff_used)}."
+            )
+
+    for year in years:
+        for key in VISIBLE_DRE_KEYS:
+            used = report_dre_by_year[year].get(key, 0.0)
+            branch_sum = sum(
+                branch_dre_by_year.get(year, {}).get(branch.id, {}).get(key, 0.0)
+                for branch in branches
+            )
+            ensure_match("DRE ano a ano", year, key, used, branch_sum)
+
+    last_year = max(years)
+    is_partial = bool(cutoff_iso)
+    closed_years = [year for year in years if not (is_partial and year == last_year)]
+    if not closed_years:
+        closed_years = [last_year]
+    last_closed_year = max(closed_years)
+    period_label = (
+        f"{min(closed_years)}-{max(closed_years)}"
+        if len(closed_years) > 1
+        else str(closed_years[0])
+    )
+
+    for key in VISIBLE_DRE_KEYS:
+        used = average([report_dre_by_year[year].get(key, 0.0) for year in closed_years])
+        branch_sum = sum(
+            average([branch_dre_by_year.get(year, {}).get(branch.id, {}).get(key, 0.0) for year in closed_years])
+            for branch in branches
+        )
+        ensure_match("Planejamento - Media", period_label, key, used, branch_sum)
+
+        used_closed = report_dre_by_year[last_closed_year].get(key, 0.0)
+        branch_sum_closed = sum(
+            branch_dre_by_year.get(last_closed_year, {}).get(branch.id, {}).get(key, 0.0)
+            for branch in branches
+        )
+        ensure_match("Planejamento - Ultimo fechado", last_closed_year, key, used_closed, branch_sum_closed)
+
+        if is_partial:
+            used_partial = report_dre_by_year[last_year].get(key, 0.0)
+            branch_sum_partial = sum(
+                branch_dre_by_year.get(last_year, {}).get(branch.id, {}).get(key, 0.0)
+                for branch in branches
+            )
+            ensure_match("Planejamento - Parcial", cutoff_iso, key, used_partial, branch_sum_partial)
 
 
 def build_mapa_calculo(wb: Workbook, audit_rows: list[list[Any]], generated_at: str) -> None:
     ws = wb.create_sheet("Mapa de Cálculo")
     headers = [
         "Aba", "Célula", "Bloco", "Tipo de valor", "Ano", "Filial",
-        "Linha/Indicador", "Valor", "Fórmula/Critério", "Fonte", "Observação",
+        "Linha/Indicador", "Valor", "Fórmula/Critério", "Fonte",
+        "Referências/Dependências", "Observação", "Formato",
     ]
     ws.append(headers)
     style_header(ws)
@@ -1040,20 +1432,22 @@ def build_mapa_calculo(wb: Workbook, audit_rows: list[list[Any]], generated_at: 
     for row in audit_rows:
         ws.append(row)
         value_cell = ws.cell(ws.max_row, 8)
-        tipo = str(ws.cell(ws.max_row, 4).value).lower()
+        formato = str(ws.cell(ws.max_row, 13).value or "money").lower()
         if isinstance(value_cell.value, (int, float)):
-            set_number_format(value_cell, "percent" if ("vertical" in tipo or "horizontal" in tipo or "%" in tipo) else "money")
-        for col in (9, 10, 11):
+            set_number_format(value_cell, formato)
+        for col in (9, 10, 11, 12):
             ws.cell(ws.max_row, col).alignment = Alignment(wrap_text=True, vertical="top")
 
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = ws.dimensions
     widths = {
         "A": 26, "B": 12, "C": 22, "D": 22, "E": 10, "F": 16,
-        "G": 42, "H": 16, "I": 66, "J": 60, "K": 50,
+        "G": 42, "H": 16, "I": 66, "J": 60, "K": 60, "L": 50, "M": 12,
     }
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
+    apply_modern_layout(ws, header_rows=(1,), data_start_row=2, max_style_rows=5000)
+    ws.sheet_properties.tabColor = "C65911"
 
 
 # --------------------------------------------------------------------------- #
@@ -1122,16 +1516,23 @@ def generate_report(args: argparse.Namespace) -> Path:
         branch_accum_by_year,
         branch_prior_before_first,
     ) = fetch_all_data(args, years, balancete_branches, year_ends)
+    dre_by_year = sum_dre_from_branches(years, branch_dre_by_year, report_branches)
+    indicators_by_year = {
+        year: calculate_indicators(year, dre_by_year[year], bp_accounts_by_year[year])
+        for year in years
+    }
+    validate_internal_consistency(years, dre_by_year, branch_dre_by_year, report_branches, cutoff_iso)
+    print("[dre-controller] consolidado DRE recalculado pela soma das filiais exibidas", flush=True)
 
     # Ordem das abas igual ao modelo do controller (Planejamento, Balancete,
     # BP, Comparativa, Comparativa Exercício), com a Comparativa por Ano no lugar
     # da antiga SGA_DRE Comparativa. Mapa de Cálculo fica ao final.
     wb = Workbook()
     wb.remove(wb.active)
-    build_planejamento(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows, cutoff_iso)
+    build_planejamento(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows, cutoff_iso, year_ends)
     build_balancete_geral(
         wb, years, balancete_branches, branch_accounts_by_year, branch_accum_by_year,
-        branch_prior_before_first, generated_at, audit_rows,
+        branch_prior_before_first, generated_at, audit_rows, year_ends,
     )
     build_bp(wb, years, bp_accounts_by_year, indicators_by_year, inactive_text, audit_rows, year_ends)
     build_dre_comparativa_por_ano(wb, years, dre_by_year, branch_dre_by_year, report_branches, audit_rows, year_ends)
